@@ -5,6 +5,10 @@ import { RepoSyncer } from './repo-syncer.mjs';
 import { GenModuleFiles, genIndex } from './gen-angular-modules.mjs';
 
 const aiApi = new OpenAIApiWrapper();
+
+/**
+ * 基本クラス
+ */
 class BaseStep {
 
   /** default parameters */
@@ -773,17 +777,13 @@ class Step016_AngularTypescript extends BaseStep {
       .replace('$event.target.value', `$event.target['value']`)
       .replace(/\.controls\.([a-zA-Z0-9_$]*)\./g, `.controls['$1']?.`)
       .replace(/(\.controls[a-zA-Z0-9_$\[\]"']*\.errors)\.([a-zA-Z0-9_$]*)/g, `$1['$2']`)
-      // fine TODO component.componentの揺れを直す。-> 一応直ったと思う。
-      // fine TODO outputとイベントの二重定義 -> 一応html作るときに@Outputは消すようにしてる。
       // TODO @InputとVariablesの二重定義
       // TODO categoryサービスちゃんと呼ばれない問題が起きてる。->丁寧に書くと解決する。
-      // TODO CommonDialog系はあった方が良さそう。Success/Error/Message/Confirm
-      // fine TODO enum対応した方がいい。-> 一応対応したと思う。
-      // fine TODO form.controls['name'].valueの対応はtsにも掛ける。-> 一応対応したと思う。
+      // TODO CommonDialog系はあった方が良さそう。Success/Error/Message/Confirm。（GTP-4だとそんなことは無かった。）
       // TODO 複数コンポーネントのファイルもあるので、モジュール作るときにパースしないとダメかも。
-      // TODO 組み合わせ（customerとか）が苦手
+      // TODO 組み合わせが苦手。二つのモデルを組み合わせて、一つのモデルを作るとか。
       // TODO serviceのDateはstringになってるので、Dateにする。（結構大変？）
-      // TODO グラフは結構変。
+      // TODO グラフは結構変。ライブラリとバージョンを指定した方がよいかも。
       // TODO dialogの渡し方、オブジェクトそのものを渡しているのにidで受け取ってると勘違いしてる。
       .trim();
     fs.writeFileSync(`./${this.dire}/${this.nameKebab0}.component.ts`, result);
@@ -808,101 +808,67 @@ async function main() {
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  // obj = new Step000_RequirementsToComponentList();
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new Step001_componentList_to_angularComponentList();
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new Step002_angularComponentList_to_angularComponentJson();
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new Step003_requirements_to_systemOverview();
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new Step004_makeAngularService();
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new Step005_makeAngularModel();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step000_RequirementsToComponentList();
+  obj.initPrompt();
+  await obj.run();
+  obj = new Step001_componentList_to_angularComponentList();
+  obj.initPrompt();
+  await obj.run();
+  obj = new Step002_angularComponentList_to_angularComponentJson();
+  obj.initPrompt();
+  await obj.run();
+  obj = new Step003_requirements_to_systemOverview();
+  obj.initPrompt();
+  await obj.run();
+  obj = new Step004_makeAngularService();
+  obj.initPrompt();
+  await obj.run();
+  obj = new Step005_makeAngularModel();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step006_makeAngularModelSource();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step006_makeAngularModelSource();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step011_AngularModelList_to_Json();
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new Step007_makeApiList();
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new Step008_makeAngularServiceJson();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step011_AngularModelList_to_Json();
+  obj.initPrompt();
+  await obj.run();
+  obj = new Step007_makeApiList();
+  obj.initPrompt();
+  await obj.run();
+  obj = new Step008_makeAngularServiceJson();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new MultiRunner(Step009_makeAngularServiceSrouce.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new MultiRunner(Step009_makeAngularServiceSrouce.genSteps());
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step010_ApiListJson();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step010_ApiListJson();
+  obj.initPrompt();
+  await obj.run();
   obj = new MultiRunner(Step010_createJSONdata.genSteps());
   obj.initPrompt();
   await obj.run();
-  // obj = new Step010_componentList_to_Json();
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new MultiRunner(Step012_makeScreenSpec.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new MultiRunner(Step013_makeScreenSpecJSON.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new MultiRunner(Step014_makeScreenHtml.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new MultiRunner(Step015_ScreenProp.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-  // obj = new MultiRunner(Step016_AngularTypescript.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-  // new GenModuleFiles().exec();
+  obj = new Step010_componentList_to_Json();
+  obj.initPrompt();
+  await obj.run();
+  obj = new MultiRunner(Step012_makeScreenSpec.genSteps());
+  obj.initPrompt();
+  await obj.run();
+  obj = new MultiRunner(Step013_makeScreenSpecJSON.genSteps());
+  obj.initPrompt();
+  await obj.run();
+  obj = new MultiRunner(Step014_makeScreenHtml.genSteps());
+  obj.initPrompt();
+  await obj.run();
+  obj = new MultiRunner(Step015_ScreenProp.genSteps());
+  obj.initPrompt();
+  await obj.run();
+  obj = new MultiRunner(Step016_AngularTypescript.genSteps());
+  obj.initPrompt();
+  await obj.run();
+  new GenModuleFiles().exec();
 }
 main();
-// new GenModuleFiles().exec();
-
-
-
-//---------------------------------画面一覧作成時のおまじない？
-// - AngularMaterialで作成する前提でUIコンポーネント分割を考えること。
-// - メインページとダイアログ画面を分けて考えること。
-// - ヘッダー、フッター、メニュー、ダイアログを有効利用すること。
-// - 編集画面と追加画面はワンセットにすべき。
-// - 複数パターンの設計が考えられる場合は、画面分割が少なくなるパターンを選択すること。
-// ステップバイステップで考えて、1つの表形式にまとめてください。
-// 列は「部品名」、「分類」、「利用サービス.メソッド」としてください。列の定義は以下の通りです。
-// - 部品名：Angularのコンポーネント名
-// - 分類：ルーティング定義を持つものをpage、ダイアログで利用するものをdialog、それ以外をpartとしてください。
-// - 利用サービス.メソッド：利用サービス.メソッド
-// - 子コンポーネント：このコンポーネントの中で使うコンポーネント
-// - input：Angularの@Inputで使えるプロパティ
-// - output：Angularの@Outputで使えるプロパティ
-
-
-/**
- * As a software engineer, I am here to help you with your project. To get started, please provide me with the following information:
- * 1. Project Overview: A brief description of the project, its purpose, and its goals.
- * 2. Target Audience: Who will be using the software? What are their needs and expectations?
- * 3. Key Features: What are the main features and functionalities that the software should have?
- * 4. Technical Requirements: Are there any specific technologies, programming languages, or platforms that the software should be built on?
- * 5. Timeline: What is the expected timeline for the project, including milestones and deadlines?
- * 6. Budget: What is the estimated budget for the project?
- * 7. Constraints and Limitations: Are there any constraints or limitations that should be considered during the development process?
- * 8. Integration and Compatibility: Does the software need to integrate with any existing systems or be compatible with specific devices or platforms?
- * 9. Security and Privacy: What are the security and privacy requirements for the software?
- * 10. Maintenance and Support: What are the expectations for ongoing maintenance and support after the software is completed?
- * Once you provide this information, I can help you develop a plan for your software project and ensure that it meets your requirements and expectations.
- */
