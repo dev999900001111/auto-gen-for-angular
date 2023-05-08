@@ -55,9 +55,6 @@ class BaseStep {
     return result;
   }
 }
-String.prototype.trimEachLine = function () {
-  return this.split('\n').map(line => line.trim()).join('\n').trim();
-}
 
 class Step000_RequirementsToComponentList extends BaseStep {
   model = 'gpt-4';
@@ -436,7 +433,7 @@ class Step011_AngularModelList_to_Json extends BaseStep {
 }
 
 class Step012_makeScreenSpec extends BaseStep {
-  model = 'gpt-4';
+  // model = 'gpt-4';
   constructor(index, componentName, ngUiJSON) {
     super();
     this.label = `Step012-${index}-makeScreenSpec-${componentName}`;
@@ -524,7 +521,7 @@ class Step013_makeScreenSpecJSON extends BaseStep {
 }
 
 class Step014_makeScreenHtml extends BaseStep {
-  model = 'gpt-4';
+  // model = 'gpt-4';
   dire;
   constructor(index, componentName, ngUiJSON, g,) {
     super();
@@ -648,7 +645,7 @@ class Step015_ScreenProp extends BaseStep {
 }
 
 class Step016_AngularTypescript extends BaseStep {
-  model = 'gpt-4';
+  // model = 'gpt-4';
   dire;
   nameKebab0;
   constructor(index, componentName, ngUiJSON, g,) {
