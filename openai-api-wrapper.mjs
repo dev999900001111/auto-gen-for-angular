@@ -38,11 +38,12 @@ export class OpenAIApiWrapper {
             // 30秒間隔でリトライ
             while (!completion) {
                 try {
-                    completion = await openai.createChatCompletion(args, {
-                        proxy: false,
-                        httpAgent: HttpsProxyAgent(process.env['http_proxy']),
-                        httpsAgent: HttpsProxyAgent(process.env['https_proxy'])
-                    }
+                    completion = await openai.createChatCompletion(args,
+                        // {
+                        //     proxy: false,
+                        //     httpAgent: HttpsProxyAgent(process.env['http_proxy']),
+                        //     httpsAgent: HttpsProxyAgent(process.env['https_proxy'])
+                        // }
                     );
                     console.log(`${new Date()} fine  ${label} retry: ${retry} takes ${Date.now() - bef}[ms]`);
                 } catch (error) {

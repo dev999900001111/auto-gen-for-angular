@@ -10,14 +10,14 @@ export class ApiInterceptor implements HttpInterceptor {
     intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
         let url = request.url.replace(/https?:\/\/[^/]+/g, '').replace('//', '/').replace(/^\//g, '');
         let method = request.method;
-        // console.log(\`\${method} \${url}\`);
+        // console.log(`${method} ${url}`);
         // 開発環境の場合はローカルのjsonファイルに向ける
         if (!environment.production) {
-            url = \`assets/mock/\${url}-\${request.method}.json\`;
+            url = `assets/mock/${url}-${request.method}.json`;
             method = 'GET';
         } else {
             // 本番環境の場合は環境変数で指定したAPIのエンドポイントに向ける
-            url = \`\${''}/\${url}\`;
+            url = `${''}/${url}`;
         }
         request = request.clone({ url, method });
         return next.handle(request);

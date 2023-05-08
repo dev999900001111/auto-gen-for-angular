@@ -2,10 +2,7 @@ import * as  fs from 'fs';
 import { Utils } from './utils.mjs';
 import { OpenAIApiWrapper } from './openai-api-wrapper.mjs';
 import { RepoSyncer } from './repo-syncer.mjs';
-import { GenModuleFiles } from './gen-angular-modules.mjs';
-
-console.log(Utils);
-console.log(OpenAIApiWrapper);
+import { GenModuleFiles, genIndex } from './gen-angular-modules.mjs';
 
 const aiApi = new OpenAIApiWrapper();
 class BaseStep {
@@ -28,8 +25,8 @@ class BaseStep {
   get resultPath() { return `./prompts/${this.label}.result.md`; }
 
   initPrompt() {
-    this.prompt = chapters.map(chapter => Utils.toMarkdown(chapter)).join('\n');
-    fs.writeFileSync(this.getPromptPath(), this.prompt);
+    this.prompt = this.chapters.map(chapter => Utils.toMarkdown(chapter)).join('\n');
+    fs.writeFileSync(this.promptPath, this.prompt);
     return this.preProcess(this.prompt);
   }
 
@@ -42,10 +39,10 @@ class BaseStep {
    * @returns 
    */
   async run() {
-    this.prompt = fs.readFileSync(this.getPromptPath(), 'utf-8');
+    this.prompt = fs.readFileSync(this.promptPath, 'utf-8');
     return aiApi.call(this.label, this.prompt, this.model, this.systemMessage).then((completion) => {
       const result = completion.data.choices[0].message.content;
-      fs.writeFileSync(this.getResultPath(), result);
+      fs.writeFileSync(this.resultPath, result);
       return this.postProcess(result);
     });
   }
@@ -63,7 +60,7 @@ class Step000_RequirementsToComponentList extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      { title: 'requirements', content: fs.readFileSync(`./000-requirements.md`, "utf-8") },
+      { title: 'requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           - As a UI/UX designer, design a list of screens based on a good understanding of the requirements definition.
@@ -81,7 +78,7 @@ class Step001_componentList_to_angularComponentList extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      { title: 'componentList', content: fs.readFileSync(new Step000_RequirementsToComponentList().resultPath, "utf-8") },
+      { title: 'componentList', content: fs.readFileSync(new Step000_RequirementsToComponentList().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           After familiarizing yourself with the instructions up to this point, list all the Angular components you will need for this system.
@@ -102,7 +99,7 @@ class Step002_angularComponentList_to_angularComponentJson extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      { title: 'angularComponentList', content: fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, "utf-8") },
+      { title: 'angularComponentList', content: fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           Please convert the above design of Angular components to the following format. 
@@ -118,7 +115,7 @@ class Step003_requirements_to_systemOverview extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      { title: 'requirements', content: fs.readFileSync(`./000-requirements.md`, "utf-8") },
+      { title: 'requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           Please familiarize yourself with the above requirements document and express it in simple sentences as a system overview.`)
@@ -132,9 +129,9 @@ class Step004_makeAngularService extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      // { title: 'System Overview', content: fs.readFileSync(new Step003_requirements_to_systemOverview().resultPath, "utf-8") },
-      { title: 'Component List', content: fs.readFileSync(new Step000_RequirementsToComponentList().resultPath, "utf-8") },
-      { title: 'Angular Component List', content: fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, "utf-8") },
+      // { title: 'System Overview', content: fs.readFileSync(new Step003_requirements_to_systemOverview().resultPath, 'utf-8') },
+      { title: 'Component List', content: fs.readFileSync(new Step000_RequirementsToComponentList().resultPath, 'utf-8') },
+      { title: 'Angular Component List', content: fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           After familiarizing yourself with the instructions up to this point, list all the Angular service classes you will need for this system.
@@ -151,9 +148,9 @@ class Step005_makeAngularModel extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      // { title: 'Component List', content: fs.readFileSync(new Step000_RequirementsToComponentList().resultPath, "utf-8") },
-      { title: 'Angular Component List', content: fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, "utf-8") },
-      { title: 'Angular Service List', content: fs.readFileSync(new Step004_makeAngularService().resultPath, "utf-8") },
+      // { title: 'Component List', content: fs.readFileSync(new Step000_RequirementsToComponentList().resultPath, 'utf-8') },
+      { title: 'Angular Component List', content: fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, 'utf-8') },
+      { title: 'Angular Service List', content: fs.readFileSync(new Step004_makeAngularService().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           Design the Model Classes based on the above design document.
@@ -169,7 +166,7 @@ class Step006_makeAngularModelSource extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      { title: 'Angular Model List', content: fs.readFileSync(new Step005_makeAngularModel().resultPath, "utf-8") },
+      { title: 'Angular Model List', content: fs.readFileSync(new Step005_makeAngularModel().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           Please create the above Model Classes as Typescript classes.
@@ -177,7 +174,7 @@ class Step006_makeAngularModelSource extends BaseStep {
           - If you are instructed to create an interface, convert it to a class and output it.
           \`\`\`typescript
           // ./src/app/models.ts
-          class  ClassName {
+          export class ClassName {
             constructor(
               public name: type = default,
             ){
@@ -186,14 +183,20 @@ class Step006_makeAngularModelSource extends BaseStep {
       },
     ];
   }
+  postProcess(text) {
+    text = text.replace(/```.*/g, '').trim();
+    fs.mkdirSync(`./src/app`, { recursive: true });
+    fs.writeFileSync(`./src/app/models.ts`, text);
+    return text;
+  }
 }
 class Step007_makeApiList extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      // { title: 'Angular Component List', content: fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, "utf-8") },
-      { title: 'Angular Service List', content: fs.readFileSync(new Step004_makeAngularService().resultPath, "utf-8") },
-      { title: 'Angular Model List', content: fs.readFileSync(new Step005_makeAngularModel().resultPath, "utf-8") },
+      // { title: 'Angular Component List', content: fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, 'utf-8') },
+      { title: 'Angular Service List', content: fs.readFileSync(new Step004_makeAngularService().resultPath, 'utf-8') },
+      { title: 'Angular Model List', content: fs.readFileSync(new Step005_makeAngularModel().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           Please create an API list based on the above design document.
@@ -218,9 +221,9 @@ class Step008_makeAngularServiceJson extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      // { title: 'Angular Component List', content: fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, "utf-8") },
-      { title: 'Angular Service List', content: fs.readFileSync(new Step004_makeAngularService().resultPath, "utf-8") },
-      // { title: 'Angular Model List', content: fs.readFileSync(new Step005_makeAngularModel().resultPath, "utf-8") },
+      // { title: 'Angular Component List', content: fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, 'utf-8') },
+      { title: 'Angular Service List', content: fs.readFileSync(new Step004_makeAngularService().resultPath, 'utf-8') },
+      // { title: 'Angular Model List', content: fs.readFileSync(new Step005_makeAngularModel().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           Please convert the above service class list into JSON format.
@@ -234,18 +237,19 @@ class Step008_makeAngularServiceJson extends BaseStep {
 class Step009_makeAngularServiceSrouce extends BaseStep {
   serviceName;
   index;
-  constructor(serviceName, index, g, apiList, defs,) {
+  constructor(serviceName, index, g, apiList, defs) {
     super();
     this.serviceName = serviceName;
     this.index = index;
-    this.label = `009-${index}-makeAngularServiceSrouce-${serviceName}`;
+    this.label = `Step009-${index}-makeAngularServiceSrouce-${serviceName}`;
+
     const modelsString = g.services[serviceName].models.map(modelName => defs[modelName].src).join('\n');
     this.chapters = [
       {
         title: "Reference", children: [
           { title: "All HTTP API List", content: apiList },
-          { title: "All Model Classes", content: Object.keys(g.models).map(key => ` - ${key}(${Object.keys(g.models[key].props).map(propKey => propKey + ': ' + g.models[key].props[propKey]).join(', ')})`).join('\n') },
-          // { title: "All Model Classes", content: modelsString },
+          // { title: "All Model Classes", content: Object.keys(g.models).map(key => ` - ${key}(${Object.keys(g.models[key].props).map(propKey => propKey + ': ' + g.models[key].props[propKey]).join(', ')})`).join('\n') },
+          { title: "All Model Classes", content: modelsString },
         ]
       },
       { title: "Service Class Name", content: serviceName },
@@ -269,7 +273,7 @@ class Step009_makeAngularServiceSrouce extends BaseStep {
   }
 
   preProcess() {
-    fs.writeFileSync(`./src/app/services/${Utils.toKebabCase(serviceName).replace(/-service/, '.service')}.ts.prompt.md`, this.prompt);
+    fs.writeFileSync(`./src/app/services/${Utils.toKebabCase(this.serviceName).replace(/-service/, '.service')}.ts.prompt.md`, this.prompt);
   }
 
   postProcess(text) {
@@ -284,35 +288,43 @@ class Step009_makeAngularServiceSrouce extends BaseStep {
       text = `import { map } from 'rxjs';\n` + text;
     }
     fs.writeFileSync(`./src/app/services/${Utils.toKebabCase(this.serviceName).replace(/-service/, '.service')}.ts`, text);
+    genIndex(); // TODO 本当は全部終わってから一発でやった方がいいけど、とりあえず。
     return text;
   }
 
-  static genBit() {
-    console.log(`step009_makeAngularServiceSrouce`);
+  static genSteps() {
     const defs = new RepoSyncer().loadDefs(["./src/app/models.ts"]);
-    // const compListText = fs.readFileSync(`./prompts/001-ComponentListToAngularComponentList.prompt.md.answer.md`, "utf-8");
-    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, "utf-8");
+    // const compListText = fs.readFileSync(`./prompts/001-ComponentListToAngularComponentList.prompt.md.answer.md`, 'utf-8');
+    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     const g = {};
-    g.services = JSON.parse(serviceListJSON.replace(/```/g, '').trim());
-    const apiList = fs.readFileSync(new Step007_makeApiList().resultPath, "utf-8");
-
+    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    const apiList = fs.readFileSync(new Step007_makeApiList().resultPath, 'utf-8');
     fs.mkdirSync(`./src/app/services`, { recursive: true });
-    const promiseList = [];
-    Object.keys(g.services).forEach((serviceName, index) => {
-      promiseList.push(new Step009_makeAngularServiceSrouce(serviceName, index, g, apiList, defs));
-    });
-    const res = Promise.all(promiseList).then((values) => {
-      console.log(`step009_makeAngularServiceSrouce-fine`);
-      genIndex();
-    });
-    return res;
+    // const res = Promise.all(promiseList).then((values) => {
+    //   console.log(`step009_makeAngularServiceSrouce-fine`);
+    //   genIndex();
+    // });
+    return Object.keys(g.services).map((serviceName, index) => new Step009_makeAngularServiceSrouce(serviceName, index, g, apiList, defs));
+  }
+}
+class MultiRunner {
+  promiseList = [];
+  constructor(stepList) {
+    this.stepList = stepList;
+  }
+  initPrompt() {
+    this.stepList.forEach(step => step.initPrompt());
+  }
+  async run() {
+    this.stepList.forEach(step => this.promiseList.push(step.run()));
+    return Promise.all(this.promiseList);
   }
 }
 class Step010_ApiListJson extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      { title: 'APIs List', content: fs.readFileSync(new Step007_makeApiList().resultPath, "utf-8") },
+      { title: 'APIs List', content: fs.readFileSync(new Step007_makeApiList().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           Please convert APIs List table to minified JSON format, like below.
@@ -325,7 +337,7 @@ class Step010_ApiListJson extends BaseStep {
 class Step010_createJSONdata extends BaseStep {
   constructor(chunkArray, idx, modelList,) {
     super();
-    this.label = `010-createJSONdata-${idx}`;
+    this.label = `Step010-createJSONdata-${idx}`;
     const cols = Object.keys(chunkArray[0]);
     const header = cols.join(' | ');
     const border = cols.map(key => '-').join(' | ');
@@ -354,14 +366,24 @@ class Step010_createJSONdata extends BaseStep {
      * JSON形式のデータ以外は出力しないでください。
      */
   }
+  async rudn() {
+    return new Promise((resolve, reject) => {
+      let result = fs.readFileSync(this.resultPath, 'utf-8');
+      result = this.postProcess(result);
+      resolve(result);
+    });
+  }
   postProcess(result) {
     try {
-      const all = JSON.parse(result);
+      const all = Utils.jsonParse(result);
       Object.keys(all).forEach(key => {
         let method = key.split('-')[0];
         let path = key.substring(method.length + 1);
         // スラッシュを1つにする、かつ先頭と末尾のスラッシュを外す。
         path = path.replace(/\/\/+/, '/').replace(/^\/|\/$/, '').replace(/[\?=\&]/g, '-');
+        // console.log(path);
+        path = path.replace(/:[^/]*\//g, '1/').replace(/:[^/]*$/g, '1');
+        // console.log(path);
         let dire = `./src/assets/mock/${path}`.replace(/\/[^\/]*$/g, '');
         // ディレクトリを掘る。
         fs.mkdirSync(dire, { recursive: true });
@@ -369,29 +391,22 @@ class Step010_createJSONdata extends BaseStep {
       });
     } catch (e) {
       // DELETEが無かったりすることもあるので無視する。
-      console.log(e);
-      console.log(result);
+      // console.log(e);
+      // console.log(result);
     }
     return result;
   }
-  static genBit() {
-    const modelList = fs.readFileSync(new Step005_makeAngularModel().resultPath, "utf-8");
-    const apiList = JSON.parse(fs.readFileSync(new Step010_ApiListJson().resultPath, "utf-8"));
-    const promiseList = [];
-    Utils.toChunkArray(apiList, 5).forEach((chunkArray, idx) => {
-      promiseList.push(new Step010_createJSONdata(chunkArray, idx, modelList));
-    });
-    const res = Promise.all(promiseList).then((values) => {
-      console.log(`step010_createJSONdata-fine`);
-    });
-    return res;
+  static genSteps() {
+    const modelList = fs.readFileSync(new Step005_makeAngularModel().resultPath, 'utf-8');
+    const apiList = Utils.jsonParse(fs.readFileSync(new Step010_ApiListJson().resultPath, 'utf-8'));
+    return Utils.toChunkArray(apiList, 3).map((chunkArray, idx) => new Step010_createJSONdata(chunkArray, idx, modelList));
   }
 }
 class Step010_componentList_to_Json extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      { title: 'Component List', content: fs.readFileSync(new Step000_RequirementsToComponentList().resultPath, "utf-8") },
+      { title: 'Component List', content: fs.readFileSync(new Step000_RequirementsToComponentList().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
         Please convert the above List of Screensn into JSON format.
@@ -405,7 +420,7 @@ class Step011_AngularModelList_to_Json extends BaseStep {
   constructor() {
     super();
     this.chapters = [
-      { title: 'Angular Model List', content: fs.readFileSync(new Step005_makeAngularModel().resultPath, "utf-8") },
+      { title: 'Angular Model List', content: fs.readFileSync(new Step005_makeAngularModel().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
         Please convert the above List of Screensn into JSON format.
@@ -417,14 +432,29 @@ class Step011_AngularModelList_to_Json extends BaseStep {
 }
 
 class Step012_makeScreenSpec extends BaseStep {
-  constructor(ngUiJSON, componentName, systemOverview, ngUiList, modelString, serviceString, index) {
+  model = 'gpt-4';
+  constructor(index, componentName, ngUiJSON) {
     super();
-    this.label = `012-${index}-makeScreenSpec-${componentName}`;
+    this.label = `Step012-${index}-makeScreenSpec-${componentName}`;
+
+    const g = {};
+    const ngUiList = Utils.spaceNormalize(fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, 'utf-8'));
+    const systemOverview = fs.readFileSync(new Step003_requirements_to_systemOverview().resultPath, 'utf-8');
+    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
+    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    const serviceString = Object.keys(g.services).map(key => ` - ${key}: ${g.services[key].methods.map(method => method.name + '(' + method.params.map(kv => kv.name + ': ' + kv.type).join(', ') + '): ' + method.return).join(', ')}`).join('\n');
+    const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
+    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
+    // console.log(g.models);
+    const modelString = Object.keys(g.models).filter(key => g.models[key].props).map(key => ` - ${key}(${Object.keys(g.models[key].props).map(propKey => propKey + ': ' + g.models[key].props[propKey]).join(', ')})`).join('\n');
+    const enumString = Object.keys(g.models).filter(key => g.models[key].values).map(key => ` - ${key}: ${g.models[key].values.map(value => '"' + value + '"').join(' | ')}`).join('\n');
+
     const io = ['@Input', '@Output'].map(io => Object.keys(ngUiJSON[componentName][io] || {}).filter(key => key.trim() !== '-').map(key => `- ${key}: ${ngUiJSON[componentName][io][key]}`).join('\n'));
     this.chapters = [
       { title: 'System Overview', content: systemOverview },
       { title: 'All Angular Components', content: ngUiList },
       { title: 'All Model Classes', content: modelString },
+      { title: 'All Enums', content: enumString },
       { title: 'All Service Classes', content: serviceString },
       {
         title: 'prompt', content: Utils.trimLines(`
@@ -457,36 +487,18 @@ class Step012_makeScreenSpec extends BaseStep {
       }
     ];
   }
-  static genBit() {
-    const g = {};
-    const ngUiList = Utils.spaceNormalize(fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, "utf-8"));
-    const ngUiJSON = JSON.parse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, "utf-8"));
-    const systemOverview = fs.readFileSync(new Step003_requirements_to_systemOverview().resultPath, "utf-8");
-    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, "utf-8");
-    g.services = JSON.parse(serviceListJSON.replace(/```/g, '').trim());
-    const serviceString = Object.keys(g.services).map(key => ` - ${key}: ${g.services[key].methods.map(method => method.name + '(' + method.params.map(kv => kv.name + ': ' + kv.type).join(', ') + '): ' + method.return).join(', ')}`).join('\n');
-    const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, "utf-8");
-    g.models = JSON.parse(modelJSON.replace(/```/g, '').trim());
-    const modelString = Object.keys(g.models).map(key => ` - ${key}(${Object.keys(g.models[key].props).map(propKey => propKey + ': ' + g.models[key].props[propKey]).join(', ')})`).join('\n');
-    const promiseList = [];
-    Object.keys(ngUiJSON).forEach((componentName, index) => {
-      promiseList.push(new Step012_makeScreenSpec(ngUiJSON, componentName, systemOverview, ngUiList, modelString, serviceString, index));
-    });
-    const res = Promise.all(promiseList).then((values) => {
-      console.log(`step012_makeScreenSpec-fine`);
-    });
-    return res;
+  static genSteps() {
+    const ngUiJSON = Utils.jsonParse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8').replace(/{"": ""}/g, 'null'));
+    return Object.keys(ngUiJSON).map((componentName, index) => new Step012_makeScreenSpec(index, componentName, ngUiJSON));
   }
 }
 
 class Step013_makeScreenSpecJSON extends BaseStep {
-  label = 'step013_makeScreenSpecJSON';
-  prompt;
-  constructor(index, componentName) {
+  constructor(index, componentName, ngUiJSON) {
     super();
-    this.label = `013-${index}-makeScreenSpecJSON-${componentName}`;
+    this.label = `Step013-${index}-makeScreenSpecJSON-${componentName}`;
     this.chapters = [
-      { title: '', content: fs.readFileSync(`./prompts/012-${index}-makeScreenSpec-${componentName}.prompt.md.answer.md`, "utf-8") },
+      { title: '', content: fs.readFileSync(new Step012_makeScreenSpec(index, componentName, ngUiJSON).resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
           Please convert the above List of Screensn into JSON format.
@@ -496,27 +508,19 @@ class Step013_makeScreenSpecJSON extends BaseStep {
       },
     ];
   }
-  static genBit() {
+  static genSteps() {
     const g = {};
-    const ngUiJSON = JSON.parse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, "utf-8"));
-    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, "utf-8");
-    g.services = JSON.parse(serviceListJSON.replace(/```/g, '').trim());
-    const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, "utf-8");
-    g.models = JSON.parse(modelJSON.replace(/```/g, '').trim());
-    const promiseList = [];
-    Object.keys(ngUiJSON).forEach((componentName, index) => {
-      promiseList.push(new Step013_makeScreenSpecJSON(index, componentName));
-    });
-    const res = Promise.all(promiseList).then((values) => {
-      console.log(`makeScreenSpecJSON-fine`);
-    });
-    return res;
+    const ngUiJSON = Utils.jsonParse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
+    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
+    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
+    return Object.keys(ngUiJSON).map((componentName, index) => new Step013_makeScreenSpecJSON(index, componentName, ngUiJSON));
   }
 }
 
 class Step014_makeScreenHtml extends BaseStep {
-  label = 'step014_makeScreenHtml';
-  prompt;
+  model = 'gpt-4';
   dire;
   constructor(index, componentName, ngUiJSON, g,) {
     super();
@@ -524,9 +528,9 @@ class Step014_makeScreenHtml extends BaseStep {
     this.componentName = componentName;
     this.ngUiJSON = ngUiJSON;
     this.g = g;
-    this.label = `014-${index}-makeScreenHtml-${componentName}`;
+    this.label = `Step014-${index}-makeScreenHtml-${componentName}`;
 
-    const doc = fs.readFileSync(new Step012_makeScreenSpec(ngUiJSON, componentName, '', '', '', '', index).resultPath, "utf-8");
+    const doc = fs.readFileSync(new Step012_makeScreenSpec(index, componentName, ngUiJSON).resultPath, 'utf-8');
     const nameKebab = Utils.toKebabCase(componentName);
     this.nameKebab0 = nameKebab.replace(/-component$/, '');
     const nameCamel0 = componentName.replace(/Component$/, '');
@@ -587,22 +591,15 @@ class Step014_makeScreenHtml extends BaseStep {
     return result;
   }
 
-  static genBit() {
+  static genSteps() {
     const g = {};
-    const ngUiJSON = JSON.parse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, "utf-8"));
-    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, "utf-8");
-    g.services = JSON.parse(serviceListJSON.replace(/```/g, '').trim());
-    const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, "utf-8");
-    g.models = JSON.parse(modelJSON.replace(/```/g, '').trim());
+    const ngUiJSON = Utils.jsonParse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
+    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
+    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
     g.classes = new RepoSyncer().loadDefs();
-    const promiseList = [];
-    Object.keys(ngUiJSON).forEach((componentName, index) => {
-      promiseList.push(new Step014_makeScreenHtml(index, componentName, ngUiJSON, g));
-    });
-    const res = Promise.all(promiseList).then((values) => {
-      console.log(`makeScreenHtml-fine`);
-    });
-    return res;
+    return Object.keys(ngUiJSON).map((componentName, index) => new Step014_makeScreenHtml(index, componentName, ngUiJSON, g));
   }
 }
 
@@ -611,6 +608,7 @@ class Step015_ScreenProp extends BaseStep {
   nameKebab0;
   constructor(index, componentName, ngUiJSON,) {
     super();
+    this.label = `Step015-${index}-ScreenProp-${componentName}`;
     const nameKebab = Utils.toKebabCase(componentName);
     this.nameKebab0 = nameKebab.replace(/-component$/, '');
     const nameCamel0 = componentName.replace(/Component$/, '');
@@ -633,31 +631,27 @@ class Step015_ScreenProp extends BaseStep {
     fs.writeFileSync(`./${this.dire}/${this.nameKebab0}.component.prop`, result);
     return result;
   }
-  static genBit() {
+  static genSteps() {
     const g = {};
-    const ngUiJSON = JSON.parse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, "utf-8"));
-    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, "utf-8");
-    g.services = JSON.parse(serviceListJSON.replace(/```/g, '').trim());
-    const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, "utf-8");
-    g.models = JSON.parse(modelJSON.replace(/```/g, '').trim());
+    const ngUiJSON = Utils.jsonParse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
+    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
+    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
     g.classes = new RepoSyncer().loadDefs();
-    const promiseList = [];
-    Object.keys(ngUiJSON).forEach((componentName, index) => {
-      promiseList.push(new Step015_ScreenProp(index, componentName, ngUiJSON));
-    });
-    const res = Promise.all(promiseList).then((values) => {
-      console.log(`step015_ScreenProp-fine`);
-    });
-    return res;
+    return Object.keys(ngUiJSON).map((componentName, index) => new Step015_ScreenProp(index, componentName, ngUiJSON));
   }
 }
 
 class Step016_AngularTypescript extends BaseStep {
+  model = 'gpt-4';
   dire;
   nameKebab0;
   constructor(index, componentName, ngUiJSON, g,) {
     super();
-    const doc = fs.readFileSync(new Step012_makeScreenSpec(ngUiJSON, componentName, '', '', '', '', index), "utf-8")
+    this.label = `Step016-${index}-AngularTypescript-${componentName}`;
+
+    const doc = fs.readFileSync(new Step012_makeScreenSpec(index, componentName, ngUiJSON).resultPath, 'utf-8')
       .split('\n').map(line => {
         if (line.match(/^#+/)) {
           return `#${line}`;
@@ -665,7 +659,7 @@ class Step016_AngularTypescript extends BaseStep {
           return line;
         }
       }).join('\n');
-    const specJSON = JSON.parse(fs.readFileSync(new Step013_makeScreenSpecJSON(index, componentName).resultPath, "utf-8"));
+    const specJSON = Utils.jsonParse(fs.readFileSync(new Step013_makeScreenSpecJSON(index, componentName, ngUiJSON).resultPath, 'utf-8'));
     const nameKebab = Utils.toKebabCase(componentName);
     this.nameKebab0 = nameKebab.replace(/-component$/, '');
     const nameCamel0 = componentName.replace(/Component$/, '');
@@ -760,9 +754,10 @@ class Step016_AngularTypescript extends BaseStep {
         `)
       },
     ];
-
-    ///////////////
+  }
+  preProcess(prompt) {
     fs.writeFileSync(`./${this.dire}/${this.nameKebab0}.component.ts.prompt.md`, this.prompt);
+    return prompt;
   }
   postProcess(result) {
     result = Utils.convertCodeBlocks(result)
@@ -795,23 +790,15 @@ class Step016_AngularTypescript extends BaseStep {
     return result;
   }
 
-  static genBit() {
-    const ngUiJSON = JSON.parse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, "utf-8"));
-    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, "utf-8");
+  static genSteps() {
+    const ngUiJSON = Utils.jsonParse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     const g = {};
-    g.services = JSON.parse(serviceListJSON.replace(/```/g, '').trim());
-    const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, "utf-8");
-    g.models = JSON.parse(modelJSON.replace(/```/g, '').trim());
+    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
+    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
     g.classes = new RepoSyncer().loadDefs();
-    const promiseList = [];
-    Object.keys(ngUiJSON).forEach((componentName, index) => {
-      promiseList.push(new Step016_AngularTypescript(index, componentName, ngUiJSON, g));
-    });
-    const res = Promise.all(promiseList).then((values) => {
-      console.log(`step016_AngularTypescript-fine`);
-      new GenModuleFiles().exec();
-    });
-    return res;
+    return Object.keys(ngUiJSON).map((componentName, index) => new Step016_AngularTypescript(index, componentName, ngUiJSON, g));
   }
 }
 
@@ -821,65 +808,71 @@ async function main() {
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  obj = new Step000_RequirementsToComponentList();
+  // obj = new Step000_RequirementsToComponentList();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step001_componentList_to_angularComponentList();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step002_angularComponentList_to_angularComponentJson();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step003_requirements_to_systemOverview();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step004_makeAngularService();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step005_makeAngularModel();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step006_makeAngularModelSource();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step011_AngularModelList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step007_makeApiList();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step008_makeAngularServiceJson();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new MultiRunner(Step009_makeAngularServiceSrouce.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step010_ApiListJson();
+  // obj.initPrompt();
+  // await obj.run();
+  obj = new MultiRunner(Step010_createJSONdata.genSteps());
   obj.initPrompt();
   await obj.run();
-  obj = new Step001_componentList_to_angularComponentList();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step002_angularComponentList_to_angularComponentJson();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step003_requirements_to_systemOverview();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step004_makeAngularService();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step005_makeAngularModel();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step006_makeAngularModelSource();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step011_AngularModelList_to_Json();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step007_makeApiList();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step008_makeAngularServiceJson();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step009_makeAngularServiceSrouce();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step010_ApiListJson();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step010_createJSONdata();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step010_componentList_to_Json();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step012_makeScreenSpec();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step013_makeScreenSpecJSON();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step014_makeScreenHtml();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step015_ScreenProp();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step016_AngularTypescript();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step010_componentList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new MultiRunner(Step012_makeScreenSpec.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new MultiRunner(Step013_makeScreenSpecJSON.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new MultiRunner(Step014_makeScreenHtml.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new MultiRunner(Step015_ScreenProp.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new MultiRunner(Step016_AngularTypescript.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+  // new GenModuleFiles().exec();
 }
 main();
+// new GenModuleFiles().exec();
 
 
 
@@ -898,3 +891,18 @@ main();
 // - input：Angularの@Inputで使えるプロパティ
 // - output：Angularの@Outputで使えるプロパティ
 
+
+/**
+ * As a software engineer, I am here to help you with your project. To get started, please provide me with the following information:
+ * 1. Project Overview: A brief description of the project, its purpose, and its goals.
+ * 2. Target Audience: Who will be using the software? What are their needs and expectations?
+ * 3. Key Features: What are the main features and functionalities that the software should have?
+ * 4. Technical Requirements: Are there any specific technologies, programming languages, or platforms that the software should be built on?
+ * 5. Timeline: What is the expected timeline for the project, including milestones and deadlines?
+ * 6. Budget: What is the estimated budget for the project?
+ * 7. Constraints and Limitations: Are there any constraints or limitations that should be considered during the development process?
+ * 8. Integration and Compatibility: Does the software need to integrate with any existing systems or be compatible with specific devices or platforms?
+ * 9. Security and Privacy: What are the security and privacy requirements for the software?
+ * 10. Maintenance and Support: What are the expectations for ongoing maintenance and support after the software is completed?
+ * Once you provide this information, I can help you develop a plan for your software project and ensure that it meets your requirements and expectations.
+ */

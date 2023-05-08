@@ -4,7 +4,7 @@ import { RouterModule, Routes } from '@angular/router';
 {{routeImports}}
 
 const routes: Routes = [
-  {{routingPath}},
+{{routingPath}},
   { path: '**', redirectTo: 'login' } // 未定義のルートの場合はログインページにリダイレクトする
 ];
 

@@ -154,10 +154,10 @@ export class Utils {
      */
     static trimLines(str) {
         const list = str.split('\n');
-        const index = list.find((line, index) => line.trim().length > 0 ? index : false);
-        const indent = list[index].length - list[index].trimLeft();
-        const regex = new RegExp(`^( {${indent}})+`, 'gm');
-        return str.split('\n').map(line => line.replace(regex, '')).join('\n').trim();
+        const line = list.find((line, index) => line.trim().length > 0);
+        const indent = line.length - line.trimLeft().length;
+        const regex = new RegExp(`^ {${indent}}`, 'g');
+        return list.map(line => line.replace(regex, '')).join('\n').trim();
     }
 
     /**
@@ -172,19 +172,45 @@ export class Utils {
     }
 
     /**
-     * 
+     * JSONが1行ずつに分割されていても読めるようにする
+     * @param {*} str 
+     * @returns 
      */
-    toMarkdown(chapter, layer = 1) {
+    static jsonParse(str) {
+        try {
+            return JSON.parse(str);
+        } catch (e0) {
+            try {
+                const mid = str.replace(/^ *{|} *$/gm, '').split('\n').filter(line => line.trim().length > 0).join(',');
+                return JSON.parse(`{${mid}}`);
+            } catch (e1) {
+                console.log(e0);
+                console.log(str);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * [{title: 'hoge', content: 'fuga', children: [{title: 'hoge', content: 'fuga'}]}]のようなオブジェクトをMarkdownに変換する
+     * @param {{ title: string, content: string, children: any[] }} chapter
+     * @param {number} layer
+     * @returns {string}
+     */
+    static toMarkdown(chapter, layer = 1) {
         let sb = '';
         if (chapter.title) {
-            sb += `${Utils.rept(layer, '#')} ${chapter.title}\n`;
+            sb += `${Utils.rept('#', layer)} ${chapter.title}\n`;
         } else { }
-        sb + -`${chapter.content}\n`;
+        if (chapter.content) {
+            sb += `${chapter.content}\n`;
+        } else { }
         if (chapter.children) {
             chapter.children.forEach(child => {
-                sb += this._toMarkdown(child, layer + 1);
+                console.log(child);
+                sb += Utils.toMarkdown(child, layer + 1);
             });
-        }
+        } else { }
         return sb;
     }
 }
