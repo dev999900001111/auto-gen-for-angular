@@ -1,40 +1,42 @@
 import * as  fs from 'fs';
-import { Utils } from './utils.mjs';
-import { OpenAIApiWrapper } from './openai-api-wrapper.mjs';
-import { RepoSyncer } from './repo-syncer.mjs';
-import { GenModuleFiles, genIndex } from './gen-angular-modules.mjs';
+import { StructuredPrompt, Utils } from './utils';
+import { OpenAIApiWrapper } from './openai-api-wrapper';
+import { RepoSyncer } from './repo-syncer';
+import { GenModuleFiles, genIndex } from './gen-angular-modules';
+import { AxiosResponse } from 'axios';
+import { CreateChatCompletionResponse } from 'openai';
 
 const aiApi = new OpenAIApiWrapper();
 
 /**
  * 基本クラス
  */
-class BaseStep {
+abstract class BaseStep {
 
   /** default parameters */
   model = 'gpt-3.5-turbo';
   systemMessage = 'You are an experienced and talented software engineer.';
 
   /** label */
-  _label;
+  _label: string = '';
   get label() { return this._label || this.constructor.name; }
   set label(label) { this._label = label; }
 
   /** create prompt */
-  prompt;
-  chapters = []; // {title: string, content: string, children: chapters[]}
+  prompt: string = '';
+  chapters: StructuredPrompt[] = []; // {title: string, content: string, children: chapters[]}
 
   /** io */
   get promptPath() { return `./prompts/${this.label}.prompt.md`; }
   get resultPath() { return `./prompts/${this.label}.result.md`; }
 
-  initPrompt() {
+  initPrompt(): string {
     this.prompt = this.chapters.map(chapter => Utils.toMarkdown(chapter)).join('\n');
     fs.writeFileSync(this.promptPath, this.prompt);
     return this.preProcess(this.prompt);
   }
 
-  preProcess(prompt) {
+  preProcess(prompt: string): string {
     return prompt;
   }
 
@@ -42,16 +44,22 @@ class BaseStep {
    * 
    * @returns 
    */
-  async run() {
+  async run(): Promise<string> {
     this.prompt = fs.readFileSync(this.promptPath, 'utf-8');
     return aiApi.call(this.label, this.prompt, this.model, this.systemMessage).then((completion) => {
+      if (completion.data && completion.data.choices && completion.data.choices[0] && completion.data.choices[0].message && completion.data.choices[0].message.content) {
+        // 戻り値の存在チェック
+      } else {
+        // 無かったら空で返す。
+        return '';
+      }
       const result = completion.data.choices[0].message.content;
       fs.writeFileSync(this.resultPath, result);
       return this.postProcess(result);
     });
   }
 
-  postProcess(result) {
+  postProcess(result: string): string {
     return result;
   }
 }
@@ -184,10 +192,10 @@ class Step006_makeAngularModelSource extends BaseStep {
       },
     ];
   }
-  postProcess(text) {
+  postProcess(text: string): string {
     text = text.replace(/```.*/g, '').trim();
-    fs.mkdirSync(`./src/app`, { recursive: true });
-    fs.writeFileSync(`./src/app/models.ts`, text);
+    fs.mkdirSync(`./gen/src/app`, { recursive: true });
+    fs.writeFileSync(`./gen/src/app/models.ts`, text);
     return text;
   }
 }
@@ -236,18 +244,22 @@ class Step008_makeAngularServiceJson extends BaseStep {
   }
 }
 class Step009_makeAngularServiceSrouce extends BaseStep {
-  serviceName;
-  index;
-  constructor(serviceName, index, g, apiList, defs) {
+  constructor(
+    private serviceName: string,
+    private index: number,
+    private g: any,
+    private apiList: string,
+    private defs: any,
+  ) {
     super();
     this.serviceName = serviceName;
     this.index = index;
     this.label = `Step009-${index}-makeAngularServiceSrouce-${serviceName}`;
 
-    const modelsString = g.services[serviceName].models.map(modelName => defs[modelName].src).join('\n');
+    const modelsString = g.services[serviceName].models.map((modelName: string) => defs[modelName].src).join('\n');
     this.chapters = [
       {
-        title: "Reference", children: [
+        title: "Reference", content: '', children: [
           { title: "All HTTP API List", content: apiList },
           // { title: "All Model Classes", content: Object.keys(g.models).map(key => ` - ${key}(${Object.keys(g.models[key].props).map(propKey => propKey + ': ' + g.models[key].props[propKey]).join(', ')})`).join('\n') },
           { title: "All Model Classes", content: modelsString },
@@ -273,11 +285,12 @@ class Step009_makeAngularServiceSrouce extends BaseStep {
     ];
   }
 
-  preProcess() {
-    fs.writeFileSync(`./src/app/services/${Utils.toKebabCase(this.serviceName).replace(/-service/, '.service')}.ts.prompt.md`, this.prompt);
+  preProcess(prompt: string): string {
+    fs.writeFileSync(`./gen/src/app/services/${Utils.toKebabCase(this.serviceName).replace(/-service/, '.service')}.ts.prompt.md`, this.prompt);
+    return prompt;
   }
 
-  postProcess(text) {
+  postProcess(text: string): string {
     text = text
       .replace(/```.*/g, '')
       .replace(/\`\`\`typescript[\r]?\n/g, '')
@@ -288,19 +301,19 @@ class Step009_makeAngularServiceSrouce extends BaseStep {
     } else {
       text = `import { map } from 'rxjs';\n` + text;
     }
-    fs.writeFileSync(`./src/app/services/${Utils.toKebabCase(this.serviceName).replace(/-service/, '.service')}.ts`, text);
+    fs.writeFileSync(`./gen/src/app/services/${Utils.toKebabCase(this.serviceName).replace(/-service/, '.service')}.ts`, text);
     genIndex(); // TODO 本当は全部終わってから一発でやった方がいいけど、とりあえず。
     return text;
   }
 
   static genSteps() {
-    const defs = new RepoSyncer().loadDefs(["./src/app/models.ts"]);
+    const defs = new RepoSyncer().loadDefs(["./gen/src/app/models.ts"]);
     // const compListText = fs.readFileSync(`./prompts/001-ComponentListToAngularComponentList.prompt.md.answer.md`, 'utf-8');
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
-    const g = {};
+    const g: any = {};
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
     const apiList = fs.readFileSync(new Step007_makeApiList().resultPath, 'utf-8');
-    fs.mkdirSync(`./src/app/services`, { recursive: true });
+    fs.mkdirSync(`./gen/src/app/services`, { recursive: true });
     // const res = Promise.all(promiseList).then((values) => {
     //   console.log(`step009_makeAngularServiceSrouce-fine`);
     //   genIndex();
@@ -309,14 +322,16 @@ class Step009_makeAngularServiceSrouce extends BaseStep {
   }
 }
 class MultiRunner {
-  promiseList = [];
-  constructor(stepList) {
+  private promiseList: Promise<string>[] = [];
+  constructor(
+    private stepList: BaseStep[]
+  ) {
     this.stepList = stepList;
   }
-  initPrompt() {
+  initPrompt(): void {
     this.stepList.forEach(step => step.initPrompt());
   }
-  async run() {
+  async run(): Promise<string[]> {
     this.stepList.forEach(step => this.promiseList.push(step.run()));
     return Promise.all(this.promiseList);
   }
@@ -336,7 +351,7 @@ class Step010_ApiListJson extends BaseStep {
   }
 }
 class Step010_createJSONdata extends BaseStep {
-  constructor(chunkArray, idx, modelList,) {
+  constructor(chunkArray: any[], idx: number, modelList: string,) {
     super();
     this.label = `Step010-createJSONdata-${idx}`;
     const cols = Object.keys(chunkArray[0]);
@@ -367,16 +382,9 @@ class Step010_createJSONdata extends BaseStep {
      * JSON形式のデータ以外は出力しないでください。
      */
   }
-  async rudn() {
-    return new Promise((resolve, reject) => {
-      let result = fs.readFileSync(this.resultPath, 'utf-8');
-      result = this.postProcess(result);
-      resolve(result);
-    });
-  }
-  postProcess(result) {
+  postProcess(result: string) {
     try {
-      const all = Utils.jsonParse(result);
+      const all: { [key: string]: any } = Utils.jsonParse(result) as any;
       Object.keys(all).forEach(key => {
         let method = key.split('-')[0];
         let path = key.substring(method.length + 1);
@@ -385,10 +393,10 @@ class Step010_createJSONdata extends BaseStep {
         // console.log(path);
         path = path.replace(/:[^/]*\//g, '1/').replace(/:[^/]*$/g, '1');
         // console.log(path);
-        let dire = `./src/assets/mock/${path}`.replace(/\/[^\/]*$/g, '');
+        let dire = `./gen/src/assets/mock/${path}`.replace(/\/[^\/]*$/g, '');
         // ディレクトリを掘る。
         fs.mkdirSync(dire, { recursive: true });
-        fs.writeFileSync(`./src/assets/mock/${path}-${method}.json`, JSON.stringify(all[key], null, 4));
+        fs.writeFileSync(`./gen/src/assets/mock/${path}-${method}.json`, JSON.stringify(all[key], null, 4));
       });
     } catch (e) {
       // DELETEが無かったりすることもあるので無視する。
@@ -399,8 +407,8 @@ class Step010_createJSONdata extends BaseStep {
   }
   static genSteps() {
     const modelList = fs.readFileSync(new Step005_makeAngularModel().resultPath, 'utf-8');
-    const apiList = Utils.jsonParse(fs.readFileSync(new Step010_ApiListJson().resultPath, 'utf-8'));
-    return Utils.toChunkArray(apiList, 3).map((chunkArray, idx) => new Step010_createJSONdata(chunkArray, idx, modelList));
+    const apiList = Utils.jsonParse(fs.readFileSync(new Step010_ApiListJson().resultPath, 'utf-8')) as any[];
+    return Utils.toChunkArray(apiList, 3).map((chunkArray: any, idx: number) => new Step010_createJSONdata(chunkArray, idx, modelList));
   }
 }
 class Step010_componentList_to_Json extends BaseStep {
@@ -434,21 +442,21 @@ class Step011_AngularModelList_to_Json extends BaseStep {
 
 class Step012_makeScreenSpec extends BaseStep {
   // model = 'gpt-4';
-  constructor(index, componentName, ngUiJSON) {
+  constructor(index: number, componentName: string, ngUiJSON: any) {
     super();
     this.label = `Step012-${index}-makeScreenSpec-${componentName}`;
 
-    const g = {};
+    const g: any = {};
     const ngUiList = Utils.spaceNormalize(fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, 'utf-8'));
     const systemOverview = fs.readFileSync(new Step003_requirements_to_systemOverview().resultPath, 'utf-8');
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
-    const serviceString = Object.keys(g.services).map(key => ` - ${key}: ${g.services[key].methods.map(method => method.name + '(' + method.params.map(kv => kv.name + ': ' + kv.type).join(', ') + '): ' + method.return).join(', ')}`).join('\n');
+    const serviceString = Object.keys(g.services).map(key => ` - ${key}: ${g.services[key].methods.map((method: any) => method.name + '(' + method.params.map((kv: { name: string, type: string }) => kv.name + ': ' + kv.type).join(', ') + '): ' + method.return).join(', ')}`).join('\n');
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
     g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
     // console.log(g.models);
     const modelString = Object.keys(g.models).filter(key => g.models[key].props).map(key => ` - ${key}(${Object.keys(g.models[key].props).map(propKey => propKey + ': ' + g.models[key].props[propKey]).join(', ')})`).join('\n');
-    const enumString = Object.keys(g.models).filter(key => g.models[key].values).map(key => ` - ${key}: ${g.models[key].values.map(value => '"' + value + '"').join(' | ')}`).join('\n');
+    const enumString = Object.keys(g.models).filter(key => g.models[key].values).map(key => ` - ${key}: ${g.models[key].values.map((value: string) => '"' + value + '"').join(' | ')}`).join('\n');
 
     const io = ['@Input', '@Output'].map(io => Object.keys(ngUiJSON[componentName][io] || {}).filter(key => key.trim() !== '-').map(key => `- ${key}: ${ngUiJSON[componentName][io][key]}`).join('\n'));
     this.chapters = [
@@ -473,11 +481,11 @@ class Step012_makeScreenSpec extends BaseStep {
           ## Description
           ## Child Elements
           ### Angular element components
-          ${(ngUiJSON[componentName].childAngularComponents || []).map(chilName => '- ' + chilName + '(' + ['@Input', '@Output'].map(io => io + ':{' + Object.keys(ngUiJSON[chilName][io] || {}).filter(key => key.trim() !== '-').map(key => key + ': ' + ngUiJSON[chilName][io][key]).join(',') + '}').join(', ') + ')').join('\n') || 'None'}
+          ${(ngUiJSON[componentName].childAngularComponents || []).map((chilName: string) => '- ' + chilName + '(' + ['@Input', '@Output'].map(io => io + ':{' + Object.keys(ngUiJSON[chilName][io] || {}).filter(key => key.trim() !== '-').map(key => key + ': ' + ngUiJSON[chilName][io][key]).join(',') + '}').join(', ') + ')').join('\n') || 'None'}
           ### Angular dialog components
-          ${(ngUiJSON[componentName].dialogAngularComponents || []).map(chilName => '- ' + chilName + '(' + ['MAT_DIALOG_DATA'].map(io => io + ':{' + Object.keys(ngUiJSON[chilName][io] || {}).filter(key => key.trim() !== '-').map(key => key + ': ' + ngUiJSON[chilName][io][key]).join(',') + '}').join(', ') + ')').join('\n') || 'None'}
+          ${(ngUiJSON[componentName].dialogAngularComponents || []).map((chilName: string) => '- ' + chilName + '(' + ['MAT_DIALOG_DATA'].map(io => io + ':{' + Object.keys(ngUiJSON[chilName][io] || {}).filter(key => key.trim() !== '-').map(key => key + ': ' + ngUiJSON[chilName][io][key]).join(',') + '}').join(', ') + ')').join('\n') || 'None'}
           ### HTML components
-          ${(ngUiJSON[componentName].HTMLComponents || []).map(name => '- ' + name).join(', ') || 'None'}
+          ${(ngUiJSON[componentName].HTMLComponents || []).map((name: string) => '- ' + name).join(', ') || 'None'}
           ## Screen layout
           ## Screen behavior
           ## Input Form
@@ -489,13 +497,13 @@ class Step012_makeScreenSpec extends BaseStep {
     ];
   }
   static genSteps() {
-    const ngUiJSON = Utils.jsonParse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8').replace(/{"": ""}/g, 'null'));
+    const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8').replace(/{"": ""}/g, 'null'));
     return Object.keys(ngUiJSON).map((componentName, index) => new Step012_makeScreenSpec(index, componentName, ngUiJSON));
   }
 }
 
 class Step013_makeScreenSpecJSON extends BaseStep {
-  constructor(index, componentName, ngUiJSON) {
+  constructor(index: number, componentName: string, ngUiJSON: any) {
     super();
     this.label = `Step013-${index}-makeScreenSpecJSON-${componentName}`;
     this.chapters = [
@@ -510,8 +518,8 @@ class Step013_makeScreenSpecJSON extends BaseStep {
     ];
   }
   static genSteps() {
-    const g = {};
-    const ngUiJSON = Utils.jsonParse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    const g: any = {};
+    const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
@@ -522,13 +530,14 @@ class Step013_makeScreenSpecJSON extends BaseStep {
 
 class Step014_makeScreenHtml extends BaseStep {
   // model = 'gpt-4';
-  dire;
-  constructor(index, componentName, ngUiJSON, g,) {
+  private dire: string;
+  private nameKebab0: string;
+  constructor(
+    private index: number,
+    private componentName: string,
+    private ngUiJSON: any,
+    private g: any,) {
     super();
-    this.index = index;
-    this.componentName = componentName;
-    this.ngUiJSON = ngUiJSON;
-    this.g = g;
     this.label = `Step014-${index}-makeScreenHtml-${componentName}`;
 
     const doc = fs.readFileSync(new Step012_makeScreenSpec(index, componentName, ngUiJSON).resultPath, 'utf-8');
@@ -546,7 +555,7 @@ class Step014_makeScreenHtml extends BaseStep {
         ]
       },
       {
-        title: 'Reference', children: [
+        title: 'Reference', content: '', children: [
           {
             title: 'Model and Service classes', content: Utils.trimLines(`
               \`\`\`typescript
@@ -569,7 +578,7 @@ class Step014_makeScreenHtml extends BaseStep {
     ];
 
     ////////////////// 
-    this.dire = `./src/app/${ngUiJSON[componentName].type.toLowerCase().replace(/s$/g, '')}s/${this.nameKebab0}/`;
+    this.dire = `./gen/src/app/${ngUiJSON[componentName].type.toLowerCase().replace(/s$/g, '')}s/${this.nameKebab0}/`;
     if (fs.existsSync(this.dire)) {
     } else {
       fs.mkdirSync(this.dire, { recursive: true });
@@ -577,12 +586,13 @@ class Step014_makeScreenHtml extends BaseStep {
     }
   }
 
-  preProcess() {
-    fs.writeFileSync(`./${this.dire}/${this.nameKebab0}.component.html.prompt.md`, this.prompt);
+  preProcess(prompt: string): string {
+    fs.writeFileSync(`./${this.dire}/${this.nameKebab0}.component.html.prompt.md`, prompt);
     fs.writeFileSync(`./${this.dire}/${this.nameKebab0}.component.scss`, '');
+    return prompt;
   }
 
-  postProcess(result) {
+  postProcess(result: string) {
     fs.writeFileSync(`./${this.dire}/${this.nameKebab0}.component.html`, result
       .replace(/.*```.*\n/, '')
       .replace(/\n```.*/, '')
@@ -593,8 +603,8 @@ class Step014_makeScreenHtml extends BaseStep {
   }
 
   static genSteps() {
-    const g = {};
-    const ngUiJSON = Utils.jsonParse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    const g: any = {};
+    const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
@@ -605,16 +615,19 @@ class Step014_makeScreenHtml extends BaseStep {
 }
 
 class Step015_ScreenProp extends BaseStep {
-  dire;
-  nameKebab0;
-  constructor(index, componentName, ngUiJSON,) {
+  dire: string;
+  nameKebab0: string;
+  constructor(
+    private index: number,
+    private componentName: string,
+    private ngUiJSON: any,) {
     super();
     this.label = `Step015-${index}-ScreenProp-${componentName}`;
     const nameKebab = Utils.toKebabCase(componentName);
     this.nameKebab0 = nameKebab.replace(/-component$/, '');
     const nameCamel0 = componentName.replace(/Component$/, '');
 
-    this.dire = `./src/app/${ngUiJSON[componentName].type.toLowerCase().replace(/s$/g, '')}s/${this.nameKebab0}/`;
+    this.dire = `./gen/src/app/${ngUiJSON[componentName].type.toLowerCase().replace(/s$/g, '')}s/${this.nameKebab0}/`;
 
     const htmlString = fs.readFileSync(`./${this.dire}/${this.nameKebab0}.component.html`, 'utf-8');
 
@@ -628,13 +641,13 @@ class Step015_ScreenProp extends BaseStep {
       },
     ];
   }
-  postProcess(result) {
+  postProcess(result: string): string {
     fs.writeFileSync(`./${this.dire}/${this.nameKebab0}.component.prop`, result);
     return result;
   }
   static genSteps() {
-    const g = {};
-    const ngUiJSON = Utils.jsonParse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    const g: any = {};
+    const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
@@ -648,7 +661,7 @@ class Step016_AngularTypescript extends BaseStep {
   // model = 'gpt-4';
   dire;
   nameKebab0;
-  constructor(index, componentName, ngUiJSON, g,) {
+  constructor(index: number, componentName: string, ngUiJSON: any, g: any,) {
     super();
     this.label = `Step016-${index}-AngularTypescript-${componentName}`;
 
@@ -660,12 +673,12 @@ class Step016_AngularTypescript extends BaseStep {
           return line;
         }
       }).join('\n');
-    const specJSON = Utils.jsonParse(fs.readFileSync(new Step013_makeScreenSpecJSON(index, componentName, ngUiJSON).resultPath, 'utf-8'));
+    const specJSON = Utils.jsonParse<any>(fs.readFileSync(new Step013_makeScreenSpecJSON(index, componentName, ngUiJSON).resultPath, 'utf-8'));
     const nameKebab = Utils.toKebabCase(componentName);
     this.nameKebab0 = nameKebab.replace(/-component$/, '');
     const nameCamel0 = componentName.replace(/Component$/, '');
 
-    this.dire = `./src/app/${ngUiJSON[componentName].type.toLowerCase().replace(/s$/g, '')}s/${this.nameKebab0}/`;
+    this.dire = `./gen/src/app/${ngUiJSON[componentName].type.toLowerCase().replace(/s$/g, '')}s/${this.nameKebab0}/`;
 
     let htmlProps = fs.readFileSync(`./${this.dire}/${this.nameKebab0}.component.prop`, 'utf-8')
       .split('\n').map((line) => {
@@ -684,13 +697,13 @@ class Step016_AngularTypescript extends BaseStep {
     // TODO Angular Elementsに書かれてるからChilは不要では？
     let chilString = '';
     // console.log(specJSON);
-    let diString = (specJSON.serviceClassUsed || specJSON.serviceClassesUsed).map((s) => `private ${Utils.decapitalize(s)}: ${s}`).join(', ');
+    let diString = (specJSON.serviceClassUsed || specJSON.serviceClassesUsed).map((s: string) => `private ${Utils.decapitalize(s)}: ${s}`).join(', ');
 
     const io = ['@Input', '@Output', 'MAT_DIALOG_DATA'].map(io => Object.keys(ngUiJSON[componentName][io] || {}).filter(key => key.trim() !== '-').map(key => `- ${key}: ${ngUiJSON[componentName][io][key]}`).join('\n'));
 
     this.chapters = [
       {
-        title: 'Reference', children: [{
+        title: 'Reference', content: '', children: [{
           title: 'Model and Service classes', content: Utils.trimLines(`
               \`\`\`typescript
               ${Object.keys(g.classes).map(key => g.classes[key].src).join('\n')}
@@ -756,11 +769,11 @@ class Step016_AngularTypescript extends BaseStep {
       },
     ];
   }
-  preProcess(prompt) {
+  preProcess(prompt: string): string {
     fs.writeFileSync(`./${this.dire}/${this.nameKebab0}.component.ts.prompt.md`, this.prompt);
     return prompt;
   }
-  postProcess(result) {
+  postProcess(result: string): string {
     result = Utils.convertCodeBlocks(result)
       .replace(/from '\.\.\/services\/.*'/g, 'from \'../../services\'')
       .replace(/from '\.\.\/services'/g, 'from \'../../services\'')
@@ -788,9 +801,9 @@ class Step016_AngularTypescript extends BaseStep {
   }
 
   static genSteps() {
-    const ngUiJSON = Utils.jsonParse(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
-    const g = {};
+    const g: any = {};
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
     g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
@@ -800,60 +813,61 @@ class Step016_AngularTypescript extends BaseStep {
 }
 
 const HISTORY_DIRE = `./history`;
-async function main() {
+export async function main() {
   try { fs.mkdirSync(`./prompts`, { recursive: true }); } catch (e) { }
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  obj = new Step000_RequirementsToComponentList();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step001_componentList_to_angularComponentList();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step002_angularComponentList_to_angularComponentJson();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step003_requirements_to_systemOverview();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step004_makeAngularService();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step005_makeAngularModel();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step000_RequirementsToComponentList();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step001_componentList_to_angularComponentList();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step002_angularComponentList_to_angularComponentJson();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step003_requirements_to_systemOverview();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step004_makeAngularService();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step005_makeAngularModel();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step006_makeAngularModelSource();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step006_makeAngularModelSource();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step011_AngularModelList_to_Json();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step007_makeApiList();
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step008_makeAngularServiceJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step011_AngularModelList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step007_makeApiList();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step008_makeAngularServiceJson();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step009_makeAngularServiceSrouce.genSteps());
-  obj.initPrompt();
-  await obj.run();
+  // obj = new MultiRunner(Step009_makeAngularServiceSrouce.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step010_ApiListJson();
-  obj.initPrompt();
-  await obj.run();
-  obj = new MultiRunner(Step010_createJSONdata.genSteps());
-  obj.initPrompt();
-  await obj.run();
-  obj = new Step010_componentList_to_Json();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step010_ApiListJson();
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new MultiRunner(Step010_createJSONdata.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+  // obj = new Step010_componentList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
   obj = new MultiRunner(Step012_makeScreenSpec.genSteps());
   obj.initPrompt();
   await obj.run();
+  console.log(`Step012_makeScreenSpec`);
   obj = new MultiRunner(Step013_makeScreenSpecJSON.genSteps());
   obj.initPrompt();
   await obj.run();
@@ -868,4 +882,4 @@ async function main() {
   await obj.run();
   new GenModuleFiles().exec();
 }
-main();
+// main();

@@ -1,19 +1,18 @@
 import * as  fs from 'fs';
 import * as  path from 'path';
-import Handlebars from 'handlebars';
 
-import { Utils } from './utils.mjs';
-// interface TemplateFiller {
-//     templatePath: string;
-//     outputPath?: string;
-//     data: { [key: string]: any } | null;
-// }
-// interface ImportStatement {
-//     importStatement: string;
-//     className: string;
-// }
+import { Utils } from './utils';
+interface TemplateFiller {
+    templatePath: string;
+    outputPath?: string;
+    data: { [key: string]: any };
+}
+interface ImportStatement {
+    importStatement: string;
+    className: string;
+}
 export class GenModuleFiles {
-    srcDire = './src'; // 検索するディレクトリのパス
+    srcDire = './gen/src'; // 検索するディレクトリのパス
     constructor() { }
 
     /**
@@ -23,7 +22,7 @@ export class GenModuleFiles {
      * @param importStatementList モジュールのインポート文を格納する配列。デフォルトは空配列。
      * @returns モジュールのインポート文を格納する配列
      */
-    searchDirectory(srcDire, importStatementList = []) {
+    searchDirectory(srcDire: string, importStatementList: ImportStatement[] = []) {
         // ディレクトリ内のファイル一覧を取得する
         const files = fs.readdirSync(srcDire);
 
@@ -55,7 +54,7 @@ export class GenModuleFiles {
      * @param {TemplateFiller} templateFiller - テンプレートに埋め込むデータとテンプレートファイルパスを含むオブジェクト。
      * @returns {string} - 生成されたテンプレートの文字列。
      */
-    fillTemplate(templateFiller) {
+    fillTemplate(templateFiller: TemplateFiller) {
         const templateContent = fs.readFileSync(templateFiller.templatePath, 'utf-8');
         // console.log(templateContent);
         // const result = Handlebars.compile(templateContent)(templateFiller.data || {});
@@ -77,7 +76,7 @@ export class GenModuleFiles {
 
         // Angularモジュールファイルを生成する
         fs.writeFileSync(`${this.srcDire}/app/app.module.ts`, this.fillTemplate({
-            templatePath: './templates/app.module.ts.html',
+            templatePath: './src/templates/app.module.ts.html',
             data: {
                 // Angularモジュールに必要なコンポーネントのインポート文を格納する配列
                 importsSection: importStatementList.map(obj => obj.importStatement).join('\n'),
@@ -89,7 +88,7 @@ export class GenModuleFiles {
         // Angularルーティングファイルを生成する
         const pages = importStatementList.filter(obj => obj.importStatement.indexOf('/pages/') >= 0);
         fs.writeFileSync(`${this.srcDire}/app/app-routing.module.ts`, this.fillTemplate({
-            templatePath: './templates/app-routing.module.ts.html',
+            templatePath: './src/templates/app-routing.module.ts.html',
             data: {
                 // pages系のみをroutingに追加する
                 routeImports: pages.map(obj => obj.importStatement).join('\n'),
@@ -99,7 +98,7 @@ export class GenModuleFiles {
 
         // Angularインターセプターファイルを生成する
         fs.writeFileSync(`${this.srcDire}/app/api.interceptor.ts`, this.fillTemplate({
-            templatePath: './templates/api.interceptor.ts.html',
+            templatePath: './src/templates/api.interceptor.ts.html',
             data: {}
         }));
 
@@ -112,12 +111,12 @@ export class GenModuleFiles {
  * @param {*} dire 
  * @returns 
  */
-export function genIndex(dire = `./src/app/services`) {
+export function genIndex(dire = `./gen/src/app/services`) {
     const indexText = fs.readdirSync(dire)
         // .ts かつ .spec.ts ではないファイルを抽出
         .filter(filename => filename.endsWith(".ts") && !filename.endsWith(".spec.ts") && filename !== "index.ts")
         // ファイルを読み込み
-        .map(filename => `export * from './${filename.replace(/.ts$/g, '')}';`)
+        .map(filename => `export * from './${filename.replace(/.\/gen/g,'./').replace(/.ts$/g, '')}';`)
         // 改行コードで結合
         .join('\n');
     // index.ts として書き出し

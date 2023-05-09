@@ -1,32 +1,34 @@
 import * as fs from 'fs';
-import typescript from 'typescript';
+import typescript, { ClassElement, ConstructorDeclaration, Statement } from 'typescript';
 const ts = typescript;
-import { Utils } from './utils.mjs';
+import { Utils } from './utils';
 
 export class RepoSyncer {
     loadDefs(files = [
-        './src/app/models.ts',
-        ...fs.readdirSync('./src/app/services').filter(filename => filename.endsWith('.ts')).map(filename => `./src/app/services/${filename}`)
+        './gen/src/app/models.ts',
+        ...fs.readdirSync('./gen/src/app/services').filter(filename => filename.endsWith('.ts')).map(filename => `./gen/src/app/services/${filename}`)
     ]) {
-        const classes = {};
+        const classes: { [key: string]: any } = {};
         files.forEach(filename => {
             const sourceCode = fs.readFileSync(filename, 'utf-8');
             // const sourceFile = ts.createSourceFile(filename, sourceCode, ts.ScriptTarget.Latest);
             const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest);
-            sourceFile.statements.forEach(statement => {
+            sourceFile.statements
+            sourceFile.statements.forEach((statement: Statement) => {
                 if (ts.isClassDeclaration(statement) || ts.isInterfaceDeclaration(statement) || ts.isEnumDeclaration(statement)) {
+                    if (statement.name) { } else { return; }
                     const className = statement.name.text;
                     if (className.endsWith('Service')) {
                         // サービスクラス
                         // console.log(statement);
                         const methodDefs = {};
-                        const methods = statement.members
-                            .filter(member =>
+                        const methods = (statement.members as any as Array<ClassElement>)
+                            .filter((member: ClassElement) =>
                                 ts.canHaveModifiers(member)
                                 && (!member.modifiers || !member.modifiers.some(modifier => modifier.kind === ts.SyntaxKind.PrivateKeyword))
                                 && !ts.isConstructorDeclaration(member)
                             )
-                            .map(method => {
+                            .map((method: ClassElement) => {
                                 if (ts.isMethodDeclaration(method)) {
                                     const signatureStart = method.pos + 1; // nameの次の位置
                                     const signatureEnd = method.body?.pos ?? method.end; // bodyがあればその前の位置、なければ終了位置
@@ -47,13 +49,13 @@ export class RepoSyncer {
                         };
                     } else {
                         // モデルクラス
-                        const constructor = statement.members.find(member => ts.isConstructorDeclaration(member));
+                        const constructor = (statement.members as any as Array<ClassElement>).find((member: ClassElement) => ts.isConstructorDeclaration(member)) as ConstructorDeclaration;
                         if (constructor) {
                             // コンストラクタのデフォルト値を削除するブロック
 
                             // コンストラクタのパラメータを取得する
                             const parameters = constructor.parameters.map(parameter => {
-                                const typeNode = parameter.type || parameter.initializer && parameter.initializer.type;
+                                const typeNode = parameter.type || parameter.initializer && (parameter.initializer as any)['type'];
                                 const typeName = typeNode ? typeNode.getText(sourceFile) : 'any';
                                 return `${parameter.name.getText(sourceFile)}: ${typeName}`;
                             });

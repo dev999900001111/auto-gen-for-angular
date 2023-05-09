@@ -8,7 +8,7 @@ export class Utils {
      * @param str - ケース変換する文字列
      * @returns ケバブケースに変換された文字列
      */
-    static toKebabCase(str) {
+    static toKebabCase(str: string) {
         return str.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`).replace(/^-/g, '');
     }
 
@@ -17,7 +17,7 @@ export class Utils {
      * @param str - ケース変換する文字列
      * @returns キャメルケースに変換された文字列
      */
-    static toCamelCase(str) {
+    static toCamelCase(str: string) {
         return str.replace(/[- /]([a-z])/g, (_, match) => match.toUpperCase());
     }
 
@@ -26,7 +26,7 @@ export class Utils {
      * @param str - 大文字に変換する文字列
      * @returns 大文字に変換された文字列
      */
-    static capitalize(str) {
+    static capitalize(str: string) {
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
 
@@ -35,7 +35,7 @@ export class Utils {
      * @param str - 小文字に変換する文字列
      * @returns 小文字に変換された文字列
      */
-    static decapitalize(str) {
+    static decapitalize(str: string) {
         return str.charAt(0).toLowerCase() + str.slice(1);
     }
 
@@ -44,7 +44,7 @@ export class Utils {
      * @param code - 整形するTypeScriptコード
      * @returns 整形されたTypeScriptコード
      */
-    static tsForm(code) {
+    static tsForm(code: string) {
         const lines = code.replace(/\r/g, '').split("\n");
         const result = lines.map((line, index) => {
             if (index === lines.length - 1 || line.endsWith(";")) {
@@ -62,7 +62,7 @@ export class Utils {
      * @param str 正規化する文字列
      * @returns 正規化された文字列
      */
-    static spaceNormalize(str) {
+    static spaceNormalize(str: string): string {
         const lines = str.split("\n"); // 改行コードで分割
         const result = lines.map(line => {
             const matches = line.match(/^(\s*)(\S+(?:\s+\S+)*)\s*$/); // 行頭のスペースと行末のスペースを取り出す
@@ -80,7 +80,7 @@ export class Utils {
      * @param date フォーマットする日付
      * @returns フォーマットされた文字列
      */
-    static formatDateWithMilliseconds(date) {
+    static formatDateWithMilliseconds(date: Date): string {
         const year = date.getFullYear(); // 西暦を取得
         const month = ("0" + (date.getMonth() + 1)).slice(-2); // 月を取得（0埋め）
         const day = ("0" + date.getDate()).slice(-2); // 日を取得（0埋め）
@@ -100,7 +100,7 @@ export class Utils {
      * @param chunkSize 一つの配列のサイズ
      * @returns 分割された配列
      */
-    static toChunkArray(arr, chunkSize) {
+    static toChunkArray(arr: any[], chunkSize: number): any[][] {
         return arr.reduce((acc, _, i) => {
             if (i % chunkSize === 0) acc.push(arr.slice(i, i + chunkSize));
             return acc;
@@ -112,7 +112,7 @@ export class Utils {
      * @param {string} text - Markdown形式のテキスト
      * @returns {string} コメント形式に変換されたテキスト
      */
-    static convertCodeBlocks(text) {
+    static convertCodeBlocks(text: string): string {
         let split = text.split(/```.*\n|```$/, -1);
         return split.map((code, index) => {
             if (code.length === 0) {
@@ -130,9 +130,9 @@ export class Utils {
     /**
      * JSONを安全にstringifyする関数を生成する
      */
-    static genJsonSafer() {
+    static genJsonSafer(): any {
         const cache = new Set();
-        return (key, value) => {
+        return (key: string, value: any) => {
             if (typeof value === "object" && value !== null) {
                 if (cache.has(value)) {
                     return null;
@@ -152,9 +152,10 @@ export class Utils {
      * @param {string} str 
      * @returns {string}
      */
-    static trimLines(str) {
+    static trimLines(str: string): string {
         const list = str.split('\n');
         const line = list.find((line, index) => line.trim().length > 0);
+        if (line) { } else { return str; }
         const indent = line.length - line.trimLeft().length;
         const regex = new RegExp(`^ {${indent}}`, 'g');
         return list.map(line => line.replace(regex, '')).join('\n').trim();
@@ -167,7 +168,7 @@ export class Utils {
      * @returns {string} 繰り返された文字列
      * @example rept('ab', 2) // => 'abab'
      */
-    static rept(str, n) {
+    static rept(str: string, n: number): string {
         return Array(n + 1).join(str);
     }
 
@@ -176,7 +177,8 @@ export class Utils {
      * @param {*} str 
      * @returns 
      */
-    static jsonParse(str) {
+    static jsonParse<T>(str0: string): T {
+        const str = str0.replace(/{"":"[^"]*"[,]{0,1}}/g,'null').replace(/,}/g,'}');
         try {
             return JSON.parse(str);
         } catch (e0) {
@@ -184,11 +186,22 @@ export class Utils {
                 const mid = str.replace(/^ *{|} *$/gm, '').split('\n').filter(line => line.trim().length > 0).join(',');
                 return JSON.parse(`{${mid}}`);
             } catch (e1) {
-                console.log(e0);
-                console.log(str);
+                try{
+                    const mid = JSON.parse(`[${str}]`);
+                    let sum = {};
+                    mid.forEach((obj:any)=>{
+                        // console.log(sum);
+                        sum = {...sum,...obj};
+                    });
+                    return sum as any;
+                } catch (e2){
+                    console.log(e0);
+                    console.log(`[${str}]`);
+                    // e0の方をエラー出力する。
+                    throw e0;
+                }
             }
         }
-        return null;
     }
 
     /**
@@ -197,7 +210,7 @@ export class Utils {
      * @param {number} layer
      * @returns {string}
      */
-    static toMarkdown(chapter, layer = 1) {
+    static toMarkdown(chapter: StructuredPrompt, layer: number = 1) {
         let sb = '';
         if (chapter.title) {
             sb += `${Utils.rept('#', layer)} ${chapter.title}\n`;
@@ -215,3 +228,9 @@ export class Utils {
     }
 }
 
+
+export interface StructuredPrompt {
+    title?: string;
+    content?: string;
+    children?: StructuredPrompt[];
+}
