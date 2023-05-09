@@ -1,48 +1,51 @@
 # auto-gen-for-angular
 
-ChatGPTのAPIを使ってAngularの画面を生成するプログラムです。
+This program generates Angular screens using ChatGPT's API.
 
-主に業務システムを作る用途を想定しています。だいたい20〜30程度のコンポーネントを自動生成できます。
+This program is mainly intended for business systems. It can automatically generate about 20 to 30 components.
 
-AutoGPTのような自立型のエージェントではなく、事前に決められたタスクを実行するだけのタスクランナーです。
+It is not a stand-alone agent like AutoGPT, but a task runner that only executes predefined tasks.
 
-エラー訂正機能はつけてない（コスト爆発怖い）ので、あくまでサンプルプログラムを一括生成してくれるだけで、生成物がそのまま使えるレベルではありません。
+It does not have an error correction function (cost explosion), so it only generates a batch of sample programs and is not at the level where you can use the generated products as they are.
 
 
-## 動かし方
-OpenAIのAPIが使える環境であることが前提です。
+## How to run
+It is assumed that the environment can use OpenAI's API.
 
-ソースと同じ階層に「000-requirements.md」というファイル名で作りたいシステムのユーザーシナリオを書いてから動かすとAngularの画面セットが出来上がってきます。
-動かし方は generator.js を実行するだけです。
+If you write a user scenario of the system you want to create with the file name "000-requirements.md" in the same hierarchy as the source, and then run it, you will get an Angular screen set.
+To run it, simply run generator.js.
 
 ```bash
-node generator.js
+# Install libraries
+npm install
+# Run
+ts-node src/main.ts
 ```
 
 
-## コスト
-サンプルの000-requirements.mdで作ったものでだいたい30万トークン≒約50円くらいでした。
+## cost
+The cost of the sample 000-requirements.md was about 300,000 tokens, or about 50 yen.
 
-ソース生成系を全部GPT-4にすると大体700円くらいかかります。
+If you use GPT-4 for all source generators, it costs about 700 yen.
 
 
-## 使い方 
-generator.jsの下の方にあるこの辺↓のところがステップを実行しているところで、
+## Usage 
+The bottom of the generator.js file is where the steps are executed,
 
-initPromptでプロンプトを作成して、runで実行です。
+Create a prompt with ``initPrompt'' and run it with ``run''.
 
 ```javascript
   obj = new Step000_RequirementsToComponentList();
   obj.initPrompt();
-  await obj.run();
+  await obj.run(); obj.run()
 ```
 
-一気通貫でも大体動きますが、動かしたいステップ以外はコメントアウトして使うことが多いです。
-特にSTEP12以降はものによっては大量実行になるので、一旦initPromptでプロンプトの出来栄えを見て、いくつかPlaygroundで実行してみて結果が良さそうだったらrunを動かす、みたいな使い方をしています。
+It will generally work in a single step, but I often comment out all the steps except the one I want to run.
+Especially after STEP12, some things will be executed a lot, so I use initPrompt to see how the prompt looks like, then run some of them in Playground, and if the results look good, I run run run.
 
-## 何ができるか
-この記事に簡単にまとめてあります。
+## What can I do?
+This article briefly summarizes it.
 > https://qiita.com/Programmer-cbl/items/7980e9c3085a8ce2aaf9
 
-人手で修正を加えると以下のようなものになります。だいたい３時間くらい手間がかかっています。
+If you make the modifications manually, it will look something like this It takes roughly 3 hours of labor.
 > https://bank-crm-v1-mock.s3.ap-northeast-1.amazonaws.com/index.html

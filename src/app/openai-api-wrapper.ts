@@ -12,15 +12,15 @@ const openai = new OpenAIApi(configuration);
 
 export class OpenAIApiWrapper {
 
-    options:AxiosRequestConfig;
-    constructor(){
+    options: AxiosRequestConfig;
+    constructor() {
         // proxy設定判定用オブジェクト
-        const proxyObj = {
+        const proxyObj: { [key: string]: any } = {
             httpProxy: process.env['http_proxy'] as string || undefined,
             httpsProxy: process.env['https_proxy'] as string || undefined,
         };
-        console.log(proxyObj);
-        this.options = Object.keys(proxyObj).length > 0 ? {
+        Object.keys(proxyObj).filter(key => !proxyObj[key]).forEach(key => delete proxyObj[key]);
+        this.options = Object.keys(proxyObj).filter(key => proxyObj[key]).length > 0 ? {
             proxy: false,
             httpAgent: new HttpsProxyAgent(proxyObj.httpProxy || proxyObj.httpsProxy || ''),
             httpsAgent: new HttpsProxyAgent(proxyObj.httpsProxy || proxyObj.httpProxy || ''),
