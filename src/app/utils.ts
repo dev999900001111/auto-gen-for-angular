@@ -220,7 +220,7 @@ export class Utils {
         } else { }
         if (chapter.children) {
             chapter.children.forEach(child => {
-                console.log(child);
+                // console.log(child);
                 sb += Utils.toMarkdown(child, layer + 1);
             });
         } else { }

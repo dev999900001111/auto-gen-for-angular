@@ -38,12 +38,14 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 
-import { NgChartsModule } from 'ng2-charts';
-import 'chartjs-adapter-moment';
-import { MatTimepickerModule } from 'mat-timepicker';
+// import 'chartjs-adapter-moment';
+// import { NgChartsModule } from 'ng2-charts';
+// import { MatTimepickerModule } from 'mat-timepicker';
+// import { TranslateModule } from '@ngx-translate/core';
 
 import { AppRoutingModule } from './app-routing.module';
 
+import { ApiInterceptor } from './api.interceptor';
 import { AppComponent } from './app.component';
   
 {{importsSection}}
@@ -57,8 +59,9 @@ import { AppComponent } from './app.component';
     FormsModule,
     HttpClientModule,
     ReactiveFormsModule,
-    MatTimepickerModule,
-    NgChartsModule,
+    // TranslateModule,
+    // NgChartsModule,
+    // MatTimepickerModule,
     MatButtonModule,
     MatCheckboxModule,
     MatDatepickerModule,

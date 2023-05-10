@@ -74,7 +74,10 @@ class Step000_RequirementsToComponentList extends BaseStep {
           - Place headers, footers, menus, etc. as appropriate.
           - If multiple patterns of design are possible, please select the simplest pattern.
           - The list should be reviewed by professionals such as UI/UX designers, security specialists, business analysts, database specialists, strict consistency checker, etc., and an improved version should be presented with their input.(the strict consistency checker checks in detail whether the requirements definition is consistent with the list of screens.)
-          Only the system overview and the completed list of screens and their components should be output.`)
+          Only the system overview and the completed list of screens and their components should be output.
+          Output the list of completed screens and their components as a list.
+          For each screen, please specify the data to be handled, the screen transition destination, and the dialogs to be used.
+        `)
       },
     ];
   }
@@ -96,7 +99,8 @@ class Step001_componentList_to_angularComponentList extends BaseStep {
           - Please also clearly indicate the I/O of components such as @Input, @Output, and MAT_DIALOG_DATA(parameter of dialogs). Don't forget to write the type, and generic type.
           - The output should be in tabular form, with the component name, type (page, parts, dialog), path (for page only), @Input, @Output, MAT_DIALOG_DATA, Child Angular Components,Dialog Angular Components, HTML Components, describe.
           - The component list should be reviewed by professionals such as UI/UX designers, security specialists, business analysts, strict consistency checker,  etc., and an improved version should be presented with their input (strict consistency checkers should strictly check for consistency between the screen list and component list).
-          Output only the Improved Angular components List(after review).`)
+          Output only the Improved Angular components List(after review).
+        `)
       },
     ];
   }
@@ -112,7 +116,8 @@ class Step002_angularComponentList_to_angularComponentJson extends BaseStep {
           Please convert the above design of Angular components to the following format. 
           {"\${ComponentName}": {"type": "page, parts, dialog","path":"\${path}","@Input": {{"\${varName}": "\${varType}"},,},"@Output": {{"\${varName}": "EventEmitter<\${genericType}>"},,},"MAT_DIALOG_DATA": {{"\${varName}": "\${varType}"},,},"childAngularComponents":["\${childComponentName}"], "dialogAngularComponents":["\${dialogComponentName}"], "HTMLComponents": ["\${htmlComponentName}}"], "describe":"describe"}}
           Be careful to convert all components to JSON correctly.
-          Note that it is minified JSON without line breaks and spaces.`)
+          Note that it is minified JSON without line breaks and spaces.
+        `)
       },
     ];
   }
@@ -125,7 +130,8 @@ class Step003_requirements_to_systemOverview extends BaseStep {
       { title: 'requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
-          Please familiarize yourself with the above requirements document and express it in simple sentences as a system overview.`)
+          Please familiarize yourself with the above requirements document and express it in simple sentences as a system overview.
+        `)
       },
     ];
   }
@@ -145,7 +151,8 @@ class Step004_makeAngularService extends BaseStep {
           - List the method names, arguments, and return values.
           - If multiple patterns are possible, choose the simpler design.
           - The service list should be reviewed by professionals such as UI/UX designers, security specialists, business analysts, strict consistency checker,  etc., and an improved version should be presented with their input.(The consistency checker will strictly check that your service list reflects all previous requirements.)
-          Only output the Improved Angular service classes(and method) List.`)
+          Only output the Improved Angular service classes(and method) List.
+        `)
       },
     ];
   }
@@ -164,7 +171,8 @@ class Step005_makeAngularModel extends BaseStep {
           - Please include all items that will be needed in addition to those used on the screen.
           - Define enums as appropriate.
           - The Model Classes should be reviewed by experts such as UI/UX designers, security specialists, business analysts, consistency checkers, etc., and an improved version should be presented that incorporates their input (consistency checkers strictly check whether the Model Classes reflects all previous designs).
-          Only the list of improved Model classes (tabular format) is output.`)
+          Only the list of improved Model classes (tabular format) is output.
+        `)
       },
     ];
   }
@@ -186,7 +194,8 @@ class Step006_makeAngularModelSource extends BaseStep {
               public name: type = default,
             ){
             }
-          }\`\`\``)
+          }\`\`\`
+        `)
       },
     ];
   }
@@ -211,7 +220,8 @@ class Step007_makeApiList extends BaseStep {
           - For login-related APIs, be sure to include a token in the ResponseBody. Even if the token is not specified in the output item of the service class, it must be returned from the API as a hidden item.
           - It is not necessary to implement all the methods of the service class. Select functions that should be processed on the server side appropriately and make them into APIs.
           - The API list should be reviewed by experts such as UI/UX designers, security specialists, business analysts, and strict consistency checkers, and an improved version should be presented with their input. (Strict consistency checkers will rigorously check that all features that should be implemented on the server are reflected in the API list).
-          Only output the Improved APIs List.`)
+          Only output the Improved APIs List.
+        `)
       },
     ];
     const tail = `# prompt
@@ -236,7 +246,8 @@ class Step008_makeAngularServiceJson extends BaseStep {
           Please convert the above service class list into JSON format.
           The format is as follows.
           {"ServiceName",{"path":". /src/app/services/service-name.service.ts", "models":["modelClassName"],"methods":[{"name":"methodName","params":[{"name":"type"}],"return":"returnType<genericType>"}]},,,}
-          Note that it is minified JSON without line breaks and spaces.`)
+          Note that it is minified JSON without line breaks and spaces.
+        `)
       },
     ];
   }
@@ -254,6 +265,8 @@ class Step009_makeAngularServiceSrouce extends BaseStep {
     this.index = index;
     this.label = `Step009-${index}-makeAngularServiceSrouce-${serviceName}`;
 
+    console.log(g.services[serviceName].models.map((modelName: string) => modelName));
+    // console.log(Object.keys(defs));
     const modelsString = g.services[serviceName].models.map((modelName: string) => defs[modelName].src).join('\n');
     this.chapters = [
       {
@@ -275,7 +288,8 @@ class Step009_makeAngularServiceSrouce extends BaseStep {
           - Write all implementations.
           - Pay close attention to the difference between the HTTP API's ResponseBody Type and the service's Return Type. Even if they are almost the same, they are often slightly different, so use pipe(map()) or other methods to adjust them.
           - ResponseBody is returned as String type even if it is written as Date. As a function of the Service class, it must be converted to the Date type according to the model class type.
-          Only output the source code.`)
+          Only output the source code.
+        `)
       },
       // - Authentication tokens for request headers should be get from the service responsible for authService by getToken.
       // - HTTP APIのResponseBody TypeとサービスのReturn Typeの違いには、十分に注意をしてください。ほとんど同じでも若干違うことが多いので、pipe(map())等で調整してください。
@@ -343,7 +357,8 @@ class Step010_ApiListJson extends BaseStep {
         title: 'prompt', content: Utils.trimLines(`
           Please convert APIs List table to minified JSON format, like below.
           [{"method":"POST","path":"/api/auth/login","requestBody":"{ username, password }","responseBody":"{ token, user: User }","description":"Authenticates user and returns a token and user object"},{"method":"POST","path":"/api/auth/login","requestBody":"{ username, password }","responseBody":"{ token, user: User }","description":"Authenticates user and returns a token and user object" },,]
-          Output Json only.`)
+          Output Json only.
+        `)
       },
     ];
   }
@@ -363,12 +378,13 @@ class Step010_createJSONdata extends BaseStep {
       { title: 'Models List', content: modelList },
       {
         title: 'prompt', content: Utils.trimLines(`
-        Based on the above design document, please create a sample data (for Japanese) for the APIs List.
-        Only the ResponseBody is required.
-        Please use all values of Enum.
-        The format is minified JSON as follows.
-        {"\${Method}-\${Path}":\${mockdata}}
-        Please output only JSON data.`)
+          Based on the above design document, please create a sample data (for Japanese) for the APIs List.
+          Only the ResponseBody is required.
+          Please use all values of Enum.
+          The format is minified JSON as follows.
+          {"\${Method}-\${Path}":\${mockdata}}
+          Please output only JSON data.
+        `)
       }
     ];
     /**
@@ -389,7 +405,7 @@ class Step010_createJSONdata extends BaseStep {
         // スラッシュを1つにする、かつ先頭と末尾のスラッシュを外す。
         path = path.replace(/\/\/+/, '/').replace(/^\/|\/$/, '').replace(/[\?=\&]/g, '-');
         // console.log(path);
-        path = path.replace(/:[^/]*\//g, '1/').replace(/:[^/]*$/g, '1');
+        path = path.replace(/:[^/]*\//g, '1/').replace(/:[^/]*$/g, '1').replace(/[{}]/g, '');
         // console.log(path);
         let dire = `./gen/src/assets/mock/${path}`.replace(/\/[^\/]*$/g, '');
         // ディレクトリを掘る。
@@ -416,9 +432,10 @@ class Step010_componentList_to_Json extends BaseStep {
       { title: 'Component List', content: fs.readFileSync(new Step000_RequirementsToComponentList().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
-        Please convert the above List of Screensn into JSON format.
-        {"ScreenName":{"desc": "A brief description of the screen", "uiList"["UI component",,]},,}
-        Note that this is minified JSON without newlines and spaces.`)
+          Please convert the above List of Screensn into JSON format.
+          {"ScreenName":{"desc": "A brief description of the screen", "uiList"["UI component",,]},,}
+          Note that this is minified JSON without newlines and spaces.
+        `)
       },
     ];
   }
@@ -430,9 +447,10 @@ class Step011_AngularModelList_to_Json extends BaseStep {
       { title: 'Angular Model List', content: fs.readFileSync(new Step005_makeAngularModel().resultPath, 'utf-8') },
       {
         title: 'prompt', content: Utils.trimLines(`
-        Please convert the above List of Screensn into JSON format.
-        {"ModelClassName":{"desc": "A brief description of the Model", "props"{{"name":"type<generic>"},,}},,}
-        Note that this is minified JSON without newlines and spaces.`)
+          Please convert the above List of Screensn into JSON format.
+          {"ModelClassName":{"desc": "A brief description of the Model", "props"{{"name":"type<generic>"},,}},,}
+          Note that this is minified JSON without newlines and spaces.
+        `)
       },
     ];
   }
@@ -443,6 +461,9 @@ class Step012_makeScreenSpec extends BaseStep {
   constructor(index: number, componentName: string, ngUiJSON: any) {
     super();
     this.label = `Step012-${index}-makeScreenSpec-${componentName}`;
+    // console.log([...ngUiJSON[componentName].childAngularComponents, ...ngUiJSON[componentName].dialogAngularComponents]);
+    // console.log(Object.keys(ngUiJSON));
+    // console.log(this.label);
 
     const g: any = {};
     const ngUiList = Utils.spaceNormalize(fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, 'utf-8'));
@@ -477,10 +498,10 @@ class Step012_makeScreenSpec extends BaseStep {
           # Detailed Screen Design Document
           ## Screen name
           ## Description
-          ## Child Elements
-          ### Angular element components
+          ## Elements to be used
+          ### Angular elements
           ${(ngUiJSON[componentName].childAngularComponents || []).map((chilName: string) => '- ' + chilName + '(' + ['@Input', '@Output'].map(io => io + ':{' + Object.keys(ngUiJSON[chilName][io] || {}).filter(key => key.trim() !== '-').map(key => key + ': ' + ngUiJSON[chilName][io][key]).join(',') + '}').join(', ') + ')').join('\n') || 'None'}
-          ### Angular dialog components
+          ### Angular dialogs
           ${(ngUiJSON[componentName].dialogAngularComponents || []).map((chilName: string) => '- ' + chilName + '(' + ['MAT_DIALOG_DATA'].map(io => io + ':{' + Object.keys(ngUiJSON[chilName][io] || {}).filter(key => key.trim() !== '-').map(key => key + ': ' + ngUiJSON[chilName][io][key]).join(',') + '}').join(', ') + ')').join('\n') || 'None'}
           ### HTML components
           ${(ngUiJSON[componentName].HTMLComponents || []).map((name: string) => '- ' + name).join(', ') || 'None'}
@@ -490,12 +511,14 @@ class Step012_makeScreenSpec extends BaseStep {
           ## Error messages
           ## Model classes used (excluding use from child components)
           ## Service classes and methods used (excluding calls from child components)
-          \`\`\``)
+          \`\`\`
+        `)
       }
     ];
   }
   static genSteps() {
     const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8').replace(/{"": ""}/g, 'null'));
+    ['childAngularComponents', 'dialogAngularComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(componentName => { ngUiJSON[componentName][prop] = Object.keys(ngUiJSON).filter(name => ngUiJSON[name][prop] !== 'RouterOutlet' && ngUiJSON[name][prop].find((chilName: string) => Object.keys(ngUiJSON).indexOf(chilName) !== -1)); }); });
     return Object.keys(ngUiJSON).map((componentName, index) => new Step012_makeScreenSpec(index, componentName, ngUiJSON));
   }
 }
@@ -511,13 +534,15 @@ class Step013_makeScreenSpecJSON extends BaseStep {
           Please convert the above List of Screensn into JSON format.
           {"modelClassesUsed":[\${Model class used}], "serviceClassesUsed":[\${Service class used}]]}
           * Models and Services shall be by name only List.
-          Note that this is minified JSON without newlines and spaces.`)
+          Note that this is minified JSON without newlines and spaces.
+        `)
       },
     ];
   }
   static genSteps() {
     const g: any = {};
     const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    ['childAngularComponents', 'dialogAngularComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(componentName => { ngUiJSON[componentName][prop] = Object.keys(ngUiJSON).filter(name => ngUiJSON[name][prop] !== 'RouterOutlet' && ngUiJSON[name][prop].find((chilName: string) => Object.keys(ngUiJSON).indexOf(chilName) !== -1)); }); });
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
@@ -564,14 +589,15 @@ class Step014_makeScreenHtml extends BaseStep {
       },
       {
         title: 'prompt', content: Utils.trimLines(` 
-        Please carefully review the design information up to this point and create the html for the ${componentName}, keeping in mind the division of roles according to the screen list.
-        Please be sure to inspect the following points before submitting your work.
-        - Please use AngularMaterial to create a polished design.
-        - Calibrate the screen with only the given components.
-        - Do not use name specified for @Output.
-        - screen should be for Japanese.
-        - Note the component names (especially the suffixes).
-        Please respond only to ${this.nameKebab0}.component.html.`)
+          Please carefully review the design information up to this point and create the html for the ${componentName}, keeping in mind the division of roles according to the screen list.
+          Please be sure to inspect the following points before submitting your work.
+          - Please use AngularMaterial to create a polished design.
+          - Calibrate the screen with only the given components.
+          - Do not use name specified for @Output.
+          - screen should be for Japanese.
+          - Note the component names (especially the suffixes).
+          Please respond only to ${this.nameKebab0}.component.html.
+        `)
       },
     ];
 
@@ -603,6 +629,7 @@ class Step014_makeScreenHtml extends BaseStep {
   static genSteps() {
     const g: any = {};
     const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    ['childAngularComponents', 'dialogAngularComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(componentName => { ngUiJSON[componentName][prop] = Object.keys(ngUiJSON).filter(name => ngUiJSON[name][prop] !== 'RouterOutlet' && ngUiJSON[name][prop].find((chilName: string) => Object.keys(ngUiJSON).indexOf(chilName) !== -1)); }); });
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
@@ -646,6 +673,7 @@ class Step015_ScreenProp extends BaseStep {
   static genSteps() {
     const g: any = {};
     const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    ['childAngularComponents', 'dialogAngularComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(componentName => { ngUiJSON[componentName][prop] = Object.keys(ngUiJSON).filter(name => ngUiJSON[name][prop] !== 'RouterOutlet' && ngUiJSON[name][prop].find((chilName: string) => Object.keys(ngUiJSON).indexOf(chilName) !== -1)); }); });
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
@@ -654,6 +682,42 @@ class Step015_ScreenProp extends BaseStep {
     return Object.keys(ngUiJSON).map((componentName, index) => new Step015_ScreenProp(index, componentName, ngUiJSON));
   }
 }
+
+class Step015_ScreenPropJSON extends BaseStep {
+  dire: string;
+  nameKebab0: string;
+  constructor(
+    private index: number,
+    private componentName: string,
+    private ngUiJSON: any,) {
+    super();
+    this.label = `Step015-${index}-ScreenPropJSON-${componentName}`;
+
+    const nameKebab = Utils.toKebabCase(componentName);
+    this.nameKebab0 = nameKebab.replace(/-component$/, '');
+
+    this.dire = `./gen/src/app/${ngUiJSON[componentName].type.toLowerCase().replace(/s$/g, '')}s/${this.nameKebab0}/`;
+
+    const htmlString = fs.readFileSync(`./${this.dire}/${this.nameKebab0}.component.prop`, 'utf-8');
+
+    this.chapters = [
+      { title: '', content: htmlString },
+      {
+        title: 'prompt', content: Utils.trimLines(`
+          Please put the above data into JSON format.
+          {"Variables":{"\${name}":{"type":"\${type}","description":"\${description}"},},}  
+        `)
+      },
+    ];
+  }
+  static genSteps() {
+    const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    ['childAngularComponents', 'dialogAngularComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(componentName => { ngUiJSON[componentName][prop] = Object.keys(ngUiJSON).filter(name => ngUiJSON[name][prop] !== 'RouterOutlet' && ngUiJSON[name][prop].find((chilName: string) => Object.keys(ngUiJSON).indexOf(chilName) !== -1)); }); });
+    return Object.keys(ngUiJSON).map((componentName, index) => new Step015_ScreenPropJSON(index, componentName, ngUiJSON));
+  }
+}
+
+
 
 class Step016_AngularTypescript extends BaseStep {
   // model = 'gpt-4';
@@ -686,6 +750,41 @@ class Step016_AngularTypescript extends BaseStep {
           return line;
         }
       }).join('\n');
+
+    const propJSON: { [key: string]: any } = Utils.jsonParse(fs.readFileSync(new Step015_ScreenPropJSON(index, componentName, ngUiJSON).resultPath, 'utf-8'));
+    Object.keys(propJSON).forEach(key => {
+      const val = propJSON[key];
+      Object.keys(val).forEach(key => {
+        if (['none', 'n/a'].indexOf(key.toLowerCase()) !== -1) {
+          delete val[key];
+        } else {
+          // 
+        }
+      });
+      delete propJSON[key];
+      propJSON[key.replace(/@/g, '').toLocaleLowerCase().split(' ')[0]] = val;
+    });
+
+    const propString = ['variables', 'constants',].map(key => {
+      return Object.keys(propJSON[key] || {}).map(prop => {
+        return `    // ${propJSON[key][prop].description}\n    ${prop}: ${propJSON[key][prop].type};`;
+      }).join('\n\n');
+    }).join('\n\n\n');
+    // 'viewchild', 'functions'
+
+    const viewChildString = Object.keys(propJSON['viewchild'] || {}).map(viewChildName => {
+      return `    // ${propJSON['viewchild'][viewChildName].description}\n    @ViewChild('${viewChildName}') ${viewChildName}: ${propJSON['viewchild'][viewChildName].type};`;
+    }).join('\n\n');
+
+    const funcString = Object.keys(propJSON['functions'] || {}).map(funcName => {
+      const funcObj = propJSON['functions'][funcName];
+      if (funcName.endsWith(')')) {
+      } else {
+        funcName += '()';
+      }
+      return `    /**\n     * ${funcObj.description}\n     */\n    ${funcName}: ${funcObj.type || 'void'} {\n        // TODO implement\n    }`;
+    }).join('\n\n');
+
     let ioString = '';
     for (const io of ['@Input', '@Output']) {
       for (const key of Object.keys(ngUiJSON[componentName][io] || {})) {
@@ -703,16 +802,18 @@ class Step016_AngularTypescript extends BaseStep {
       {
         title: 'Reference', content: '', children: [{
           title: 'Model and Service classes', content: Utils.trimLines(`
-              \`\`\`typescript
-              ${Object.keys(g.classes).map(key => g.classes[key].src).join('\n')}
-              \`\`\``)
+            \`\`\`typescript
+            ${Object.keys(g.classes).map(key => g.classes[key].src).join('\n')}
+            \`\`\`
+          `)
         }, {
           title: 'Directory structure sample', content: Utils.trimLines(`
-              src/app/dialogs/sample-dialog.component/
-              src/app/pages/sample-page.component/
-              src/app/parts/sample-part.component/
-              src/app/services/sample.service.ts
-              src/app/models.ts`)
+            src/app/dialogs/sample-dialog.component/
+            src/app/pages/sample-page.component/
+            src/app/parts/sample-part.component/
+            src/app/services/sample.service.ts
+            src/app/models.ts
+          `)
         }]
       },
       {
@@ -739,13 +840,22 @@ class Step016_AngularTypescript extends BaseStep {
                 styleUrls: ['./${this.nameKebab0}.component.scss']
             })
             class  ${nameCamel0}Component implements OnInit {
-            
+
+            ${propString}
+
+
             ${ioString}
+
+            ${viewChildString}
+
                 constructor(${diString}) {
                 }
             
                 ngOnInit(): void {
                 }
+
+            ${funcString}
+
             }
             \`\`\`
           `)
@@ -800,6 +910,7 @@ class Step016_AngularTypescript extends BaseStep {
 
   static genSteps() {
     const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
+    ['childAngularComponents', 'dialogAngularComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(componentName => { ngUiJSON[componentName][prop] = Object.keys(ngUiJSON).filter(name => ngUiJSON[name][prop] !== 'RouterOutlet' && ngUiJSON[name][prop].find((chilName: string) => Object.keys(ngUiJSON).indexOf(chilName) !== -1)); }); });
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     const g: any = {};
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
@@ -819,62 +930,85 @@ export async function main() {
   obj = new Step000_RequirementsToComponentList();
   obj.initPrompt();
   await obj.run();
+
   obj = new Step001_componentList_to_angularComponentList();
   obj.initPrompt();
   await obj.run();
+
   obj = new Step002_angularComponentList_to_angularComponentJson();
   obj.initPrompt();
   await obj.run();
+
   obj = new Step003_requirements_to_systemOverview();
   obj.initPrompt();
   await obj.run();
+
   obj = new Step004_makeAngularService();
   obj.initPrompt();
   await obj.run();
+
   obj = new Step005_makeAngularModel();
   obj.initPrompt();
   await obj.run();
+
 
   obj = new Step006_makeAngularModelSource();
   obj.initPrompt();
   await obj.run();
 
+
   obj = new Step011_AngularModelList_to_Json();
   obj.initPrompt();
   await obj.run();
+
   obj = new Step007_makeApiList();
   obj.initPrompt();
   await obj.run();
+
   obj = new Step008_makeAngularServiceJson();
   obj.initPrompt();
   await obj.run();
+
 
   obj = new MultiRunner(Step009_makeAngularServiceSrouce.genSteps());
   obj.initPrompt();
   await obj.run();
 
+
   obj = new Step010_ApiListJson();
   obj.initPrompt();
   await obj.run();
+
   obj = new MultiRunner(Step010_createJSONdata.genSteps());
   obj.initPrompt();
   await obj.run();
+
   obj = new Step010_componentList_to_Json();
   obj.initPrompt();
   await obj.run();
+
   obj = new MultiRunner(Step012_makeScreenSpec.genSteps());
   obj.initPrompt();
   await obj.run();
-  console.log(`Step012_makeScreenSpec`);
+
   obj = new MultiRunner(Step013_makeScreenSpecJSON.genSteps());
   obj.initPrompt();
   await obj.run();
+
   obj = new MultiRunner(Step014_makeScreenHtml.genSteps());
   obj.initPrompt();
   await obj.run();
+
   obj = new MultiRunner(Step015_ScreenProp.genSteps());
   obj.initPrompt();
   await obj.run();
+
+
+  obj = new MultiRunner(Step015_ScreenPropJSON.genSteps());
+  obj.initPrompt();
+  await obj.run();
+
+
   obj = new MultiRunner(Step016_AngularTypescript.genSteps());
   obj.initPrompt();
   await obj.run();

@@ -42,7 +42,7 @@ export class GenModuleFiles {
                 // クラス名を生成する
                 const className = `${Utils.capitalize(Utils.toCamelCase(componentName))}Component`;
                 // インポート文を生成する
-                const importStatement = `import { ${className} } from './${path.relative('./src/app', filePath).replace(/\\/g, '/').replace(/.ts$/g, '')}';`;
+                const importStatement = `import { ${className} } from './${path.relative('./src/app', filePath).replace(/\\/g, '/').replace(/.ts$/g, '').replace(/..\/..\/gen\/src\/app\//g, '')}';`;
                 importStatementList.push({ importStatement, className });
             }
         });
@@ -116,7 +116,7 @@ export function genIndex(dire = `./gen/src/app/services`) {
         // .ts かつ .spec.ts ではないファイルを抽出
         .filter(filename => filename.endsWith(".ts") && !filename.endsWith(".spec.ts") && filename !== "index.ts")
         // ファイルを読み込み
-        .map(filename => `export * from './${filename.replace(/.\/gen/g,'./').replace(/.ts$/g, '')}';`)
+        .map(filename => `export * from './${filename.replace(/.\/gen/g, './').replace(/.ts$/g, '')}';`)
         // 改行コードで結合
         .join('\n');
     // index.ts として書き出し
