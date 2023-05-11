@@ -13,7 +13,7 @@ It does not have an error correction function (cost explosion), so it only gener
 It is assumed that the environment can use OpenAI's API.
 
 If you write a user scenario of the system you want to create with the file name "000-requirements.md" in the same hierarchy as the source, and then run it, you will get an Angular screen set.
-To run it, simply run generator.js.
+To run it, simply run src/main.ts.
 
 ```bash
 # Install libraries
@@ -24,9 +24,9 @@ ts-node src/main.ts
 
 
 ## cost
-The cost of the sample 000-requirements.md was about 300,000 tokens, or about 50 yen.
+The cost of the sample 000-requirements.md was about 300,000 tokens, or about $0.4 yen.
 
-If you use GPT-4 for all source generators, it costs about 700 yen.
+If you use GPT-4 for all source generators, it costs about $6.
 
 
 ## Usage 
