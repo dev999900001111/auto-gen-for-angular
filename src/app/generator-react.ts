@@ -357,7 +357,7 @@ class Step0105_componentList_to_Json extends BaseStep {
 }
 
 class Step0120_makeScreenSpec extends BaseStep {
-  model = 'gpt-4';
+  // model = 'gpt-4';
   constructor(index: number, componentName: string, ngUiJSON: any) {
     super();
     this.label = `Step0120_${index}-makeScreenSpec-${componentName}`;
@@ -445,7 +445,7 @@ function filterByComponentName(ngUiJSON: any) {
 }
 
 class Step0140_makeScreen extends BaseStep {
-  model = 'gpt-4';
+  // model = 'gpt-4';
   override systemMessage = 'You are an experienced and talented react programmer.';
   // 
   override assistantMessage = '```tsx';
