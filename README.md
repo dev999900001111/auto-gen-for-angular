@@ -19,7 +19,7 @@ To run it, simply run src/main.ts.
 # Install libraries
 npm install
 # Run
-ts-node src/main.ts
+ts-node src/main.ts [angular|react]
 ```
 
 

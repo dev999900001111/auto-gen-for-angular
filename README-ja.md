@@ -18,8 +18,8 @@ OpenAIのAPIが使える環境であることが前提です。
 ```bash
 # ライブラリをインストール
 npm install
-# 実行
-ts-node src/main.ts
+# 実行（angularかreactかを選ぶ）
+ts-node src/main.ts  [angular|react]
 ```
 
 
