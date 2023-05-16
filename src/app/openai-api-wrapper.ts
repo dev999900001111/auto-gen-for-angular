@@ -35,7 +35,7 @@ export class OpenAIApiWrapper {
      * @param systemMessage システムメッセージ
      * @returns OpenAIのAPIのレスポンス
      */
-    call(label: string, prompt: string, model: string = 'gpt-3.5-turbo', systemMessage: string = 'You are an experienced and talented software engineer.',): Promise<AxiosResponse<CreateChatCompletionResponse>> {
+    call(label: string, prompt: string, model: string = 'gpt-3.5-turbo', systemMessage: string = 'You are an experienced and talented software engineer.', assistantMessage: string = ''): Promise<AxiosResponse<CreateChatCompletionResponse>> {
         try { fs.mkdirSync(HISTORY_DIRE, { recursive: true }); } catch (e) { }
         const promise: Promise<AxiosResponse<CreateChatCompletionResponse, any>> = new Promise(async (resolve, reject) => {
             const args: CreateChatCompletionRequest = {
@@ -47,6 +47,10 @@ export class OpenAIApiWrapper {
                     { role: 'user', content: prompt },
                 ]
             };
+
+            if (assistantMessage) {
+                args.messages.push({ role: 'assistant', content: assistantMessage });
+            } else { }
 
             let completion: AxiosResponse<CreateChatCompletionResponse, any> | null = null;
             let retry = 0;

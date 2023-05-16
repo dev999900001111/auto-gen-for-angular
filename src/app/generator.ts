@@ -1,66 +1,8 @@
 import * as  fs from 'fs';
-import { StructuredPrompt, Utils } from './utils';
-import { OpenAIApiWrapper } from './openai-api-wrapper';
+import { Utils } from './utils';
+import { BaseStep, MultiRunner } from "./base-step";
 import { RepoSyncer } from './repo-syncer';
 import { GenModuleFiles, genIndex } from './gen-angular-modules';
-
-const aiApi = new OpenAIApiWrapper();
-
-/**
- * 基本クラス
- */
-abstract class BaseStep {
-
-  /** default parameters */
-  model = 'gpt-3.5-turbo';
-  systemMessage = 'You are an experienced and talented software engineer.';
-
-  /** label */
-  _label: string = '';
-  get label() { return this._label || this.constructor.name; }
-  set label(label) { this._label = label; }
-
-  /** create prompt */
-  prompt: string = '';
-  chapters: StructuredPrompt[] = []; // {title: string, content: string, children: chapters[]}
-
-  /** io */
-  get promptPath() { return `./prompts/${this.label}.prompt.md`; }
-  get resultPath() { return `./prompts/${this.label}.result.md`; }
-
-  initPrompt(): string {
-    this.prompt = this.chapters.map(chapter => Utils.toMarkdown(chapter)).join('\n');
-    fs.writeFileSync(this.promptPath, this.prompt);
-    return this.preProcess(this.prompt);
-  }
-
-  preProcess(prompt: string): string {
-    return prompt;
-  }
-
-  /**
-   * 
-   * @returns 
-   */
-  async run(): Promise<string> {
-    this.prompt = fs.readFileSync(this.promptPath, 'utf-8');
-    return aiApi.call(this.label, this.prompt, this.model, this.systemMessage).then((completion) => {
-      if (completion.data && completion.data.choices && completion.data.choices[0] && completion.data.choices[0].message && completion.data.choices[0].message.content) {
-        // 戻り値の存在チェック
-      } else {
-        // 無かったら空で返す。
-        return '';
-      }
-      const result = completion.data.choices[0].message.content;
-      fs.writeFileSync(this.resultPath, result);
-      return this.postProcess(result);
-    });
-  }
-
-  postProcess(result: string): string {
-    return result;
-  }
-}
 
 class Step000_RequirementsToComponentList extends BaseStep {
   model = 'gpt-4';
@@ -331,21 +273,6 @@ class Step009_makeAngularServiceSrouce extends BaseStep {
     //   genIndex();
     // });
     return Object.keys(g.services).map((serviceName, index) => new Step009_makeAngularServiceSrouce(serviceName, index, g, apiList, defs));
-  }
-}
-class MultiRunner {
-  private promiseList: Promise<string>[] = [];
-  constructor(
-    private stepList: BaseStep[]
-  ) {
-    this.stepList = stepList;
-  }
-  initPrompt(): void {
-    this.stepList.forEach(step => step.initPrompt());
-  }
-  async run(): Promise<string[]> {
-    this.stepList.forEach(step => this.promiseList.push(step.run()));
-    return Promise.all(this.promiseList);
   }
 }
 class Step010_ApiListJson extends BaseStep {

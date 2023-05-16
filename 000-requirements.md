@@ -1,44 +1,20 @@
-Title: Job Seeker's Journey on the Job Search Website
+Sure! Here's an example of a user scenario for a human resources and payroll management system:
 
-User Scenario:
+User Scenario: Employee Registration and Payroll Calculation
 
-1. Account Creation
-   a. User visits the website and clicks on "Sign Up" to create an account.
-   b. User enters their name, email address, and password and clicks "Submit."
-   c. User receives a confirmation email and clicks the link to activate their account.
-
-2. Profile Building
-   a. User logs in and is directed to the profile building page.
-   b. User enters personal details, such as contact information, location, and date of birth.
-   c. User uploads their resume and fills in their work experience, education, skills, and certifications.
-   d. User selects their job preferences, including desired job titles, industries, and locations.
-   e. User clicks "Save" to complete their profile.
-
-3. Job Search
-   a. User clicks on "Find Jobs" and the website displays a list of recommended jobs based on their profile.
-   b. User can filter job listings by job title, location, industry, and other criteria.
-   c. User clicks on a job listing to view more details, such as the job description, requirements, and application process.
-
-4. Job Application
-   a. User clicks "Apply" on a job listing and is directed to the application page.
-   b. User reviews their pre-filled application information and uploads any required documents.
-   c. User clicks "Submit" to complete the application process.
-   d. User receives a confirmation email and can track the status of their application on the website.
-
-5. Job Alerts
-   a. User clicks "Job Alerts" and sets up notifications based on their job preferences.
-   b. User receives email notifications when new job listings match their preferences.
-
-6. Networking
-   a. User clicks on "Networking" to connect with other job seekers and professionals in their industry.
-   b. User can join groups, participate in discussions, and attend virtual events to expand their network.
-
-7. Resources
-   a. User clicks on "Resources" to access career advice, interview tips, and other job search resources.
-
-8. Customer Support
-   a. User clicks on "Help" to contact customer support via chat or email for any assistance needed.
-
-9. Success
-   a. User receives a job offer and updates their profile to reflect their new employment status.
-   b. User can continue using the website to network and access resources for career growth.
+1. The user (administrator) logs into the Human Resources and Payroll Management System.
+2. The user navigates to the employee registration screen.
+3. The user enters the employee's personal information (name, address, contact details, etc.).
+4. The user selects the employee's employment type (full-time, part-time, contract, etc.) and position (job title, department, etc.).
+5. The user enters the employee's salary information (base salary, allowances, bonuses, etc.).
+6. The user grants the employee access to the attendance management system to manage attendance information (working hours, leave requests, etc.).
+7. The user registers the employee's bank account information (account number, bank name, branch, etc.).
+8. The user reviews the entered information and registers the employee in the system.
+9. The user specifies the payroll calculation period (monthly, quarterly, annually, etc.).
+10. The system retrieves the attendance data for the specified period for each employee and performs payroll calculations.
+11. The system generates individual salary statements for each employee, displaying detailed items such as base salary, allowances, bonuses, etc.
+12. The user reviews the salary statements and makes any necessary modifications or additional adjustments.
+13. The system generates aggregate payroll data, calculates items such as social insurance premiums, and tax deductions.
+14. The user reviews the salary statements and deduction amounts, and generates the final payroll payment data.
+15. The system processes the payroll payment data, including salary transfers, tax withholding, and other applicable deductions.
+Please note that this is just one example of a user scenario, and the specific features and functionalities of a human resources and payroll management system may vary based on the requirements of the organization.

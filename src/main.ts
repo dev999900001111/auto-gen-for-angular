@@ -1,12 +1,21 @@
+const start = Date.now();
 console.log('start');
-import * as generator from './app/generator';
+import * as generatorAngular from './app/generator';
+import * as generatorReact from './app/generator-react';
 
-async function main () {
+/**
+ * 引数によってAngularかReactかをふりわける
+ */
+async function main(type: 'angular' | 'react' = 'angular') {
     try {
-        await generator.main();
-    } catch(e){
+        if (type === 'react') {
+            await generatorReact.main();
+        } else {
+            await generatorAngular.main();
+        }
+    } catch (e) {
         console.log(e);
     }
-    console.log('end');
+    console.log(`end ${Date.now() - start}ms`);
 }
-main();
+main(process.argv[2] as 'angular' | 'react');
