@@ -18,7 +18,7 @@ export class ${apiServiceName} {
     private apiBase = '';
 ${serviceMethodString}
 }
-export const ${Utils.decapitalize(apiServiceName)} = new ${apiServiceName}();
+export const ${Utils.toCamelCase(apiServiceName)} = new ${apiServiceName}();
             `;
         }
 

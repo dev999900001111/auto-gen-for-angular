@@ -385,7 +385,7 @@ class Step0120_makeScreenSpec extends BaseStep {
     const modelJSON = new Step0065_ReactModelList_to_Json().result;
     g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
     // console.log(g.models);
-    const modelString = Object.keys(g.models).filter(key => g.models[key].props).map(key => ` - ${key}(${Object.keys(g.models[key].props).map(propKey => propKey + ': ' + g.models[key].props[propKey]).join(', ')})`).join('\n');
+    const modelString = Object.keys(g.models).filter(key => g.models[key].props).map(key => ` - ${key}(${g.models[key].props.map((prop: any) => prop.name + ': ' + prop.type).join(', ')})`).join('\n');
     const enumString = Object.keys(g.models).filter(key => g.models[key].values).map(key => ` - ${key}: ${g.models[key].values.map((value: string) => '"' + value + '"').join(' | ')}`).join('\n');
 
     const io = ['props'].map(io => Object.keys(ngUiJSON[componentName][io] || {}).filter(key => key.trim() !== '-').map(key => `- ${key}: ${ngUiJSON[componentName][io][key]}`).join('\n'));
@@ -410,19 +410,21 @@ class Step0120_makeScreenSpec extends BaseStep {
           ## Screen name
           ## Description
           ## Screen layout
+          ## Data to be displayed
           ## Screen behavior
           ## Input Form
           ## Error messages
+          ## React components used
           ## Model classes used (excluding use from child components)
           ## Service classes and methods used (excluding calls from child components)
-          \`\`\`
+                    \`\`\`
         `)
       }
     ];
   }
   static genSteps() {
-    const ngUiJSON = Utils.jsonParse<any>(new Step0020_ReactComponentList_to_ReactComponentJson().result.replace(/{"": ""}/g, 'null'));
-    filterByComponentName(ngUiJSON);
+    let ngUiJSON = Utils.jsonParse<any>(new Step0020_ReactComponentList_to_ReactComponentJson().result.replace(/{"": ""}/g, 'null'));
+    ngUiJSON = filterByComponentName(ngUiJSON);
     return Object.keys(ngUiJSON).map((componentName, index) => new Step0120_makeScreenSpec(index, componentName, ngUiJSON));
   }
 }
@@ -436,7 +438,7 @@ class Step0130_makeScreenSpecJSON extends BaseStep {
       {
         title: 'prompt', content: Utils.trimLines(`
           Please convert the above List of Screensn into JSON format.
-          {"modelClassesUsed":[\${Model class used}], "serviceClassesUsed":[\${Service class used}]]}
+          {"reactComponentUsed":[\${React component used}], "modelClassesUsed":[\${Model class used}], "serviceClassesUsed":[\${Service class used}]]}
           * Models and Services shall be by name only List.
           Note that this is minified JSON without newlines and spaces(Do not add extra space.).
         `)
@@ -445,8 +447,8 @@ class Step0130_makeScreenSpecJSON extends BaseStep {
   }
   static genSteps() {
     const g: any = {};
-    const ngUiJSON = Utils.jsonParse<any>(new Step0020_ReactComponentList_to_ReactComponentJson().result);
-    filterByComponentName(ngUiJSON);
+    let ngUiJSON = Utils.jsonParse<any>(new Step0020_ReactComponentList_to_ReactComponentJson().result);
+    ngUiJSON = filterByComponentName(ngUiJSON);
     const serviceListJSON = new Step0080_makeReactServiceJson().result;
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
     const modelJSON = new Step0065_ReactModelList_to_Json().result;
@@ -455,6 +457,9 @@ class Step0130_makeScreenSpecJSON extends BaseStep {
   }
 }
 function filterByComponentName(ngUiJSON: any) {
+  const tmp: { [key: string]: any } = {};
+  Object.keys(ngUiJSON).forEach(key => { if (['ROOT_ROUTER', 'PUBLIC_SCREEN', 'ROUTER', 'PRIVATE_SCREEN', 'HEADER', 'SIDENAVI', 'MAIN', 'MAIN_ROUTER', 'FOOTER',].includes(key)) { } else { tmp[key] = ngUiJSON[key]; } });
+  ngUiJSON = tmp;
   return ['childReactComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(compName => { ngUiJSON[compName][prop] = ngUiJSON[compName][prop].filter((chilName: string) => Object.keys(ngUiJSON).includes(chilName) && !['RouterOutlet', 'HTMLComponents', 'describe'].includes(chilName)); }); });
 }
 
@@ -476,6 +481,8 @@ class Step0140_makeScreen extends BaseStep {
     this.label = `Step0140_${index}-makeScreen-${componentName}`;
 
     const doc = new Step0120_makeScreenSpec(index, componentName, ngUiJSON).result;
+    const used = Utils.jsonParse(new Step0130_makeScreenSpecJSON(index, componentName, ngUiJSON).result.replace(/```/g, '').trim()) as { modelClassesUsed: string[], serviceClassesUsed: string[] };
+
     const nameKebab = Utils.toKebabCase(componentName);
     this.nameKebab0 = nameKebab;
     this.nameCamel0 = Utils.toCamelCase(componentName);
@@ -502,7 +509,7 @@ class Step0140_makeScreen extends BaseStep {
           {
             // ${Object.keys(g.models).map(modelName => modelName + ' (' + Object.keys(g.models[modelName].props).map(propName => propName + ': ' + g.models[modelName].props[propName]).join(', ')).join(')\n')}
             title: 'Model classes', content: Utils.trimLines(`
-              ${Object.keys(g.models).map(modelName => modelName + (JSON.stringify(g.models[modelName][(g.models[modelName].props ? 'props' : 'values')]))).join('\n').replace(/""/g, 'null').replace(/"/g, '')}
+              ${Object.keys(g.models).filter(modelName => used.modelClassesUsed.includes(modelName)).map(modelName => modelName + (JSON.stringify(g.models[modelName][(g.models[modelName].props ? 'props' : 'values')]))).join('\n').replace(/""/g, 'null').replace(/"/g, '')}
             `)
           }
         ]
@@ -516,6 +523,26 @@ class Step0140_makeScreen extends BaseStep {
           - Compose the screen using only the given components.
           - The screen must be in Japanese.
           Please output only ${this.nameCamel0}.tsx file.
+          \`\`\`tsx
+          import React from 'react';
+          import { /* TODO import */ } from '@chakra-ui/react';
+          import { ${used.modelClassesUsed.join(',')} } from '../models';
+          import { ${used.serviceClassesUsed.map(serviceClassName => Utils.toCamelCase(serviceClassName)).join(',')} } from '../services';
+
+          export interface ${this.nameCamel0}Props {
+            // props
+          }
+          
+          const ${this.nameCamel0} = (props:${this.nameCamel0}Props) => {
+
+            // TODO implement
+
+            return (
+              // JSX elements
+            );
+          };
+          export default ${this.nameCamel0};
+          \`\`\`
         `)
       },
     ];
@@ -530,20 +557,20 @@ class Step0140_makeScreen extends BaseStep {
   }
 
   preProcess(prompt: string): string {
-    fs.writeFileSync(`${this.dire}/${this.nameCamel0}.tsx.prompt.md`, prompt);
+    fs.writeFileSync(`${this.dire}/${Utils.toPascalCase(this.nameCamel0)}.tsx.prompt.md`, prompt);
     // fs.writeFileSync(`./${this.dire}/${this.nameCamel0}.scss`, '');
     return prompt;
   }
 
   postProcess(result: string) {
-    fs.writeFileSync(`${this.dire}/${this.nameCamel0}.tsx`, result
+    fs.writeFileSync(`${this.dire}/${Utils.toPascalCase(this.nameCamel0)}.tsx`, result
       .replace(/.*```.*\n/, '')
       .replace(/\n```.*/, '')
       .replace(/from ["']\.\/services\/.*["']/g, 'from \'../services\'')
       .replace(/from ["']\.\/services["']/g, 'from \'../services\'')
       .replace(/from ["']\.\/models\/.*["']/g, 'from \'../models\'')
       .replace(/from ["']\.\/models["']/g, 'from \'../models\'')
-      .replace(/from ["']\.\/services\/.*["']/g, 'from \'../services\'')
+      .replace(/from ["']\.\.\/services\/.*["']/g, 'from \'../services\'')
       .replace(/from ["']\.\.\/services["']/g, 'from \'../services\'')
       .replace(/from ["']\.\.\/models\/.*["']/g, 'from \'../models\'')
       .replace(/from ["']\.\.\/models["']/g, 'from \'../models\'')
@@ -561,8 +588,8 @@ class Step0140_makeScreen extends BaseStep {
 
   static genSteps() {
     const g: any = {};
-    const ngUiJSON = Utils.jsonParse<any>(new Step0020_ReactComponentList_to_ReactComponentJson().result);
-    filterByComponentName(ngUiJSON);
+    let ngUiJSON = Utils.jsonParse<any>(new Step0020_ReactComponentList_to_ReactComponentJson().result);
+    ngUiJSON = filterByComponentName(ngUiJSON);
     const serviceListJSON = new Step0080_makeReactServiceJson().result;
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
     const modelJSON = new Step0065_ReactModelList_to_Json().result;
@@ -579,75 +606,76 @@ export async function main() {
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  obj = new Step0000_RequirementsToComponentList();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0000_RequirementsToComponentList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0010_ComponentList_to_ReactComponentList();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0010_ComponentList_to_ReactComponentList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0020_ReactComponentList_to_ReactComponentJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0020_ReactComponentList_to_ReactComponentJson();
+  // obj.initPrompt();
+  // await obj.run();
 
   obj = new Step0030_requirements_to_systemOverview();
   obj.initPrompt();
   await obj.run();
 
 
-  obj = new Step0040_makeReactService();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0040_makeReactService();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0050_makeReactModel();
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new Step0060_makeReactModelSource();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0050_makeReactModel();
+  // obj.initPrompt();
+  // await obj.run();
 
 
-  obj = new Step0065_ReactModelList_to_Json();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0060_makeReactModelSource();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0070_makeApiList();
-  obj.initPrompt();
-  await obj.run();
 
-  obj = new Step0080_makeReactServiceJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0065_ReactModelList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
 
-  new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
+  // obj = new Step0070_makeApiList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0100_ApiListJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0080_makeReactServiceJson();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step0102_createJSONdata.genSteps());
-  obj.initPrompt();
-  await obj.run();
+  // new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
 
-  obj = new Step0105_componentList_to_Json();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0100_ApiListJson();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step0120_makeScreenSpec.genSteps());
-  obj.initPrompt();
-  await obj.run();
+  // obj = new MultiRunner(Step0102_createJSONdata.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step0130_makeScreenSpecJSON.genSteps());
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0105_componentList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step0140_makeScreen.genSteps());
-  obj.initPrompt();
-  await obj.run();
-  // // Step0140_makeScreen.genSteps().forEach(step => step.preProcess(fs.readFileSync(step.promptPath, 'utf-8')));
-  // // Step0140_makeScreen.genSteps().forEach(step => step.postProcess(step.result));
+  // obj = new MultiRunner(Step0120_makeScreenSpec.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new MultiRunner(Step0130_makeScreenSpecJSON.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new MultiRunner(Step0140_makeScreen.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+
+  // Step0140_makeScreen.genSteps().forEach(step => step.preProcess(fs.readFileSync(step.promptPath, 'utf-8')));
+  // Step0140_makeScreen.genSteps().forEach(step => { step.preProcess(step.prompt); step.postProcess(step.result) });
 }
 // main();

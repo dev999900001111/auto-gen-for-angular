@@ -4,21 +4,59 @@
 export class Utils {
 
     /**
-     * キャメルケースをケバブケースに変換する関数
+     * 文字列を kebab-case ケースに変換する関数
      * @param str - ケース変換する文字列
-     * @returns ケバブケースに変換された文字列
+     * @returns kebab-case ケースに変換された文字列
      */
-    static toKebabCase(str: string) {
-        return str.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`).replace(/^-/g, '');
+    static toKebabCase(str: string): string {
+        return Utils.toCamelCase(str).replace(/[A-Z]/g, match => `-${match.toLowerCase()}`).replace(/^-/g, '');
     }
 
     /**
-     * ケバブケースをキャメルケースに変換する関数
+     * 文字列を snake_case に変換する関数
      * @param str - ケース変換する文字列
-     * @returns キャメルケースに変換された文字列
+     * @returns snake_case に変換された文字列
      */
-    static toCamelCase(str: string) {
-        return str.toLowerCase().replace(/[-_ /]([a-z])/g, (_, match) => match.toUpperCase());
+    static toSnakeCase(str: string): string {
+        return Utils.toKebabCase(str).replace(/-/g, '_');
+    }
+
+    /**
+     * 文字列を camelCase に変換する関数
+     * @param str - ケース変換する文字列
+     * @returns camelCase ケースに変換された文字列
+     */
+    static toCamelCase(str: string): string {
+        return Utils.toAscii(str, true);
+    }
+
+    /**
+     * 文字列を PascalCase ケースに変換する関数
+     * @param str - ケース変換する文字列
+     * @returns PascalCase に変換された文字列
+     */
+    static toPascalCase(str: string): string {
+        return Utils.toAscii(str, false);
+    }
+
+    private static toAscii(str: string, isCamel: boolean = true): string {
+        // 空白やアンダースコアを区切り文字として分割します
+        const words = str.split(/[-\s_]+/);
+        // 分割された単語をCamelCaseに変換します
+        const camelCaseWords = words.map((word: string, index: number) => {
+            // 2番目以降の単語は先頭を大文字にして連結します
+            const tail = word.slice(1);
+            if (tail.match(/^[A-Z0-9]*$/g)) {
+                // 2番目以降の単語がすべて大文字の場合は小文字にします
+                word = word.toLowerCase();
+            } else {
+                // 混在する場合はそのままにします
+                // console.log(`MIXED:${tail}`);
+            }
+            return (index === 0 && isCamel ? word.charAt(0).toLowerCase() : word.charAt(0).toUpperCase()) + word.slice(1);
+        });
+        // CamelCaseの文字列に変換して返します
+        return camelCaseWords.join("");
     }
 
     /**
@@ -222,3 +260,29 @@ export interface StructuredPrompt {
     content?: string;
     children?: StructuredPrompt[];
 }
+
+// console.log('plane=' + Utils.toCamelCase('camelCaseCase'));
+// console.log('plane=' + Utils.toCamelCase('snake_caseCase'));
+// console.log('plane=' + Utils.toCamelCase('kebab-caseCase'));
+// console.log('plane=' + Utils.toCamelCase('PascalCaseCase'));
+// console.log('');
+// console.log('camel=' + Utils.toCamelCase('camelCaseCase'));
+// console.log('camel=' + Utils.toCamelCase('snake_caseCase'));
+// console.log('camel=' + Utils.toCamelCase('kebab-caseCase'));
+// console.log('camel=' + Utils.toCamelCase('PascalCaseCase'));
+// console.log('');
+// console.log('snake=' + Utils.toSnakeCase('camelCaseCase'));
+// console.log('snake=' + Utils.toSnakeCase('snake_caseCase'));
+// console.log('snake=' + Utils.toSnakeCase('kebab-caseCase'));
+// console.log('snake=' + Utils.toSnakeCase('PascalCaseCase'));
+// console.log('');
+// console.log('kebab=' + Utils.toKebabCase('camelCaseCase'));
+// console.log('kebab=' + Utils.toKebabCase('snake_caseCase'));
+// console.log('kebab=' + Utils.toKebabCase('kebab-caseCase'));
+// console.log('kebab=' + Utils.toKebabCase('PascalCaseCase'));
+// console.log('');
+// console.log('pascl=' + Utils.toPascalCase('camelCaseCase'));
+// console.log('pascl=' + Utils.toPascalCase('snake_caseCase'));
+// console.log('pascl=' + Utils.toPascalCase('kebab-caseCase'));
+// console.log('pascl=' + Utils.toPascalCase('PascalCaseCase'));
+// console.log('');

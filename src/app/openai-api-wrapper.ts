@@ -11,16 +11,15 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
-const costTable: { [key: string]: { prompt: number, completion: number } } = {
-    'gpt3.5  ': { prompt: 0.002, completion: 0.002, },
-    'gpt4    ': { prompt: 0.030, completion: 0.060, },
-    'gpt4-32k': { prompt: 0.060, completion: 0.120, },
-};
 
+/**
+ * OpenAIのAPIを呼び出すラッパークラス
+ */
 export class OpenAIApiWrapper {
 
     options: AxiosRequestConfig;
-    totalCost: number = 0;
+    tokenCountList: TokenCount[] = [];
+
     constructor() {
         // proxy設定判定用オブジェクト
         const proxyObj: { [key: string]: any } = {
@@ -35,8 +34,9 @@ export class OpenAIApiWrapper {
         } : {};
         // this.options = {};
         // console.log(this.options);
+
+        // ヘッダー出力
         console.log(`timestamp               step  R time[ms]  prompt comple model    cost   label`);
-        //$12.34
     }
     /**
      * OpenAIのAPIを呼び出す関数
@@ -74,18 +74,14 @@ export class OpenAIApiWrapper {
                 const prompt_tokens = numForm(obj.prompt_tokens, 6);
                 const completion_tokens = numForm(obj.completion_tokens, 6);
 
-                // モデル名振り分け
-                let model = 'gpt3.5  ';
-                if (obj.model.includes('gpt-4')) {
-                    model = obj.model.includes('32k') ? 'gpt4-32k' : 'gpt4    ';
-                } else { }
-
                 // コスト計算
-                const cost = (costTable[model].prompt * obj.prompt_tokens + costTable[model].completion * obj.completion_tokens) / 1000;
-                this.totalCost += cost;
-                const costStr = (obj.completion_tokens > 0 ? ('$' + (Math.ceil(cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
+                const tokenCount = new TokenCount(obj.model, obj.prompt_tokens, obj.completion_tokens);
+                this.tokenCountList.push(tokenCount);
+                const costStr = (obj.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
 
-                return `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${retry} ${take} ${prompt_tokens} ${completion_tokens} ${model} ${costStr} ${label} ${error}`;
+                const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${retry} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
+                fs.writeFileSync(`history.log`, logString);
+                return logString;
             };
 
             console.log(logString('start'));
@@ -115,8 +111,81 @@ export class OpenAIApiWrapper {
         });
         return promise;
     }
+
+    public total(): { [key: string]: TokenCount } {
+        return this.tokenCountList.reduce((prev: { [key: string]: TokenCount }, current: TokenCount) => {
+            const tokenCount = prev[current.modelShort] || new TokenCount(current.model, 0, 0);
+            tokenCount.add(current);
+            prev.all.add(current);
+            prev[current.modelShort] = tokenCount;
+            return prev;
+        }, { 'all': new TokenCount('all', 0, 0) });
+    }
 }
 
-function numForm(dec: number, len: number) { (dec || '').toLocaleString().padStart(len, ' ') };
+
+/**
+ * トークン数とコストを計算するクラス
+ */
+export class TokenCount {
+
+    // モデル名とコストの対応表
+    static COST_TABLE: { [key: string]: { prompt: number, completion: number } } = {
+        'all     ': { prompt: 0.000, completion: 0.000, },
+        'gpt3.5  ': { prompt: 0.002, completion: 0.002, },
+        'gpt4    ': { prompt: 0.030, completion: 0.060, },
+        'gpt4-32k': { prompt: 0.060, completion: 0.120, },
+    };
+
+    // コスト
+    public cost: number = 0;
+
+    // モデル名の短縮形
+    public modelShort: string;
+
+    /**
+     * @param model: 'gpt-3.5-turbo'|'gpt-4' モデル名
+     * @param prompt_tokens: number  プロンプトのトークン数
+     * @param completion_tokens: number コンプリーションのトークン数
+     * @returns TokenCount インスタンス
+     */
+    constructor(
+        public model: string,
+        public prompt_tokens: number = 0,
+        public completion_tokens: number = 0,
+    ) {
+        this.modelShort = 'all     ';
+        if (model.includes('gpt-4')) {
+            this.modelShort = model.includes('32k') ? 'gpt4-32k' : 'gpt4    ';
+        } else if (model.includes('gpt-3.5')) {
+            this.modelShort = 'gpt3.5  ';
+        }
+        this.cost = (
+            TokenCount.COST_TABLE[this.modelShort].prompt * this.prompt_tokens +
+            TokenCount.COST_TABLE[this.modelShort].completion * this.completion_tokens
+        ) / 1000;
+    }
+
+    /**
+     * トークン数とコストを加算する
+     * @param obj 
+     * @returns 
+     */
+    add(obj: TokenCount): TokenCount {
+        this.cost += obj.cost;
+        this.prompt_tokens += obj.prompt_tokens;
+        this.completion_tokens += obj.completion_tokens;
+        return this;
+    }
+
+    /** 
+     * @returns string ログ出力用の文字列
+     */
+    toString(): string {
+        return `${this.modelShort.padEnd(8)} ${this.prompt_tokens.toLocaleString().padStart(6, ' ')} ${this.completion_tokens.toLocaleString().padStart(6, ' ')} ${('$' + (Math.ceil(this.cost * 100) / 100).toFixed(2)).padStart(6, ' ')}`;
+    }
+}
+
+function numForm(dec: number, len: number) { return (dec || '').toLocaleString().padStart(len, ' '); };
 async function wait(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)); }
 

@@ -40,7 +40,7 @@ export class GenModuleFiles {
                 // ファイルがAngularコンポーネントの場合、モジュールにインポート文を追加する
                 const componentName = path.basename(filePath, '.component.ts');
                 // クラス名を生成する
-                const className = `${Utils.capitalize(Utils.toCamelCase(componentName))}Component`;
+                const className = `${Utils.toPascalCase(componentName)}Component`;
                 // インポート文を生成する
                 const importStatement = `import { ${className} } from './${path.relative('./src/app', filePath).replace(/\\/g, '/').replace(/.ts$/g, '').replace(/..\/..\/gen\/src\/app\//g, '')}';`;
                 importStatementList.push({ importStatement, className });

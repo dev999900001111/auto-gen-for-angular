@@ -721,7 +721,7 @@ class Step016_AngularTypescript extends BaseStep {
     // TODO Angular Elementsに書かれてるからChilは不要では？
     let chilString = '';
     // console.log(specJSON);
-    let diString = (specJSON.serviceClassUsed || specJSON.serviceClassesUsed).map((s: string) => `private ${Utils.decapitalize(s)}: ${s}`).join(', ');
+    let diString = (specJSON.serviceClassUsed || specJSON.serviceClassesUsed).map((s: string) => `private ${Utils.toCamelCase(s)}: ${s}`).join(', ');
 
     const io = ['@Input', '@Output', 'MAT_DIALOG_DATA'].map(io => Object.keys(ngUiJSON[componentName][io] || {}).filter(key => key.trim() !== '-').map(key => `- ${key}: ${ngUiJSON[componentName][io][key]}`).join('\n'));
 
