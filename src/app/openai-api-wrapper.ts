@@ -80,7 +80,7 @@ export class OpenAIApiWrapper {
                 const costStr = (obj.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
 
                 const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${retry} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
-                fs.writeFileSync(`history.log`, logString);
+                fs.writeFileSync(`history.log`, `${logString}\n`);
                 return logString;
             };
 
