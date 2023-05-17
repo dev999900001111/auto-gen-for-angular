@@ -1,11 +1,11 @@
 import * as  fs from 'fs';
-import { Utils } from './utils';
-import { BaseStep, MultiRunner } from "./base-step";
-import { RepoSyncer } from './repo-syncer';
+import { Utils } from '../common/utils';
+import { BaseStep, MultiRunner } from "../common/base-step";
+import { RepoSyncer } from '../repo-syncer';
 // import { GenModuleFiles, genIndex } from './gen-angular-modules';
 import { genIndex } from './react-service';
 import { ReactCodeGenerator } from './react-service';
-import { ModelControlClass, ServiceClass, ServiceClassMethod, ModelClass, ClassProp } from './model-repo/to-use';
+import { ModelControlClass, ServiceClass, ServiceClassMethod, ModelClass, ClassProp } from '../model-repo/to-use';
 class Step0000_RequirementsToComponentList extends BaseStep {
   model = 'gpt-4';
   constructor() {
@@ -620,70 +620,70 @@ export async function main() {
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  obj = new Step0000_RequirementsToComponentList();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0000_RequirementsToComponentList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0010_ComponentList_to_ReactComponentList();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0010_ComponentList_to_ReactComponentList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0020_ReactComponentList_to_ReactComponentJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0020_ReactComponentList_to_ReactComponentJson();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0030_requirements_to_systemOverview();
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new Step0040_makeReactService();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step0050_makeReactModel();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0030_requirements_to_systemOverview();
+  // obj.initPrompt();
+  // await obj.run();
 
 
-  obj = new Step0060_makeReactModelSource();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0040_makeReactService();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step0050_makeReactModel();
+  // obj.initPrompt();
+  // await obj.run();
 
 
-  obj = new Step0065_ReactModelList_to_Json();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0060_makeReactModelSource();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0070_makeApiList();
-  obj.initPrompt();
-  await obj.run();
 
-  obj = new Step0080_makeReactServiceJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0065_ReactModelList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
 
-  new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
+  // obj = new Step0070_makeApiList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0100_ApiListJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0080_makeReactServiceJson();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step0102_createJSONdata.genSteps());
-  obj.initPrompt();
-  await obj.run();
+  // new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
 
-  obj = new Step0105_componentList_to_Json();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0100_ApiListJson();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step0120_makeScreenSpec.genSteps());
-  obj.initPrompt();
-  await obj.run();
+  // obj = new MultiRunner(Step0102_createJSONdata.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step0130_makeScreenSpecJSON.genSteps());
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0105_componentList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new MultiRunner(Step0120_makeScreenSpec.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new MultiRunner(Step0130_makeScreenSpecJSON.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
 
   obj = new MultiRunner(Step0140_makeScreen.genSteps());
   obj.initPrompt();

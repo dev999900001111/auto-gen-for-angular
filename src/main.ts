@@ -1,8 +1,8 @@
 const start = Date.now();
 console.log('start');
-import { aiApi } from './app/base-step';
-import * as generatorAngular from './app/generator-angular';
-import * as generatorReact from './app/generator-react';
+import { aiApi } from './app/common/base-step';
+import * as generatorAngular from './app/for-angular/generator-angular';
+import * as generatorReact from './app/for-react/generator-react';
 
 
 /**

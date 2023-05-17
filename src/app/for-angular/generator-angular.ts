@@ -1,7 +1,7 @@
 import * as  fs from 'fs';
-import { Utils } from './utils';
-import { BaseStep, MultiRunner } from "./base-step";
-import { RepoSyncer } from './repo-syncer';
+import { Utils } from '../common/utils';
+import { BaseStep, MultiRunner } from "../common/base-step";
+import { RepoSyncer } from '../common/repo-syncer';
 import { GenModuleFiles, genIndex } from './gen-angular-modules';
 
 class Step000_RequirementsToComponentList extends BaseStep {

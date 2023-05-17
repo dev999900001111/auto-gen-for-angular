@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { Utils } from './utils';
+import { Utils } from '../common/utils';
 
 export class ReactCodeGenerator {
 
