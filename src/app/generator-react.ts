@@ -149,7 +149,7 @@ class Step0050_makeReactModel extends BaseStep {
       { title: 'requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
       // { title: 'Component List', content: new Step0000_RequirementsToComponentList().result },
       { title: 'React Component List', content: new Step0010_ComponentList_to_ReactComponentList().result },
-        { title: 'React Service List', content: new Step0040_makeReactService().result },
+      { title: 'React Service List', content: new Step0040_makeReactService().result },
       {
         title: 'prompt', content: Utils.trimLines(`
           Let's think step by step.
@@ -478,7 +478,7 @@ class Step0140_makeScreen extends BaseStep {
     const doc = new Step0120_makeScreenSpec(index, componentName, ngUiJSON).result;
     const nameKebab = Utils.toKebabCase(componentName);
     this.nameKebab0 = nameKebab;
-    this.nameCamel0 = componentName;
+    this.nameCamel0 = Utils.toCamelCase(componentName);
     const io = ['props'].map(io => Object.keys(ngUiJSON[componentName][io] || {}).filter(key => key.trim() !== '-').map(key => `- ${key}: ${ngUiJSON[componentName][io][key]}`).join('\n'));
     // console.log(ngUiJSON[componentName].childReactComponents);
     // console.log(ngUiJSON[componentName].modalReactComponents);
@@ -579,30 +579,30 @@ export async function main() {
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  // obj = new Step0000_RequirementsToComponentList();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step0000_RequirementsToComponentList();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step0010_ComponentList_to_ReactComponentList();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step0010_ComponentList_to_ReactComponentList();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step0020_ReactComponentList_to_ReactComponentJson();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step0020_ReactComponentList_to_ReactComponentJson();
+  obj.initPrompt();
+  await obj.run();
 
   obj = new Step0030_requirements_to_systemOverview();
   obj.initPrompt();
   await obj.run();
 
 
-  // obj = new Step0040_makeReactService();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step0040_makeReactService();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step0050_makeReactModel();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step0050_makeReactModel();
+  obj.initPrompt();
+  await obj.run();
 
 
   obj = new Step0060_makeReactModelSource();

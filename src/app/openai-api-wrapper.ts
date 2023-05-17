@@ -11,6 +11,12 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
+const costTable: { [key: string]: { prompt: number, completion: number } } = {
+    'gpt3.5  ': { prompt: 0.002, completion: 0.002, },
+    'gpt4    ': { prompt: 0.030, completion: 0.060, },
+    'gpt4-32k': { prompt: 0.060, completion: 0.120, },
+};
+
 export class OpenAIApiWrapper {
 
     options: AxiosRequestConfig;
@@ -63,12 +69,6 @@ export class OpenAIApiWrapper {
             // ログ出力用オブジェクト
             const text = args.messages.map(message => `role:\n${message.role}\ncontent:\n${message.content}`).join('\n');
             const obj = { retry: 0, prompt_tokens: encoding_for_model(model).encode(text).length, completion_tokens: 0, step: 'start', model, bef: Date.now(), };
-            const numForm = (dec: number, len: number) => (dec || '').toLocaleString().padStart(len, ' ');
-            const costTable: { [key: string]: { prompt: number, completion: number } } = {
-                'gpt3.5  ': { prompt: 0.002, completion: 0.002, },
-                'gpt4    ': { prompt: 0.030, completion: 0.060, },
-                'gpt4-32k': { prompt: 0.060, completion: 0.120, },
-            };
             const logString = (stepName: string, error: any = ''): string => {
                 const take = numForm(Date.now() - obj.bef, 9);
                 const prompt_tokens = numForm(obj.prompt_tokens, 6);
@@ -116,20 +116,7 @@ export class OpenAIApiWrapper {
         return promise;
     }
 }
-// function loadPrompts() {
-//     // この関数は、特定のディレクト配下にあるファイルを全て読み込み、連想配列として返却する機能です。
-//     const files = [
-//         ...fs.readdirSync("./docs/").filter(filename => filename.startsWith('data-') && filename.endsWith(".md")).map(filename => `./docs/${filename}`)
-//     ];
-//     const promptMap = {};
-//     files.forEach(filename => {
-//         const text = fs.readFileSync(filename, "utf-8");
-//         promptMap[filename] = text;
-//     });
-//     return promptMap;
-// }
-// const prompts = loadPrompts();
-// console.log(prompts);
 
+function numForm(dec: number, len: number) { (dec || '').toLocaleString().padStart(len, ' ') };
 async function wait(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)); }
 

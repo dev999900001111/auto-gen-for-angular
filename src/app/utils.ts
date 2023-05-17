@@ -18,7 +18,7 @@ export class Utils {
      * @returns キャメルケースに変換された文字列
      */
     static toCamelCase(str: string) {
-        return str.replace(/[- /]([a-z])/g, (_, match) => match.toUpperCase());
+        return str.toLowerCase().replace(/[-_ /]([a-z])/g, (_, match) => match.toUpperCase());
     }
 
     /**
