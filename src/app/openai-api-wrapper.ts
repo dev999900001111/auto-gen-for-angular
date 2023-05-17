@@ -68,17 +68,16 @@ export class OpenAIApiWrapper {
 
             // ログ出力用オブジェクト
             const text = args.messages.map(message => `role:\n${message.role}\ncontent:\n${message.content}`).join('\n');
-            const obj = { retry: 0, prompt_tokens: encoding_for_model(model).encode(text).length, completion_tokens: 0, step: 'start', model, bef: Date.now(), };
+            const tokenCount = new TokenCount(model, encoding_for_model(model).encode(text).length, 0);
+            this.tokenCountList.push(tokenCount);
+
+            let bef = Date.now();
             const logString = (stepName: string, error: any = ''): string => {
-                const take = numForm(Date.now() - obj.bef, 9);
-                const prompt_tokens = numForm(obj.prompt_tokens, 6);
-                const completion_tokens = numForm(obj.completion_tokens, 6);
+                const take = numForm(Date.now() - bef, 9);
+                const prompt_tokens = numForm(tokenCount.prompt_tokens, 6);
+                const completion_tokens = numForm(tokenCount.completion_tokens, 6);
 
-                // コスト計算
-                const tokenCount = new TokenCount(obj.model, obj.prompt_tokens, obj.completion_tokens);
-                this.tokenCountList.push(tokenCount);
-                const costStr = (obj.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
-
+                const costStr = (tokenCount.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
                 const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${retry} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
                 fs.writeFileSync(`history.log`, `${logString}\n`);
                 return logString;
@@ -90,8 +89,10 @@ export class OpenAIApiWrapper {
                 try {
                     completion = await openai.createChatCompletion(args, this.options as any) as AxiosResponse<CreateChatCompletionResponse, any>;
                     // console.log(completion.data.usage);
-                    obj.prompt_tokens = completion.data.usage?.prompt_tokens || 0;
-                    obj.completion_tokens = completion.data.usage?.completion_tokens || 0;
+                    tokenCount.prompt_tokens = completion.data.usage?.prompt_tokens || 0;
+                    tokenCount.completion_tokens = completion.data.usage?.completion_tokens || 0;
+                    tokenCount.cost = tokenCount.calcCost();
+
                     console.log(logString('fine'));
                 } catch (error) {
                     // 30秒間隔でリトライ
@@ -160,10 +161,14 @@ export class TokenCount {
         } else if (model.includes('gpt-3.5')) {
             this.modelShort = 'gpt3.5  ';
         }
+    }
+
+    calcCost(): number {
         this.cost = (
             TokenCount.COST_TABLE[this.modelShort].prompt * this.prompt_tokens +
             TokenCount.COST_TABLE[this.modelShort].completion * this.completion_tokens
         ) / 1000;
+        return this.cost;
     }
 
     /**

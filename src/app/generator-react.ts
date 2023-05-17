@@ -5,6 +5,7 @@ import { RepoSyncer } from './repo-syncer';
 // import { GenModuleFiles, genIndex } from './gen-angular-modules';
 import { genIndex } from './react-service';
 import { ReactCodeGenerator } from './react-service';
+import { ModelControlClass, ServiceClass, ServiceClassMethod, ModelClass, ClassProp } from './model-repo/to-use';
 class Step0000_RequirementsToComponentList extends BaseStep {
   model = 'gpt-4';
   constructor() {
@@ -153,9 +154,9 @@ class Step0050_makeReactModel extends BaseStep {
       {
         title: 'prompt', content: Utils.trimLines(`
           Let's think step by step.
-          - 上記の設計書を元に、全てのモデルクラス(request,response含む)の名前を抽出してください。
-          - 似ている名前でも異なるものがあることに注意して、モデルクラスの取りこぼしが無いか確認してください。
-          - 抽出したモデルクラスについて、画面上で使用する項目以外に必要な項目を全て含めてください。
+          - Based on the above design document, extract the names of all model classes (including request and response).
+          - Note that some of the names may be similar but different, and check to see if any model classes have been omitted.
+          - For the extracted model classes, include all necessary items other than those used on the screen.
           - Please consider the fields for your model classes. A model class represents the structure of data used in the system.
             Even when dealing with the same model, Request and Response types may have different structures.
             Please pay attention to the following points when determining the structures:
@@ -166,11 +167,21 @@ class Step0050_makeReactModel extends BaseStep {
             - Guidelines for determining Response types:
                 - To facilitate the usage of data without the need for further manipulation on the frontend, Response types should be structured in a way that combines multiple models in advance. Instead of storing identifiers like \`xxId\`, the structure should directly hold the corresponding objects.
           - Define enums as appropriate.
-          - 全てのモデルクラスについて、項目と型を漏れなく定義してください（filter等も含めて）。
-          - 項目のバリデーションについても記載してください。
-          - The Model Classes should be reviewed by experts such as UI/UX designers, security specialists, business analysts, consistency checkers, etc., and an improved version should be presented that incorporates their input (consistency checkers strictly check whether the Model Classes reflects all previous designs).
+          - For all model classes, define items and types without omissions (including filters, etc.).
+          - When setting a new class for an item, please define the item and type as a model class without omission.
+          - Please also describe the validation of items.
+          - The Model Classes should be reviewed by experts such as UI/UX designers, security specialists, business analysts, consistency checkers, etc., and an improved version should be presented that incorporates their input (The consistency checker rigorously checks that all classes readable from the design document are reflected, and that classes referenced within the defined propertie's classes are also well defined.).
           Only the list of improved Model classes, Enums,  Validation Rules (tabular format, without extra space.) is output.
         `)
+        // - 上記の設計書を元に、全てのモデルクラス(request,response含む)の名前を抽出してください。
+        // - 似ている名前でも異なるものがあることに注意して、モデルクラスの取りこぼしが無いか確認してください。
+        // - 抽出したモデルクラスについて、画面上で使用する項目以外に必要な項目を全て含めてください。
+
+        // - 全てのモデルクラスについて、項目と型を漏れなく定義してください（filter等も含めて）。
+        // - 項目の方として新たにクラスを設定する場合もモデルクラスとして項目と型を漏れなく定義してください。
+        // - 項目のバリデーションについても記載してください。
+
+        // consistency checkers strictly check whether the Model Classes reflects all previous designs
       },
     ];
   }
@@ -482,7 +493,11 @@ class Step0140_makeScreen extends BaseStep {
     this.label = `Step0140_${index}-makeScreen-${componentName}`;
 
     const doc = new Step0120_makeScreenSpec(index, componentName, ngUiJSON).result;
+    const sv = Utils.jsonParse<{ [key: string]: ServiceClass }>(new Step0080_makeReactServiceJson().result);
+    const md = Utils.jsonParse<{ [key: string]: ModelClass }>(new Step0065_ReactModelList_to_Json().result);
+    const repo = new ModelControlClass(sv, md);
     const used = Utils.jsonParse(new Step0130_makeScreenSpecJSON(index, componentName, ngUiJSON).result.replace(/```/g, '').trim()) as { modelClassesUsed: string[], serviceClassesUsed: string[] };
+    const svmd = repo.pickUp(used.serviceClassesUsed);
 
     const nameKebab = Utils.toKebabCase(componentName);
     this.nameKebab0 = nameKebab;
@@ -507,12 +522,8 @@ class Step0140_makeScreen extends BaseStep {
       },
       {
         title: 'Reference', content: '', children: [
-          {
-            // ${Object.keys(g.models).map(modelName => modelName + ' (' + Object.keys(g.models[modelName].props).map(propName => propName + ': ' + g.models[modelName].props[propName]).join(', ')).join(')\n')}
-            title: 'Model classes', content: Utils.trimLines(`
-              ${Object.keys(g.models).filter(modelName => used.modelClassesUsed.includes(modelName)).map(modelName => modelName + (JSON.stringify(g.models[modelName][(g.models[modelName].props ? 'props' : 'values')]))).join('\n').replace(/""/g, 'null').replace(/"/g, '')}
-            `)
-          }
+          { title: 'Service classes', content: svmd.serviceDef },
+          { title: 'Model classes', content: svmd.modelDef },
         ]
       },
       {
@@ -609,74 +620,74 @@ export async function main() {
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  obj = new Step0000_RequirementsToComponentList();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0000_RequirementsToComponentList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0010_ComponentList_to_ReactComponentList();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0010_ComponentList_to_ReactComponentList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0020_ReactComponentList_to_ReactComponentJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0020_ReactComponentList_to_ReactComponentJson();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0030_requirements_to_systemOverview();
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new Step0040_makeReactService();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step0050_makeReactModel();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0030_requirements_to_systemOverview();
+  // obj.initPrompt();
+  // await obj.run();
 
 
-  obj = new Step0060_makeReactModelSource();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0040_makeReactService();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step0050_makeReactModel();
+  // obj.initPrompt();
+  // await obj.run();
 
 
-  obj = new Step0065_ReactModelList_to_Json();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0060_makeReactModelSource();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0070_makeApiList();
-  obj.initPrompt();
-  await obj.run();
 
-  obj = new Step0080_makeReactServiceJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0065_ReactModelList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
 
-  new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
+  // obj = new Step0070_makeApiList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0100_ApiListJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0080_makeReactServiceJson();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step0102_createJSONdata.genSteps());
-  obj.initPrompt();
-  await obj.run();
+  // new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
 
-  obj = new Step0105_componentList_to_Json();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0100_ApiListJson();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step0120_makeScreenSpec.genSteps());
-  obj.initPrompt();
-  await obj.run();
+  // obj = new MultiRunner(Step0102_createJSONdata.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new MultiRunner(Step0130_makeScreenSpecJSON.genSteps());
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0105_componentList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new MultiRunner(Step0120_makeScreenSpec.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new MultiRunner(Step0130_makeScreenSpecJSON.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
 
   obj = new MultiRunner(Step0140_makeScreen.genSteps());
   obj.initPrompt();
-  await obj.run();
+  // await obj.run();
 
   // Step0140_makeScreen.genSteps().forEach(step => step.preProcess(fs.readFileSync(step.promptPath, 'utf-8')));
   // Step0140_makeScreen.genSteps().forEach(step => { step.preProcess(step.prompt); step.postProcess(step.result) });
