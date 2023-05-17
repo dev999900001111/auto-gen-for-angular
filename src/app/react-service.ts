@@ -4,7 +4,7 @@ import { Utils } from './utils';
 export class ReactCodeGenerator {
 
     static genService(srcJonsText: string) {
-        const obj = Utils.jsonParse(fs.readFileSync('./prompts/Step0080_makeReactServiceJson.result.md', 'utf-8')) as any;
+        const obj = Utils.jsonParse(srcJonsText) as any;
         // fs.writeFileSync(`./gen/src/app/services/`, text);
         // console.log(obj);
 

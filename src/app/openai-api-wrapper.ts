@@ -1,5 +1,6 @@
 import { AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as fs from 'fs';
+import { TiktokenModel, encoding_for_model } from 'tiktoken';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { Configuration, CreateChatCompletionRequest, CreateChatCompletionResponse, OpenAIApi } from "openai";
 import { Utils } from "./utils";
@@ -13,6 +14,7 @@ const openai = new OpenAIApi(configuration);
 export class OpenAIApiWrapper {
 
     options: AxiosRequestConfig;
+    totalCost: number = 0;
     constructor() {
         // proxy設定判定用オブジェクト
         const proxyObj: { [key: string]: any } = {
@@ -25,7 +27,10 @@ export class OpenAIApiWrapper {
             httpAgent: new HttpsProxyAgent(proxyObj.httpProxy || proxyObj.httpsProxy || ''),
             httpsAgent: new HttpsProxyAgent(proxyObj.httpsProxy || proxyObj.httpProxy || ''),
         } : {};
-        // console.log(options);
+        // this.options = {};
+        // console.log(this.options);
+        console.log(`timestamp               step  R time[ms]  prompt comple model    cost   label`);
+        //$12.34
     }
     /**
      * OpenAIのAPIを呼び出す関数
@@ -35,7 +40,7 @@ export class OpenAIApiWrapper {
      * @param systemMessage システムメッセージ
      * @returns OpenAIのAPIのレスポンス
      */
-    call(label: string, prompt: string, model: string = 'gpt-3.5-turbo', systemMessage: string = 'You are an experienced and talented software engineer.', assistantMessage: string = ''): Promise<AxiosResponse<CreateChatCompletionResponse>> {
+    call(label: string, prompt: string, model: TiktokenModel = 'gpt-3.5-turbo', systemMessage: string = 'You are an experienced and talented software engineer.', assistantMessage: string = ''): Promise<AxiosResponse<CreateChatCompletionResponse>> {
         try { fs.mkdirSync(HISTORY_DIRE, { recursive: true }); } catch (e) { }
         const promise: Promise<AxiosResponse<CreateChatCompletionResponse, any>> = new Promise(async (resolve, reject) => {
             const args: CreateChatCompletionRequest = {
@@ -54,26 +59,57 @@ export class OpenAIApiWrapper {
 
             let completion: AxiosResponse<CreateChatCompletionResponse, any> | null = null;
             let retry = 0;
-            let bef = Date.now();
-            console.log(`${new Date()} start ${label} retry: ${retry}`);
+
+            // ログ出力用オブジェクト
+            const text = args.messages.map(message => `role:\n${message.role}\ncontent:\n${message.content}`).join('\n');
+            const obj = { retry: 0, prompt_tokens: encoding_for_model(model).encode(text).length, completion_tokens: 0, step: 'start', model, bef: Date.now(), };
+            const numForm = (dec: number, len: number) => (dec || '').toLocaleString().padStart(len, ' ');
+            const costTable: { [key: string]: { prompt: number, completion: number } } = {
+                'gpt3.5  ': { prompt: 0.002, completion: 0.002, },
+                'gpt4    ': { prompt: 0.030, completion: 0.060, },
+                'gpt4-32k': { prompt: 0.060, completion: 0.120, },
+            };
+            const logString = (stepName: string, error: any = ''): string => {
+                const take = numForm(Date.now() - obj.bef, 9);
+                const prompt_tokens = numForm(obj.prompt_tokens, 6);
+                const completion_tokens = numForm(obj.completion_tokens, 6);
+
+                // モデル名振り分け
+                let model = 'gpt3.5  ';
+                if (obj.model.includes('gpt-4')) {
+                    model = obj.model.includes('32k') ? 'gpt4-32k' : 'gpt4    ';
+                } else { }
+
+                // コスト計算
+                const cost = (costTable[model].prompt * obj.prompt_tokens + costTable[model].completion * obj.completion_tokens) / 1000;
+                this.totalCost += cost;
+                const costStr = (obj.completion_tokens > 0 ? ('$' + (Math.ceil(cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
+
+                return `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${retry} ${take} ${prompt_tokens} ${completion_tokens} ${model} ${costStr} ${label} ${error}`;
+            };
+
+            console.log(logString('start'));
             // 30秒間隔でリトライ
             while (!completion) {
                 try {
                     completion = await openai.createChatCompletion(args, this.options as any) as AxiosResponse<CreateChatCompletionResponse, any>;
-                    console.log(`${new Date()} fine  ${label} retry: ${retry} takes ${Date.now() - bef}[ms]`);
+                    // console.log(completion.data.usage);
+                    obj.prompt_tokens = completion.data.usage?.prompt_tokens || 0;
+                    obj.completion_tokens = completion.data.usage?.completion_tokens || 0;
+                    console.log(logString('fine'));
                 } catch (error) {
                     // 30秒間隔でリトライ
-                    console.log(`${new Date()} error ${label} retry: ${retry} takes ${Date.now() - bef}[ms] ${error}`);
+                    console.log(logString('error', error));
                     retry++;
                     completion = null;
                     await wait(30000);
                 }
                 if (retry > 10) {
-                    reject(`${new Date()} error ${label} retry: ${retry} takes ${Date.now() - bef}[ms] retryout `);
+                    console.log(logString('error', 'retry over'));
                 }
             }
             // ファイルに書き出す
-            const timestamp = Utils.formatDateWithMilliseconds(new Date());
+            const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
             fs.writeFileSync(`${HISTORY_DIRE}/${timestamp}-${label}.json`, JSON.stringify({ args, completion }, Utils.genJsonSafer()));
             resolve(completion);
         });

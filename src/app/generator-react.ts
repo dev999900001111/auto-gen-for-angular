@@ -12,18 +12,6 @@ class Step0000_RequirementsToComponentList extends BaseStep {
     this.chapters = [
       { title: 'requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
       {
-        //   <Router>
-        //   <Routes>
-        //     <Route path='/login' element={<LoginPage />} ></Route>
-        //     <Route path='/auth' element={<><Header /><SideNavigation /><div className="App"><Outlet /></div></>}>
-        //       <Route path='screen-name' element={<ScreenNamePage />} />
-        //       <Route path='screen-name' element={<ScreenNamePage />} />
-        //       <Route path='screen-name' element={<ScreenNamePage />} />
-        //       ...
-        //     </Route>
-        //   </Routes>
-        // </Router>
-        // - Place headers, footers, menus, etc. as appropriate.
         title: 'prompt', content: Utils.trimLines(`
           - As a UI/UX designer, design a list of screens based on a good understanding of the requirements definition.
           - Design only under MAIN_ROUTER.
@@ -123,16 +111,31 @@ class Step0040_makeReactService extends BaseStep {
     super();
     this.chapters = [
       // { title: 'System Overview', content: new Step0030_requirements_to_systemOverview().result },
+      { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
       { title: 'Component List', content: Utils.spaceNormalize(new Step0000_RequirementsToComponentList().result) },
       { title: 'React Component List', content: Utils.spaceNormalize(new Step0010_ComponentList_to_ReactComponentList().result) },
       {
         title: 'prompt', content: Utils.trimLines(`
-          After familiarizing yourself with the instructions up to this point, list all the React service classes you will need for this system.
-          - List the method names, arguments, and return values.
-          - If multiple patterns are possible, choose the simpler design.
-          - The service list should be reviewed by professionals such as UI/UX designers, security specialists, business analysts, strict consistency checker,  etc., and an improved version should be presented with their input.(The consistency checker will strictly check that your service list reflects all previous requirements.)
-          Only output the Improved React service classes(and method) List.
+          Let's think step by step.
+          After reviewing the documents provided, please generate a list of React service classes needed for this system.
+          - Enumerate the method purpose and signature.
+          - If there are multiple possible patterns, opt for the simpler design.
+          - Please consider the fields for your model classes. A model class represents the structure of data used in the system.
+            Even when dealing with the same model, Request and Response types may have different structures.
+            Please pay attention to the following points when determining the structures:
+            - Guidelines for determining Request types:
+                - The Request type for registering and updating data should be such that the structure of the object is not hierarchical.
+                - When registering data, the Request type should not include an ID field since the ID is undetermined at that stage. 
+                - Request types used for filtering purposes may have additional or different required fields compared to the model. They may also include fields to specify ranges.
+            - Guidelines for determining Response types:
+                - To facilitate the usage of data without the need for further manipulation on the frontend, Response types should be structured in a way that combines multiple models in advance. Instead of storing identifiers like \`xxId\`, the structure should directly hold the corresponding objects.
+          The list of services should undergo review by professionals such as UI/UX designers, security specialists, business analysts, and consistency checkers. They will provide input for improvements. 
+          The consistency checker will strictly ensure that your service list adheres to all previous requirements.
+          Your final output should be the improved list of React service classes and their associated methods, and model / request / response classes and their associated properties list.
         `)
+        // - Services that obtain simple classification values (type, key, value, label), such as gender classification, should be combined into one api.
+        // - RequestかつPUT/POSTの場合は、複数のモデルを組み合わせて登録することは少ないため、複数のモデルを組み合わせることは避けてください。
+        // - Responseの場合は、複数のモデルが組み合わされた構造（例えばxxIdのようなものを保持するのではなく、直接xxオブジェクトを保持する構造）としてください。 
       },
     ];
   }
@@ -143,19 +146,30 @@ class Step0050_makeReactModel extends BaseStep {
   constructor() {
     super();
     this.chapters = [
+      { title: 'requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
       // { title: 'Component List', content: new Step0000_RequirementsToComponentList().result },
       { title: 'React Component List', content: new Step0010_ComponentList_to_ReactComponentList().result },
-      { title: 'React Service List', content: new Step0040_makeReactService().result },
+        { title: 'React Service List', content: new Step0040_makeReactService().result },
       {
         title: 'prompt', content: Utils.trimLines(`
-          Design the Model Classes based on the above design document.
-          - Please include all items that will be needed in addition to those used on the screen.
+          Let's think step by step.
+          - 上記の設計書を元に、全てのモデルクラス(request,response含む)の名前を抽出してください。
+          - 似ている名前でも異なるものがあることに注意して、モデルクラスの取りこぼしが無いか確認してください。
+          - 抽出したモデルクラスについて、画面上で使用する項目以外に必要な項目を全て含めてください。
+          - Please consider the fields for your model classes. A model class represents the structure of data used in the system.
+            Even when dealing with the same model, Request and Response types may have different structures.
+            Please pay attention to the following points when determining the structures:
+            - Guidelines for determining Request types:
+                - The Request type for registering and updating data should be such that the structure of the object is not hierarchical.
+                - When registering data, the Request type should not include an ID field since the ID is undetermined at that stage. 
+                - Request types used for filtering purposes may have additional or different required fields compared to the model. They may also include fields to specify ranges.
+            - Guidelines for determining Response types:
+                - To facilitate the usage of data without the need for further manipulation on the frontend, Response types should be structured in a way that combines multiple models in advance. Instead of storing identifiers like \`xxId\`, the structure should directly hold the corresponding objects.
           - Define enums as appropriate.
-          - サービスクラスでは画面で利用しやすいように、テーブルのデータを結合して返すようにしてください。（例えばxxIdのようなものを保持するのではなく、直接xxオブジェクトを保持する構造としてください）。 
-          - 全てのクラスを漏れなくモデルとして定義してください（filter等も含めて）
+          - 全てのモデルクラスについて、項目と型を漏れなく定義してください（filter等も含めて）。
           - 項目のバリデーションについても記載してください。
           - The Model Classes should be reviewed by experts such as UI/UX designers, security specialists, business analysts, consistency checkers, etc., and an improved version should be presented that incorporates their input (consistency checkers strictly check whether the Model Classes reflects all previous designs).
-          Only the list of improved Model classes, Enums,  Validation Rules (tabular format) is output.
+          Only the list of improved Model classes, Enums,  Validation Rules (tabular format, without extra space.) is output.
         `)
       },
     ];
@@ -565,29 +579,31 @@ export async function main() {
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  obj = new Step0000_RequirementsToComponentList();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0000_RequirementsToComponentList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0010_ComponentList_to_ReactComponentList();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0010_ComponentList_to_ReactComponentList();
+  // obj.initPrompt();
+  // await obj.run();
 
-  obj = new Step0020_ReactComponentList_to_ReactComponentJson();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0020_ReactComponentList_to_ReactComponentJson();
+  // obj.initPrompt();
+  // await obj.run();
 
   obj = new Step0030_requirements_to_systemOverview();
   obj.initPrompt();
   await obj.run();
 
-  obj = new Step0040_makeReactService();
-  obj.initPrompt();
-  await obj.run();
 
-  obj = new Step0050_makeReactModel();
-  obj.initPrompt();
-  await obj.run();
+  // obj = new Step0040_makeReactService();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step0050_makeReactModel();
+  // obj.initPrompt();
+  // await obj.run();
+
 
   obj = new Step0060_makeReactModelSource();
   obj.initPrompt();
@@ -606,7 +622,7 @@ export async function main() {
   obj.initPrompt();
   await obj.run();
 
-  new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().resultPath);
+  new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
 
   obj = new Step0100_ApiListJson();
   obj.initPrompt();
@@ -631,7 +647,7 @@ export async function main() {
   obj = new MultiRunner(Step0140_makeScreen.genSteps());
   obj.initPrompt();
   await obj.run();
-  // Step0140_makeScreen.genSteps().forEach(step => step.preProcess(fs.readFileSync(step.promptPath, 'utf-8')));
-  // Step0140_makeScreen.genSteps().forEach(step => step.postProcess(step.result));
+  // // Step0140_makeScreen.genSteps().forEach(step => step.preProcess(fs.readFileSync(step.promptPath, 'utf-8')));
+  // // Step0140_makeScreen.genSteps().forEach(step => step.postProcess(step.result));
 }
 // main();

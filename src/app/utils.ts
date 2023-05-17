@@ -78,19 +78,18 @@ export class Utils {
      * 日付をフォーマットする関数
      * 
      * @param date フォーマットする日付
+     * @param format フォーマット
      * @returns フォーマットされた文字列
      */
-    static formatDateWithMilliseconds(date: Date): string {
-        const year = date.getFullYear(); // 西暦を取得
-        const month = ("0" + (date.getMonth() + 1)).slice(-2); // 月を取得（0埋め）
-        const day = ("0" + date.getDate()).slice(-2); // 日を取得（0埋め）
-        const hours = ("0" + date.getHours()).slice(-2); // 時を取得（0埋め）
-        const minutes = ("0" + date.getMinutes()).slice(-2); // 分を取得（0埋め）
-        const seconds = ("0" + date.getSeconds()).slice(-2); // 秒を取得（0埋め）
-        const milliseconds = ("00" + date.getMilliseconds()).slice(-3); // ミリ秒を取得（0埋め）
-
-        const formattedDate = year + month + day + hours + minutes + seconds + milliseconds; // yyyymmddhhmmssSSS形式の文字列を生成
-        return formattedDate;
+    static formatDate(date: Date = new Date(), format: string = 'yyyy/MM/dd HH:mm:ss.SSS') {
+        format = format.replace(/yyyy/g, '' + date.getFullYear());
+        format = format.replace(/MM/g, ('0' + (date.getMonth() + 1)).slice(-2));
+        format = format.replace(/dd/g, ('0' + date.getDate()).slice(-2));
+        format = format.replace(/HH/g, ('0' + date.getHours()).slice(-2));
+        format = format.replace(/mm/g, ('0' + date.getMinutes()).slice(-2));
+        format = format.replace(/ss/g, ('0' + date.getSeconds()).slice(-2));
+        format = format.replace(/SSS/g, ('00' + date.getMilliseconds()).slice(-3));
+        return format;
     }
 
     /**
@@ -162,23 +161,12 @@ export class Utils {
     }
 
     /**
-     * 指定された文字列を指定された回数繰り返す
-     * @param {string} str - 繰り返す文字列
-     * @param {number} n - 繰り返す回数
-     * @returns {string} 繰り返された文字列
-     * @example rept('ab', 2) // => 'abab'
-     */
-    static rept(str: string, n: number): string {
-        return Array(n + 1).join(str);
-    }
-
-    /**
      * JSONが1行ずつに分割されていても読めるようにする
      * @param {*} str 
      * @returns 
      */
     static jsonParse<T>(str0: string): T {
-        const str = str0.replace(/{"":"[^"]*"[,]{0,1}}/g,'null').replace(/,}/g,'}');
+        const str = str0.replace(/{"":"[^"]*"[,]{0,1}}/g, 'null').replace(/,}/g, '}');
         try {
             return JSON.parse(str);
         } catch (e0) {
@@ -186,15 +174,15 @@ export class Utils {
                 const mid = str.replace(/^ *{|} *$/gm, '').split('\n').filter(line => line.trim().length > 0).join(',');
                 return JSON.parse(`{${mid}}`);
             } catch (e1) {
-                try{
+                try {
                     const mid = JSON.parse(`[${str}]`);
                     let sum = {};
-                    mid.forEach((obj:any)=>{
+                    mid.forEach((obj: any) => {
                         // console.log(sum);
-                        sum = {...sum,...obj};
+                        sum = { ...sum, ...obj };
                     });
                     return sum as any;
-                } catch (e2){
+                } catch (e2) {
                     console.log(e0);
                     console.log(`[${str}]`);
                     // e0の方をエラー出力する。
@@ -213,7 +201,7 @@ export class Utils {
     static toMarkdown(chapter: StructuredPrompt, layer: number = 1) {
         let sb = '';
         if (chapter.title) {
-            sb += `${Utils.rept('#', layer)} ${chapter.title}\n`;
+            sb += `${'#'.repeat(layer)} ${chapter.title}\n`;
         } else { }
         if (chapter.content) {
             sb += `${chapter.content}\n`;

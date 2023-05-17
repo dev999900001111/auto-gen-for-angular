@@ -10,7 +10,7 @@ dire="./gen"
 packName=${1}
 
 # Create a tgz archive
-tar -cvf "${packName}".tar prompts/
+tar -cvf "${packName}".tar prompts/ 000-requirements.md
 tar -rvf "${packName}".tar -C ${dire} src
 gzip "${packName}".tar
 #	/src/app/dialogs/ \

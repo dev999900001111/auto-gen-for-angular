@@ -1,8 +1,9 @@
 import * as  fs from 'fs';
+import { TiktokenModel } from 'tiktoken';
 import { OpenAIApiWrapper } from "./openai-api-wrapper";
 import { StructuredPrompt, Utils } from "./utils";
 
-const aiApi = new OpenAIApiWrapper();
+export const aiApi = new OpenAIApiWrapper();
 
 /**
  * 基本クラス
@@ -45,7 +46,7 @@ export abstract class BaseStep {
      */
     async run(): Promise<string> {
         const prompt = fs.readFileSync(this.promptPath, 'utf-8');
-        return aiApi.call(this.label, prompt, this.model, this.systemMessage, this.assistantMessage).then((completion) => {
+        return aiApi.call(this.label, prompt, this.model as TiktokenModel, this.systemMessage, this.assistantMessage).then((completion) => {
             if (completion.data && completion.data.choices && completion.data.choices[0] && completion.data.choices[0].message && completion.data.choices[0].message.content) {
                 // 戻り値の存在チェック
             } else {
