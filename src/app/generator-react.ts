@@ -460,7 +460,8 @@ function filterByComponentName(ngUiJSON: any) {
   const tmp: { [key: string]: any } = {};
   Object.keys(ngUiJSON).forEach(key => { if (['ROOT_ROUTER', 'PUBLIC_SCREEN', 'ROUTER', 'PRIVATE_SCREEN', 'HEADER', 'SIDENAVI', 'MAIN', 'MAIN_ROUTER', 'FOOTER',].includes(key)) { } else { tmp[key] = ngUiJSON[key]; } });
   ngUiJSON = tmp;
-  return ['childReactComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(compName => { ngUiJSON[compName][prop] = ngUiJSON[compName][prop].filter((chilName: string) => Object.keys(ngUiJSON).includes(chilName) && !['RouterOutlet', 'HTMLComponents', 'describe'].includes(chilName)); }); });
+  ['childReactComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(compName => { ngUiJSON[compName][prop] = ngUiJSON[compName][prop].filter((chilName: string) => Object.keys(ngUiJSON).includes(chilName) && !['RouterOutlet', 'HTMLComponents', 'describe'].includes(chilName)); }); });
+  return ngUiJSON;
 }
 
 class Step0140_makeScreen extends BaseStep {
@@ -589,6 +590,7 @@ class Step0140_makeScreen extends BaseStep {
   static genSteps() {
     const g: any = {};
     let ngUiJSON = Utils.jsonParse<any>(new Step0020_ReactComponentList_to_ReactComponentJson().result);
+    // console.log(Object.keys(ngUiJSON));
     ngUiJSON = filterByComponentName(ngUiJSON);
     const serviceListJSON = new Step0080_makeReactServiceJson().result;
     g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
@@ -596,6 +598,7 @@ class Step0140_makeScreen extends BaseStep {
     g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
     g.classes = new RepoSyncer().loadDefs();
     // console.log(g.models);
+    // console.log(Object.keys(ngUiJSON));
     return Object.keys(ngUiJSON).map((componentName, index) => new Step0140_makeScreen(index, componentName, ngUiJSON, g));
   }
 }
