@@ -45,17 +45,20 @@ export abstract class BaseStep {
      * @returns 
      */
     async run(): Promise<string> {
-        const prompt = fs.readFileSync(this.promptPath, 'utf-8');
-        return aiApi.call(this.label, prompt, this.model as TiktokenModel, this.systemMessage, this.assistantMessage).then((completion) => {
-            if (completion.data && completion.data.choices && completion.data.choices[0] && completion.data.choices[0].message && completion.data.choices[0].message.content) {
-                // 戻り値の存在チェック
-            } else {
-                // 無かったら空で返す。
-                return '';
-            }
-            const result = completion.data.choices[0].message.content;
-            fs.writeFileSync(this.resultPath, result);
-            return this.postProcess(result);
+        return new Promise<string>((resolve, reject) => {
+            fs.readFile(this.promptPath, 'utf-8', (err, prompt: string) => {
+                let isInit = false;
+                const streamHandler = ((data: string) => {
+                    (isInit ? fs.appendFile : fs.writeFile)(this.resultPath, data, () => { });
+                    isInit = true;
+                }).bind(this);
+
+                aiApi.call(this.label, prompt, this.model as TiktokenModel, this.systemMessage, this.assistantMessage, streamHandler).then((content: string) => {
+                    resolve(this.postProcess(content));
+                }).catch((err: any) => {
+                    reject(err);
+                });
+            });
         });
     }
 

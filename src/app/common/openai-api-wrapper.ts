@@ -8,6 +8,7 @@ import { Utils } from "./utils";
 const HISTORY_DIRE = `./history`;
 const configuration = new Configuration({
     apiKey: process.env['OPENAI_API_KEY'],
+    // baseOptions: { timeout: 1200000 },
 });
 const openai = new OpenAIApi(configuration);
 
@@ -32,6 +33,8 @@ export class OpenAIApiWrapper {
             httpAgent: new HttpsProxyAgent(proxyObj.httpProxy || proxyObj.httpsProxy || ''),
             httpsAgent: new HttpsProxyAgent(proxyObj.httpsProxy || proxyObj.httpProxy || ''),
         } : {};
+        this.options.responseType = 'stream';
+
         // this.options = {};
         // console.log(this.options);
 
@@ -46,9 +49,9 @@ export class OpenAIApiWrapper {
      * @param systemMessage システムメッセージ
      * @returns OpenAIのAPIのレスポンス
      */
-    call(label: string, prompt: string, model: TiktokenModel = 'gpt-3.5-turbo', systemMessage: string = 'You are an experienced and talented software engineer.', assistantMessage: string = ''): Promise<AxiosResponse<CreateChatCompletionResponse>> {
+    call(label: string, prompt: string, model: TiktokenModel = 'gpt-3.5-turbo', systemMessage: string = 'You are an experienced and talented software engineer.', assistantMessage: string = '', streamHandler: (text: string) => void = () => { }): Promise<string> {
         try { fs.mkdirSync(HISTORY_DIRE, { recursive: true }); } catch (e) { }
-        const promise: Promise<AxiosResponse<CreateChatCompletionResponse, any>> = new Promise(async (resolve, reject) => {
+        const promise: Promise<string> = new Promise(async (resolve, reject) => {
             const args: CreateChatCompletionRequest = {
                 // model: ([0, 1, 4, 5].indexOf(stepNo) !== -1) ? "gpt-4" : "gpt-3.5-turbo",
                 model,
@@ -56,7 +59,8 @@ export class OpenAIApiWrapper {
                 messages: [
                     { role: 'system', content: systemMessage },
                     { role: 'user', content: prompt },
-                ]
+                ],
+                stream: true,
             };
 
             if (assistantMessage) {
@@ -79,7 +83,7 @@ export class OpenAIApiWrapper {
 
                 const costStr = (tokenCount.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
                 const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${retry} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
-                fs.appendFileSync(`history.log`, `${logString}\n`);
+                fs.appendFile(`history.log`, `${logString}\n`, {}, () => { });
                 return logString;
             };
 
@@ -88,12 +92,46 @@ export class OpenAIApiWrapper {
             while (!completion) {
                 try {
                     completion = await openai.createChatCompletion(args, this.options as any) as AxiosResponse<CreateChatCompletionResponse, any>;
-                    // console.log(completion.data.usage);
-                    tokenCount.prompt_tokens = completion.data.usage?.prompt_tokens || 0;
-                    tokenCount.completion_tokens = completion.data.usage?.completion_tokens || 0;
-                    tokenCount.cost = tokenCount.calcCost();
 
-                    console.log(logString('fine'));
+                    let tokenBuilder: string = '';
+                    (completion.data as any).on('data', (data: any) => {
+                        fs.appendFile(`${HISTORY_DIRE}/${timestamp}-${label}.txt`, data.toString(), {}, () => { });
+                        // console.log(data.toString());
+                        const lines = data.toString().split('\n').filter((line: string) => line.trim() !== '');
+                        for (const line of lines) {
+                            const message: string = line.replace(/^data: /, '');
+                            if (message === '[DONE]') {
+                                // tokenCount.prompt_tokens = completion.data.usage?.prompt_tokens || 0;
+                                // tokenCount.completion_tokens = completion.data.usage?.completion_tokens || 0;
+                                tokenCount.cost = tokenCount.calcCost();
+                                console.log(logString('fine'));
+                                resolve(tokenBuilder);
+                                return tokenBuilder; // Stream finished
+                            }
+                            try {
+                                const parsed = JSON.parse(message);
+                                // console.log(parsed);
+                                Object.keys(parsed.choices[0].delta).forEach(
+                                    key => {
+                                        tokenCount.completion_tokens++;
+                                        if (key === 'content') {
+                                            streamHandler(parsed.choices[0].delta[key]);
+                                            tokenBuilder += parsed.choices[0].delta[key];
+                                        } else {
+                                            // content以外は無視
+                                        }
+                                    }
+                                );
+                            } catch (error) {
+                                console.error('Could not JSON parse stream message', message, error);
+                                reject(error);
+                            }
+                        }
+                    });
+
+                    // ファイルに書き出す
+                    const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
+                    fs.writeFile(`${HISTORY_DIRE}/${timestamp}-${label}.json`, JSON.stringify({ args, completion }, Utils.genJsonSafer()), {}, (err) => { });
                 } catch (error) {
                     // 30秒間隔でリトライ
                     console.log(logString('error', error));
@@ -103,12 +141,9 @@ export class OpenAIApiWrapper {
                 }
                 if (retry > 10) {
                     console.log(logString('error', 'retry over'));
+                    reject('retry over');
                 }
             }
-            // ファイルに書き出す
-            const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
-            fs.writeFileSync(`${HISTORY_DIRE}/${timestamp}-${label}.json`, JSON.stringify({ args, completion }, Utils.genJsonSafer()));
-            resolve(completion);
         });
         return promise;
     }
