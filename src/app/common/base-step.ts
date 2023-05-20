@@ -1,4 +1,5 @@
 import * as  fs from 'fs';
+import { fsq } from './fsq';
 import { TiktokenModel } from 'tiktoken';
 import { OpenAIApiWrapper } from "./openai-api-wrapper";
 import { StructuredPrompt, Utils } from "./utils";
@@ -49,7 +50,11 @@ export abstract class BaseStep {
             fs.readFile(this.promptPath, 'utf-8', (err, prompt: string) => {
                 let isInit = false;
                 const streamHandler = ((data: string) => {
-                    (isInit ? fs.appendFile : fs.writeFile)(this.resultPath, data, () => { });
+                    if (isInit) {
+                        fsq.appendFile(this.resultPath, data);
+                    } else {
+                        fsq.writeFile(this.resultPath, data);
+                    }
                     isInit = true;
                 }).bind(this);
 

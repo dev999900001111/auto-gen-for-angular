@@ -4,6 +4,7 @@ import { TiktokenModel, encoding_for_model } from 'tiktoken';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { Configuration, CreateChatCompletionRequest, CreateChatCompletionResponse, OpenAIApi } from "openai";
 import { Utils } from "./utils";
+import { fsq } from './fsq';
 
 const HISTORY_DIRE = `./history`;
 const configuration = new Configuration({
@@ -83,7 +84,7 @@ export class OpenAIApiWrapper {
 
                 const costStr = (tokenCount.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
                 const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${retry} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
-                fs.appendFile(`history.log`, `${logString}\n`, {}, () => { });
+                fsq.appendFile(`history.log`, `${logString}\n`, {});
                 return logString;
             };
 
@@ -95,7 +96,7 @@ export class OpenAIApiWrapper {
 
                     let tokenBuilder: string = '';
                     (completion.data as any).on('data', (data: any) => {
-                        fs.appendFile(`${HISTORY_DIRE}/${timestamp}-${label}.txt`, data.toString(), {}, () => { });
+                        fsq.appendFile(`${HISTORY_DIRE}/${timestamp}-${label}.txt`, data.toString(), {}, () => { });
                         // console.log(data.toString());
                         const lines = data.toString().split('\n').filter((line: string) => line.trim() !== '');
                         for (const line of lines) {
@@ -131,7 +132,7 @@ export class OpenAIApiWrapper {
 
                     // ファイルに書き出す
                     const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
-                    fs.writeFile(`${HISTORY_DIRE}/${timestamp}-${label}.json`, JSON.stringify({ args, completion }, Utils.genJsonSafer()), {}, (err) => { });
+                    fsq.writeFile(`${HISTORY_DIRE}/${timestamp}-${label}.json`, JSON.stringify({ args, completion }, Utils.genJsonSafer()), {}, (err) => { });
                 } catch (error) {
                     // 30秒間隔でリトライ
                     console.log(logString('error', error));
