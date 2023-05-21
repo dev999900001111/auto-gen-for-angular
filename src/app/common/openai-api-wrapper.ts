@@ -1,10 +1,10 @@
 import { AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as fs from 'fs';
+import fsq from './fsq';
 import { TiktokenModel, encoding_for_model } from 'tiktoken';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { Configuration, CreateChatCompletionRequest, CreateChatCompletionResponse, OpenAIApi } from "openai";
 import { Utils } from "./utils";
-import { fsq } from './fsq';
 
 const HISTORY_DIRE = `./history`;
 const configuration = new Configuration({
@@ -84,7 +84,7 @@ export class OpenAIApiWrapper {
 
                 const costStr = (tokenCount.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
                 const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${retry} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
-                fsq.appendFile(`history.log`, `${logString}\n`, {});
+                fsq.appendFile(`history.log`, `${logString}\n`, {}, () => { });
                 return logString;
             };
 

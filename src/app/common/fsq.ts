@@ -1,7 +1,7 @@
 import * as  fs from 'fs';
 import { PathOrFileDescriptor, WriteFileOptions, NoParamCallback } from 'fs';
 
-class FsQueue {
+class FsQueueImpl {
     constructor() { }
 
     private qMap: { [key: string]: { lock: boolean, q: FsQueueParam[] } } = {};
@@ -12,10 +12,14 @@ class FsQueue {
      * @param path 
      * @returns 
      */
-    private callbackFactory(path: string): NoParamCallback {
+    private callbackFactory = (path: string, callback?: NoParamCallback): NoParamCallback => {
+        // console.log(`callbackFactory:   ${JSON.stringify(callback)}`);
         return (err: NodeJS.ErrnoException | null) => {
             // ロック解除
             this.qMap[path].lock = false;
+            // console.log(`CallBack:     ${callback}`);
+            // コールバックを呼び出す
+            (callback || (() => { }))(err);
             if (err) {
                 console.log(err);
             } else {
@@ -24,9 +28,9 @@ class FsQueue {
                 if (param) {
                     this.qMap[path].lock = true;
                     if (param.type === 'writeFile') {
-                        fs.writeFile(path, param.data, this.callbackFactory(path));
+                        fs.writeFile(path, param.data as string | NodeJS.ArrayBufferView, this.callbackFactory(path, param.callback));
                     } else if (param.type === 'appendFile') {
-                        fs.appendFile(path, param.data as any, this.callbackFactory(path));
+                        fs.appendFile(path, param.data as string | Uint8Array, this.callbackFactory(path, param.callback));
                     } else {
                         console.log('error');
                     }
@@ -37,8 +41,9 @@ class FsQueue {
         };
     };
 
-    addQ(type: 'writeFile' | 'appendFile', file: PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: WriteFileOptions | NoParamCallback, callback?: NoParamCallback): void {
+    addQ = (type: 'writeFile' | 'appendFile', file: PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView | Uint8Array, options?: WriteFileOptions | NoParamCallback, callback?: NoParamCallback): void => {
         const path = file.toString();
+        // console.log(`addQ:${callback}`);
         // qMapの初期化
         if (!this.qMap[path]) {
             this.qMap[path] = { lock: false, q: [] };
@@ -55,13 +60,13 @@ class FsQueue {
         if (this.qMap[path].lock) {
         } else {
             // ロックされていない場合は書き込み
-            this.callbackFactory(path)(null);
+            this.callbackFactory(path, callback)(null);
         }
     }
-    writeFile(file: PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: WriteFileOptions | NoParamCallback, callback?: NoParamCallback): void {
+    writeFile = (file: PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options: WriteFileOptions | NoParamCallback, callback?: NoParamCallback): void => {
         this.addQ('writeFile', file, data, options, callback);
     }
-    appendFile(file: PathOrFileDescriptor, data: string | Uint8Array, options?: WriteFileOptions | NoParamCallback, callback?: NoParamCallback): void {
+    appendFile = (file: PathOrFileDescriptor, data: string | Uint8Array, options: WriteFileOptions | NoParamCallback, callback?: NoParamCallback): void => {
         this.addQ('appendFile', file, data, options, callback);
     }
 }
@@ -69,9 +74,17 @@ class FsQueue {
 interface FsQueueParam {
     type: 'writeFile' | 'appendFile';
     file: PathOrFileDescriptor;
-    data: any;
+    data: string | NodeJS.ArrayBufferView | Uint8Array;
     options?: WriteFileOptions | NoParamCallback;
     callback?: NoParamCallback;
 }
 
-export const fsq = new FsQueue();
+interface FsQueue {
+    writeFile(file: PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options: WriteFileOptions, callback: NoParamCallback): void;
+    writeFile(path: PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, callback: NoParamCallback): void;
+
+    appendFile(path: PathOrFileDescriptor, data: string | Uint8Array, options: WriteFileOptions, callback: NoParamCallback): void;
+    appendFile(file: PathOrFileDescriptor, data: string | Uint8Array, callback: NoParamCallback): void;
+}
+
+export default new FsQueueImpl() as FsQueue;
