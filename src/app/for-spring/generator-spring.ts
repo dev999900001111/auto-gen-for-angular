@@ -1392,7 +1392,7 @@ export async function main() {
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  Promise.resolve().then(() => {
+  return Promise.resolve().then(() => {
     obj = new Step0000_RequirementsToDomainModels();
     obj.initPrompt();
     return obj.run();
