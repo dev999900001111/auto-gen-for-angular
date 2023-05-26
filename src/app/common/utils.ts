@@ -239,10 +239,10 @@ export class Utils {
     static toMarkdown(chapter: StructuredPrompt, layer: number = 1) {
         let sb = '';
         if (chapter.title) {
-            sb += `${'#'.repeat(layer)} ${chapter.title}\n`;
+            sb += `\n${'#'.repeat(layer)} ${chapter.title}\n\n`;
         } else { }
         if (chapter.content) {
-            sb += `${chapter.content}\n`;
+            sb += `${chapter.content}\n\n`;
         } else { }
         if (chapter.children) {
             chapter.children.forEach(child => {
@@ -258,6 +258,7 @@ export class Utils {
 export interface StructuredPrompt {
     title?: string;
     content?: string;
+    contentJp?: string;
     children?: StructuredPrompt[];
 }
 

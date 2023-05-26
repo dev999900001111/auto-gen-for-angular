@@ -1,6 +1,6 @@
 import * as  fs from 'fs';
 import { Utils } from '../common/utils';
-import { BaseStep, MultiRunner } from "../common/base-step";
+import { BaseStep, MultiStep } from "../common/base-step";
 import { RepoSyncer } from '../common/repo-syncer';
 import { GenModuleFiles, genIndex } from './gen-angular-modules';
 
@@ -897,7 +897,7 @@ export async function main() {
   await obj.run();
 
 
-  obj = new MultiRunner(Step009_makeAngularServiceSrouce.genSteps());
+  obj = new MultiStep(Step009_makeAngularServiceSrouce.genSteps());
   obj.initPrompt();
   await obj.run();
 
@@ -906,7 +906,7 @@ export async function main() {
   obj.initPrompt();
   await obj.run();
 
-  obj = new MultiRunner(Step010_createJSONdata.genSteps());
+  obj = new MultiStep(Step010_createJSONdata.genSteps());
   obj.initPrompt();
   await obj.run();
 
@@ -914,29 +914,29 @@ export async function main() {
   obj.initPrompt();
   await obj.run();
 
-  obj = new MultiRunner(Step012_makeScreenSpec.genSteps());
+  obj = new MultiStep(Step012_makeScreenSpec.genSteps());
   obj.initPrompt();
   await obj.run();
 
-  obj = new MultiRunner(Step013_makeScreenSpecJSON.genSteps());
+  obj = new MultiStep(Step013_makeScreenSpecJSON.genSteps());
   obj.initPrompt();
   await obj.run();
 
-  obj = new MultiRunner(Step014_makeScreenHtml.genSteps());
+  obj = new MultiStep(Step014_makeScreenHtml.genSteps());
   obj.initPrompt();
   await obj.run();
 
-  obj = new MultiRunner(Step015_ScreenProp.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new MultiRunner(Step015_ScreenPropJSON.genSteps());
+  obj = new MultiStep(Step015_ScreenProp.genSteps());
   obj.initPrompt();
   await obj.run();
 
 
-  obj = new MultiRunner(Step016_AngularTypescript.genSteps());
+  obj = new MultiStep(Step015_ScreenPropJSON.genSteps());
+  obj.initPrompt();
+  await obj.run();
+
+
+  obj = new MultiStep(Step016_AngularTypescript.genSteps());
   obj.initPrompt();
   await obj.run();
   new GenModuleFiles().exec();

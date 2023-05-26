@@ -6,20 +6,28 @@ import { StructuredPrompt, Utils } from "./utils";
 
 export const aiApi = new OpenAIApiWrapper();
 
+export abstract class BaseStepInterface<T> {
+    /** label */
+    _label: string = '';
+
+    get label() { return this._label || this.constructor.name; }
+    set label(label) { this._label = label; }
+
+    abstract initPrompt(): T;
+    abstract preProcess(prompt: T): T;
+    abstract run(): Promise<T>;
+    abstract postProcess(result: T): T;
+}
+
 /**
  * 基本クラス
  */
-export abstract class BaseStep {
+export abstract class BaseStep extends BaseStepInterface<string> {
 
     /** default parameters */
     model = 'gpt-3.5-turbo';
     systemMessage = 'You are an experienced and talented software engineer.';
     assistantMessage = '';
-
-    /** label */
-    _label: string = '';
-    get label() { return this._label || this.constructor.name; }
-    set label(label) { this._label = label; }
 
     /** create prompt */
     chapters: StructuredPrompt[] = []; // {title: string, content: string, children: chapters[]}
@@ -50,12 +58,12 @@ export abstract class BaseStep {
             fs.readFile(this.promptPath, 'utf-8', (err, prompt: string) => {
                 let isInit = false;
                 const streamHandler = ((data: string) => {
-                    (isInit ? fsq.appendFile : fsq.writeFile)(this.resultPath, data, (err: any) => { });
+                    (isInit ? fsq.appendFile : fsq.writeFile)(`${this.resultPath}.tmp`, data, (err: any) => { if (err) console.error(err); });
                     isInit = true;
                 }).bind(this);
 
                 aiApi.call(this.label, prompt, this.model as TiktokenModel, this.systemMessage, this.assistantMessage, streamHandler).then((content: string) => {
-                    resolve(this.postProcess(content));
+                    fs.rename(`${this.resultPath}.tmp`, this.resultPath, () => resolve(this.postProcess(content)));
                 }).catch((err: any) => {
                     reject(err);
                 });
@@ -68,18 +76,34 @@ export abstract class BaseStep {
     }
 }
 
-export class MultiRunner {
+export class MultiStep extends BaseStepInterface<string[]> {
     private promiseList: Promise<string>[] = [];
+
     constructor(
-        private stepList: BaseStep[]
+        protected stepList: BaseStep[] = []
     ) {
-        this.stepList = stepList;
+        super();
     }
-    initPrompt(): void {
-        this.stepList.forEach(step => step.initPrompt());
+
+    initPrompt(): string[] {
+        return this.stepList.map(step => step.initPrompt());
     }
+
+    preProcess(prompt: string[]): string[] {
+        return prompt;
+    }
+
     async run(): Promise<string[]> {
-        this.stepList.forEach(step => this.promiseList.push(step.run()));
-        return Promise.all(this.promiseList);
+        return new Promise<string[]>((resolve, reject) => {
+            Promise.all(this.stepList.map(step => step.run())).then((resultList: string[]) => {
+                resolve(this.postProcess(resultList));
+            }).catch((err: any) => {
+                reject(err);
+            });
+        });
+    }
+
+    postProcess(result: string[]): string[] {
+        return result;
     }
 }

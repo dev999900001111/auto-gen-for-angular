@@ -1,6 +1,6 @@
 import * as  fs from 'fs';
 import { Utils } from '../common/utils';
-import { BaseStep, MultiRunner } from "../common/base-step";
+import { BaseStep, MultiStep } from "../common/base-step";
 import { RepoSyncer } from '../common/repo-syncer';
 // import { GenModuleFiles, genIndex } from './gen-angular-modules';
 import { genIndex } from './react-service';
@@ -428,7 +428,7 @@ class Step0120_makeScreenSpec extends BaseStep {
           ## React components used
           ## Model classes used (excluding use from child components)
           ## Service classes and methods used (excluding calls from child components)
-                    \`\`\`
+          \`\`\`
         `)
       }
     ];
@@ -491,6 +491,7 @@ class Step0140_makeScreen extends BaseStep {
     private g: any,) {
     super();
     this.label = `Step0140_${index}-makeScreen-${componentName}`;
+    // console.log(`${this.componentName}`);
 
     const doc = new Step0120_makeScreenSpec(index, componentName, ngUiJSON).result;
     const sv = Utils.jsonParse<{ [key: string]: ServiceClass }>(new Step0080_makeReactServiceJson().result);
@@ -620,75 +621,76 @@ export async function main() {
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  obj = new Step0000_RequirementsToComponentList();
+  // obj = new Step0000_RequirementsToComponentList();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step0010_ComponentList_to_ReactComponentList();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step0020_ReactComponentList_to_ReactComponentJson();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step0030_requirements_to_systemOverview();
+  // obj.initPrompt();
+  // await obj.run();
+
+
+  // obj = new Step0040_makeReactService();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step0050_makeReactModel();
+  // obj.initPrompt();
+  // await obj.run();
+
+
+  // obj = new Step0060_makeReactModelSource();
+  // obj.initPrompt();
+  // await obj.run();
+
+
+  // obj = new Step0065_ReactModelList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step0070_makeApiList();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step0080_makeReactServiceJson();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
+
+  // obj = new Step0100_ApiListJson();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new MultiStep(Step0102_createJSONdata.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new Step0105_componentList_to_Json();
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new MultiStep(Step0120_makeScreenSpec.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+
+  // obj = new MultiStep(Step0130_makeScreenSpecJSON.genSteps());
+  // obj.initPrompt();
+  // await obj.run();
+
+  obj = new MultiStep(Step0140_makeScreen.genSteps());
   obj.initPrompt();
   await obj.run();
 
-  obj = new Step0010_ComponentList_to_ReactComponentList();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step0020_ReactComponentList_to_ReactComponentJson();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step0030_requirements_to_systemOverview();
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new Step0040_makeReactService();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step0050_makeReactModel();
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new Step0060_makeReactModelSource();
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new Step0065_ReactModelList_to_Json();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step0070_makeApiList();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step0080_makeReactServiceJson();
-  obj.initPrompt();
-  await obj.run();
-
-  new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
-
-  obj = new Step0100_ApiListJson();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new MultiRunner(Step0102_createJSONdata.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step0105_componentList_to_Json();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new MultiRunner(Step0120_makeScreenSpec.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new MultiRunner(Step0130_makeScreenSpecJSON.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new MultiRunner(Step0140_makeScreen.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
+  // obj = Step0140_makeScreen.genSteps()[0];
   // Step0140_makeScreen.genSteps().forEach(step => step.preProcess(fs.readFileSync(step.promptPath, 'utf-8')));
   // Step0140_makeScreen.genSteps().forEach(step => { step.preProcess(step.prompt); step.postProcess(step.result) });
 }
