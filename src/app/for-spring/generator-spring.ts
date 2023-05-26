@@ -1392,29 +1392,32 @@ export async function main() {
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  // obj = new Step0000_RequirementsToDomainModels();
-  // obj.initPrompt();
-  // await obj.run();
+  Promise.resolve().then(() => {
+    obj = new Step0000_RequirementsToDomainModels();
+    obj.initPrompt();
+    return obj.run();
+  }).then(() => {
+    obj = new Step0003_RequirementsToSystemOverview();
+    obj.initPrompt();
+    return obj.run();
+  }).then(() => {
+    obj = new Step0010_DomainModelsClassify();
+    obj.initPrompt();
+    return obj.run();
+  }).then(() => {
+    obj = new Step0011_DomainModelsClassify();
+    obj.initPrompt();
+    return obj.run();
+  }).then(() => {
+    obj = new MultiStep(Step0020_domainModelsJson.genSteps());
+    obj.initPrompt();
+    return obj.run();
+  }).then(() => {
+    obj = new MultiStep(Step0021_domainModelEntitysJson.genSteps());
+    obj.initPrompt();
+    return obj.run();
+  })
 
-  // obj = new Step0003_RequirementsToSystemOverview();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0010_DomainModelsClassify();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0011_DomainModelsClassify();
-  // obj.initPrompt();
-  // await obj.run();
-
-  obj = new MultiStep(Step0020_domainModelsJson.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new MultiStep(Step0021_domainModelEntitysJson.genSteps());
-  obj.initPrompt();
-  await obj.run();
 
   // obj = new Step0030_CreateEntity();
   // obj.initPrompt();
