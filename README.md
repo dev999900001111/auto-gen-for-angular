@@ -1,4 +1,4 @@
-# auto-gen-for-angular
+# auto-gen-for-web-apps
 
 This program generates Angular screens using ChatGPT's API.
 
@@ -19,7 +19,7 @@ To run it, simply run src/main.ts.
 # Install libraries
 npm install
 # Run
-ts-node src/main.ts [angular|react]
+ts-node src/main.ts [angular|react|spring]
 ```
 
 
@@ -37,7 +37,7 @@ Create a prompt with ``initPrompt'' and run it with ``run''.
 ```javascript
   obj = new Step000_RequirementsToComponentList();
   obj.initPrompt();
-  await obj.run(); obj.run()
+  await obj.run();
 ```
 
 It will generally work in a single step, but I often comment out all the steps except the one I want to run.

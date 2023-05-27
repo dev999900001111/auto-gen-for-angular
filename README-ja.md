@@ -1,6 +1,6 @@
-# auto-gen-for-angular
+# auto-gen-for-web-apps
 
-ChatGPTのAPIを使ってAngularの画面を生成するプログラムです。
+ChatGPTのAPIを使って Web Application のソースコードを生成するアプリケーションです。
 
 主に業務システムを作る用途を想定しています。だいたい20〜30程度のコンポーネントを自動生成できます。
 
@@ -19,7 +19,7 @@ OpenAIのAPIが使える環境であることが前提です。
 # ライブラリをインストール
 npm install
 # 実行（angularかreactかを選ぶ）
-ts-node src/main.ts  [angular|react]
+ts-node src/main.ts  [angular|react|spring]
 ```
 
 
