@@ -6,7 +6,7 @@ import { RepoSyncer } from '../common/repo-syncer';
 import { genIndex } from '../for-react/react-service';
 import { ReactCodeGenerator } from '../for-react/react-service';
 import { ModelControlClass, ServiceClass, ServiceClassMethod, ModelClass, ClassProp } from '../model-repo/to-use';
-import { Aggrigate, Attribute, ContextMapRelationshipType, DomainModel, DomainModelPattern, Entity, RelationshipType, TableModel, ValueObject } from '../domain-models/domain-models';
+import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, Entity, RelationshipType, TableModel, ValueObject, genEntityAndRepository } from '../domain-models/domain-models';
 
 class Step0000_RequirementsToDomainModels extends BaseStep {
   model = 'gpt-4';
@@ -468,921 +468,176 @@ class Step0021_domainModelEntitysJson extends BaseStep {
   }
 }
 
-class Step0030_CreateEntity extends BaseStep {
+class Step0030_CreateEntity extends MultiStep {
   // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
-  model = 'gpt-4-0314';
-  dire: string = `./gen/domain-models/`;
+  // model = 'gpt-4';
+  // dire: string = `./gen/domain-models/`;
   constructor() {
     super();
     const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0003_RequirementsToSystemOverview().result);
     const domainModel = DomainModel.loadModels();
 
-    this.chapters = [
-      // { title: 'System Name', content: `${overview.nickname} (${overview.name})` },
-      // { title: 'System Overview', content: overview.overview },
-      // { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
-      {
-        title: 'System Requirements', content: Utils.trimLines(`
-        - Server Side Framework: Spring Boot (JPA, Web, Batch, Security, Actuator, Lombok, MapStruct, etc.)
-        - Frontend Framework: React (Chakra-UI, etc.)
-        - Database: PostgreSQL
-        - Infrastructure: AWS
-      `)
-      },
-      {
-        title: 'Domain Models',
-        // content: new Step0000_RequirementsToDomainModels().result,
-        children: [
-          { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities), },
-          { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects), },
-          { title: `${DomainModelPattern.Aggregates}`, content: domainModel.getAttributeTable(DomainModelPattern.Aggregates), },
+    class Step0030_CreateEntityChil extends BaseStep {
+      model = 'gpt-4';
+      dire: string = `./gen/domain-models/`;
+      constructor(public boundedContext: BoundedContext) {
+        super();
+        this.label = `${this.constructor.name}_${Utils.toPascalCase(this.boundedContext.name)}`;
+        this.chapters = [
+          // { title: 'System Name', content: `${overview.nickname} (${overview.name})` },
+          // { title: 'System Overview', content: overview.overview },
+          // { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
           {
-            title: `Services`, content: Object.keys(domainModel.DomainServices).map((serviceName: string) => {
-              // serviceName: methodName,,,
-              return `- ${serviceName}: ${domainModel.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}`;
-            }).join('\n'),
+            title: 'System Requirements', content: Utils.trimLines(`
+            - Server Side Framework: Spring Boot (JPA, Web, Batch, Security, Actuator, Lombok, MapStruct, etc.)
+            - Frontend Framework: React (Chakra-UI, etc.)
+            - Database: PostgreSQL
+            - Infrastructure: AWS
+          `)
           },
-        ]
-      },
-      // { title: `Table Definitions`, content: tableModels.map((tableModel: TableModel) => tableModel.toDDL()).join('\n'), },
-      {
-        title: `Instructions`,
-        contentJp: Utils.trimLines(`
-          Domain Modelsに基づいて、API仕様書を作成してください。
-          指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
-          - Request / Response の型を詳細に正確に定義してください。必ずしもモデルと一緒ではないはずです。
-          - Domain Models に定義されていないオブジェクト型を利用する場合は、オブジェクト型の内容を明示してください。
-          - トークン数を節約するため、表形式で出力してください。列は以下の通りです。
-            Endpoint, Method, Request, Response, Service.Method, Description
-          イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成したドメインモデルのみを出力してください。
-        `),
-        content: Utils.trimLines(`
-          Based on the Domain Models, create an API specification.
-          The instructions are just guidelines. Please proceed while self-completing the know-how that is recalled based on the instructions.
-          - Define the types of Request / Response in detail and accurately. It shouldn't always be the same as the model.
-          - If you use an object type that is not defined in Domain Models, please specify the contents of the object type.
-          - To save tokens, output in tabular form. The columns are as follows.
-            Endpoint, Method, Request, Response, Service.Method, Description
-          Repeat the iteration several times, perform appropriate refactoring, and output only the completed domain model.
-        `),
-      }
-    ];
-  }
-  // postProcess(result: string): string {
-  //   // ディレクトリが無ければ掘る
-  //   if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-  //   // ファイル書き込み
-  //   try { fs.writeFileSync(`${this.dire}Relationship.json`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
-  //   // const tableModels = TableModel.loadModels();
-  //   // const ddl = tableModels.map((tableModel: TableModel) => tableModel.toDDL()).join('\n');
-  //   // try { fs.writeFileSync(`./gen/src/ddl/all-tables.sql`, ddl); } catch (e) { console.log(e); }
-  //   return result;
-  // }
-}
-
-class Step0017_RelationCardinality extends BaseStep {
-  // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
-  model = 'gpt-4';
-  dire: string = `./gen/domain-models/`;
-  constructor() {
-    super();
-    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0003_RequirementsToSystemOverview().result);
-    const domainModel = DomainModel.loadModels();
-    const tableModels = TableModel.loadModels();
-
-    this.chapters = [
-      // { title: 'System Name', content: `${overview.nickname} (${overview.name})` },
-      // { title: 'System Overview', content: overview.overview },
-      // { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
-      // { title: 'Base Domain Models', content: new Step0000_RequirementsToDomainModels().result },
-      {
-        title: 'Refined Domain Models',
-        children: [
-          { title: `${DomainModelPattern.Aggregates}`, content: domainModel.getAttributeTable(DomainModelPattern.Aggregates), },
-          { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities), },
-          { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects), },
-        ]
-      },
-      // { title: `Table Definitions`, content: tableModels.map((tableModel: TableModel) => tableModel.toDDL()).join('\n'), },
-      {
-        title: `Instructions`,
-        contentJp: Utils.trimLines(`
-          以下の指示に従って、Entities と ValueObjects の リレーションカーディナリティを明らかにしてください。
-          - Entity, ValueObjectを対象にしてリレーションカーディナリティを検討してください。
-          - DBスペシャリスト、セキュリティスペシャリスト、ビジネスアナリスト、UI/UXデザイナーなどの視点を考慮してください。
-          - 項目に抜け漏れが無いことを確認すること。
-          以上のプロセスをステップバイステップで繰り返し、最終的に出来上がったもの「のみ」を出力してください。
-          出力フォーマットは以下の通りです。
-          [["EntityA","1:1","EntityB"],["EntityA","1:N","EntityC"],["EntityA","N:N","EntityD"],["EntityA","N:1","EntityE"]]
-        `),
-        content: Utils.trimLines(`
-          Following the instructions below, clarify the relation cardinality of Entities and ValueObjects.
-          - Consider the relation cardinality for Entity and ValueObject.
-          - Consider the perspectives of DB specialists, security specialists, business analysts, UI/UX designers, etc.
-          - Make sure there are no missing items.
-          Repeat the above process step by step and output only the final result.
-          The output format is as follows.
-          [
-            ["EntityA","1:1","EntityB"],
-            ["EntityA","1:N","EntityC"],
-            ["EntityA","N:N","EntityD"],
-            ["EntityA","N:1","EntityE"]
-          ]
-          `),
-        // [["EntityA","1:1","EntityB"],["EntityA","1:N","EntityC"],["EntityA","N:N","EntityD"],["EntityA","N:1","EntityE"]]
-        // [{"type": "\${${Object.values(RelationshipType).join('|')}}","source": "\${(Entity|ValueObject)Name}","target": "\${(Entity|ValueObject)Name}",}]
-
-        // {"Tables":{"\${TableName}":[[\${columnName},\${columnType},\${columnConstraint},\${columnDefault}],[\${columnName},\${columnType},\${columnConstraint},\${columnDefault}]]},"Indexes":{"\${TargetTableName}":[
-        //   [\${indexName},\${indexName},]
-        // ]}}
-      }
-    ];
-  }
-  postProcess(result: string): string {
-    // ディレクトリが無ければ掘る
-    if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-    // ファイル書き込み
-    try { fs.writeFileSync(`${this.dire}Relationships.json`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
-    // const tableModels = TableModel.loadModels();
-    // const ddl = tableModels.map((tableModel: TableModel) => tableModel.toDDL()).join('\n');
-    // try { fs.writeFileSync(`./gen/src/ddl/all-tables.sql`, ddl); } catch (e) { console.log(e); }
-    return result;
-  }
-}
-
-class Step0018_TableItemDefine extends BaseStep {
-  // model = 'gpt-4';
-  dire: string = `./gen/domain-models/`;
-  constructor() {
-    super();
-    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0003_RequirementsToSystemOverview().result);
-    const domainModel = DomainModel.loadModels();
-    this.chapters = [
-      { title: 'System Name', content: `${overview.nickname} (${overview.name})` },
-      { title: 'System Overview', content: overview.overview },
-      {
-        title: `Domain Models`, content: '\n', children: [
-          { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities), },
-          { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects), },
-        ]
-      },
-      {
-        title: `Instructions`,
-        contentJp: Utils.trimLines(`
-          Domain Models を元に、以下の点に注意してPostgreSQL用のDDLを作成してください。
-          - Domain Models の全てのEntity, ValueObjectを対象に、テーブル設計をしてください。
-          - DBスペシャリスト、セキュリティスペシャリスト、ビジネスアナリスト、UI/UXデザイナーなどの視点を考慮してください。
-          - 項目に抜け漏れが無いことを確認すること。
-          以上のプロセスをステップバイステップで繰り返し、最終的に出来上がったもののみを出力してください。
-          出力形式は以下の通りとすること。
-            {"\${TableName}":[[\${columnName},\${columnType},\${columnConstraint},\${columnDefault}],[\${columnName},\${columnType},\${columnConstraint},\${columnDefault}]]}
-          `),
-        content: Utils.trimLines(`
-          Based on Domain Models, create a DDL for PostgreSQL with the following points in mind.
-          - Design the table for all Entities and ValueObjects in Domain Models.
-          - Consider the perspectives of DB specialists, security specialists, business analysts, UI/UX designers, etc.
-          - Make sure there are no missing items.
-          Repeat the above process step by step and output only the final result.
-          The output format is as follows.
-            {"\${TableName}":[[\${columnName},\${columnType},\${columnConstraint},\${columnDefault}],[\${columnName},\${columnType},\${columnConstraint},\${columnDefault}]]}
-          `),
-        // {"Tables":{"\${TableName}":[[\${columnName},\${columnType},\${columnConstraint},\${columnDefault}],[\${columnName},\${columnType},\${columnConstraint},\${columnDefault}]]},"Indexes":{"\${TargetTableName}":[
-        //   [\${indexName},\${indexName},]
-        // ]}}
-      }
-    ];
-  }
-  postProcess(result: string): string {
-    // ディレクトリが無ければ掘る
-    if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-    // ファイル書き込み
-    try { fs.writeFileSync(`${this.dire}TableColumns.json`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
-    const tableModels = TableModel.loadModels();
-    const ddl = tableModels.map((tableModel: TableModel) => tableModel.toDDL()).join('\n');
-    try { fs.writeFileSync(`./gen/src/ddl/all-tables.sql`, ddl); } catch (e) { console.log(e); }
-    return result;
-  }
-}
-
-class Step0019_TableItemDefine extends BaseStep {
-  model = 'gpt-4';
-  dire: string = `./gen/domain-models/`;
-  constructor() {
-    super();
-    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0003_RequirementsToSystemOverview().result);
-    const domainModel = DomainModel.loadModels();
-    const tableModels = TableModel.loadModels();
-    this.chapters = [
-      { title: 'System Name', content: `${overview.nickname} (${overview.name})` },
-      { title: 'System Overview', content: overview.overview },
-      {
-        title: `Domain Models`, content: '\n', children: [
-          { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities), },
-          { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects), },
-        ]
-      },
-      { title: `Table Definitions`, content: tableModels.map((tableModel: TableModel) => tableModel.toDDL()).join('\n'), },
-      {
-        title: `Instructions`,
-        contentJp: Utils.trimLines(`
-          Table Definitions を元に、以下の点に注意してSpringJPA用のEntityクラスを作成してください。
-          - Domain Models の全てのEntity, ValueObjectを対象にしてください。
-          - DBスペシャリスト、セキュリティスペシャリスト、ビジネスアナリスト、UI/UXデザイナーなどの視点を考慮してください。
-          - 項目に抜け漏れが無いことを確認すること。
-          以上のプロセスをステップバイステップで繰り返し、最終的に出来上がったもののみを出力してください。
-          出力形式は以下の通りとすること。
-            {"\${EntityClassName}:\${tableName}":[[\${propName},[\${jpaAnnotations}]],[\${propName},[\${jpaAnnotations}]]]}
-          `),
-        content: Utils.trimLines(`
-          Based on the Table Definitions, create an Entity class for SpringJPA with the following points in mind.
-          - Please target all Entities, ValueObjects in Domain Models.
-          - Consider the perspectives of DB Specialists, Security Specialists, Business Analysts, UI/UX Designers, etc.
-          - Make sure there are no omissions in the items.
-          Repeat the above process step by step and output only the final product.
-          The output format should be as follows
-            {"\${EntityClassName}:\${tableName}":[[\${propName},[\${jpaAnnotations}]],[\${propName},[\${jpaAnnotations}]]]}
-          `),
-        // {"Tables":{"\${TableName}":[[\${columnName},\${columnType},\${columnConstraint},\${columnDefault}],[\${columnName},\${columnType},\${columnConstraint},\${columnDefault}]]},"Indexes":{"\${TargetTableName}":[
-        //   [\${indexName},\${indexName},]
-        // ]}}
-      }
-    ];
-  }
-  postProcess(result: string): string {
-    // ディレクトリが無ければ掘る
-    if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-    // ファイル書き込み
-    try { fs.writeFileSync(`${this.dire}JpaEntityModels.json`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
-    // const tableModels = TableModel.loadModels();
-    // const ddl = tableModels.map((tableModel: TableModel) => tableModel.toDDL()).join('\n');
-    // try { fs.writeFileSync(`./gen/src/ddl/all-tables.sql`, ddl); } catch (e) { console.log(e); }
-    return result;
-  }
-}
-
-class Step0022_makeDDL extends BaseStep {
-  model = 'gpt-4';
-  dire: string = `./gen/src/ddl/`;
-  constructor() {
-    super();
-    const domainModel = DomainModel.loadModels();
-    this.chapters = [
-      {
-        title: `Domain Models`, children: [
-          { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities), },
-          { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects), },
-        ]
-      },
-      {
-        title: `prompt`,
-        contentJp: Utils.trimLines(`
-          Domain Models を元にPostgreSQLのDDLを作成してください。
-        `),
-        content: Utils.trimLines(`
-          Please create a PostgreSQL DDL based on Domain Models.
-        `),
-      },
-    ];
-
-  }
-  postProcess(result: string): string {
-    // ディレクトリが無ければ掘る
-    if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-    // ファイル書き込み
-    try { fs.writeFileSync(`${this.dire}ddl.sql`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
-    return result;
-  }
-}
-
-class Step0023_makeDDL extends BaseStep {
-  model = 'gpt-4';
-  dire: string = `./gen/src/ddl/`;
-  constructor(private pattern: DomainModelPattern) {
-    super();
-    this.label = `${this.constructor.name}_${pattern}`;
-    const domainModel = DomainModel.loadModels();
-    this.chapters = [
-      { title: `Domain Model: ${pattern}`, content: domainModel.getAttributeTable(pattern), },
-      {
-        title: `prompt`,
-        contentJp: Utils.trimLines(`
-          ${pattern}を元にPostgreSQLのDDLを作成してください。
-        `),
-        content: Utils.trimLines(`
-          Please create a PostgreSQL DDL based on ${pattern}.
-        `),
-      },
-    ];
-
-  }
-  postProcess(result: string): string {
-    // ディレクトリが無ければ掘る
-    if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-    // ファイル書き込み
-    try { fs.writeFileSync(`${this.dire}${this.pattern}.sql`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
-    return result;
-  }
-  static genSteps() {
-    return [DomainModelPattern.Entities, DomainModelPattern.ValueObjects].map((pattern) => new Step0023_makeDDL(pattern));
-  }
-}
-
-class Step0021_makeDDL extends BaseStep {
-  // model = 'gpt-4';
-  dire: string = `./gen/src/ddl/`;
-  constructor(private aggrigate: Aggrigate) {
-    super();
-
-    this.label = `${this.constructor.name}_${aggrigate.name}`;
-    const modelToTable = (model: Entity | ValueObject) => {
-      let table = '';
-      table += `- ${model.name}\n`;
-      model.Attributes.map((attribute: Attribute) => {
-        table += `   - ${attribute.name}: ${attribute.type};\n`;
-      });
-      return table;
-    };
-    this.chapters = [
-      {
-        title: `Domain Models`,
-        children: [
-          { title: `RootEntity`, content: modelToTable(aggrigate.RootEntity) },
-          { title: `Entities`, content: aggrigate.Entities.map(modelToTable).join('\n') } || 'None',
-          { title: `ValueObjects`, content: aggrigate.ValueObjects.map(modelToTable).join('\n') } || 'None',
-        ]
-      },
-      {
-        title: `prompt`,
-        contentJp: Utils.trimLines(`
-          Domain Models を元にPostgreSQLのDDLを作成してください。
-          - schema は設定しないでください。
-        `),
-        content: Utils.trimLines(`
-          Please create a PostgreSQL DDL based on Domain Models.
-          - Please do not set the schema.
-        `),
-      },
-    ];
-
-  }
-  postProcess(result: string): string {
-    // ディレクトリが無ければ掘る
-    if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-    // ファイル書き込み
-    try { fs.writeFileSync(`${this.dire}${this.aggrigate.name}.sql`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
-    return result;
-  }
-  static genSteps() {
-    const domainModel = DomainModel.loadModels();
-    return Object.keys(domainModel.Aggregates).map((key: string) => new Step0021_makeDDL(domainModel.Aggregates[key]));
-  }
-}
-
-class Step0024_makeEntity extends BaseStep {
-  // model = 'gpt-4';
-  dire: string = `./gen/src/java/my/example/entity/`;
-  constructor(private pattern: DomainModelPattern) {
-    super();
-    this.label = `${this.constructor.name}_${pattern}`;
-    const domainModel = DomainModel.loadModels();
-    this.chapters = [
-      { title: `Domain Model: ${pattern}`, content: domainModel.getAttributeTable(pattern) },
-      { title: 'DDLs', content: new Step0023_makeDDL(pattern).result },
-      {
-        title: 'prompt',
-        contentJp: Utils.trimLines(`
-          ${pattern}とDDLを元にSpringBoot(JPA)のEntityを作成してください。
-          - entityのパッケージ名は my.example.entity としてください。
-          - ドメインモデルに含まれる${pattern}を全て作成してください。
-          - Lombokを使用して、シンプルなコードで作成してください。
-        `),
-        content: Utils.trimLines(`
-          Please create a SpringBoot (JPA) Entity based on ${pattern} and DDL.
-          - Please use my.example.entity as the package name for the entity.
-          - Please make all ${pattern} included in the domain model.
-          - Please use Lombok to create simple code.
-        `)
-      },
-    ];
-  }
-  postProcess(result: string): string {
-    // ディレクトリが無ければ掘る
-    if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-    // ファイル書き込み
-    try { fs.writeFileSync(`${this.dire}${this.pattern}.java`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
-    return result;
-  }
-  static genSteps() {
-    return [DomainModelPattern.Entities, DomainModelPattern.ValueObjects].map((pattern) => new Step0024_makeEntity(pattern));
-  }
-}
-
-class Step0040_makeReactService extends BaseStep {
-  model = 'gpt-4';
-  constructor() {
-    super();
-    this.chapters = [
-      // { title: 'System Overview', content: new Step0030_requirements_to_systemOverview().result },
-      { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
-      { title: 'Component List', content: Utils.spaceNormalize(new Step0000_RequirementsToDomainModels().result) },
-      { title: 'React Component List', content: Utils.spaceNormalize(new Step0010_DomainModelsClassify().result) },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Let's think step by step.
-          After reviewing the documents provided, please generate a list of React service classes needed for this system.
-          - Enumerate the method purpose and signature.
-          - If there are multiple possible patterns, opt for the simpler design.
-          - Please consider the fields for your model classes. A model class represents the structure of data used in the system.
-            Even when dealing with the same model, Request and Response types may have different structures.
-            Please pay attention to the following points when determining the structures:
-            - Guidelines for determining Request types:
-                - The Request type for registering and updating data should be such that the structure of the object is not hierarchical.
-                - When registering data, the Request type should not include an ID field since the ID is undetermined at that stage. 
-                - Request types used for filtering purposes may have additional or different required fields compared to the model. They may also include fields to specify ranges.
-            - Guidelines for determining Response types:
-                - To facilitate the usage of data without the need for further manipulation on the frontend, Response types should be structured in a way that combines multiple models in advance. Instead of storing identifiers like \`xxId\`, the structure should directly hold the corresponding objects.
-          The list of services should undergo review by professionals such as UI/UX designers, security specialists, business analysts, and consistency checkers. They will provide input for improvements. 
-          The consistency checker will strictly ensure that your service list adheres to all previous requirements.
-          Your final output should be the improved list of React service classes and their associated methods, and model / request / response classes and their associated properties list.
-        `)
-        // - Services that obtain simple classification values (type, key, value, label), such as gender classification, should be combined into one api.
-        // - RequestかつPUT/POSTの場合は、複数のモデルを組み合わせて登録することは少ないため、複数のモデルを組み合わせることは避けてください。
-        // - Responseの場合は、複数のモデルが組み合わされた構造（例えばxxIdのようなものを保持するのではなく、直接xxオブジェクトを保持する構造）としてください。 
-      },
-    ];
-  }
-}
-
-class Step0050_makeReactModel extends BaseStep {
-  model = 'gpt-4';
-  constructor() {
-    super();
-    this.chapters = [
-      { title: 'requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
-      // { title: 'Component List', content: new Step0000_RequirementsToDomainModels().result },
-      { title: 'React Component List', content: new Step0010_DomainModelsClassify().result },
-      { title: 'React Service List', content: new Step0040_makeReactService().result },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Let's think step by step.
-          - Based on the above design document, extract the names of all model classes (including request and response).
-          - Note that some of the names may be similar but different, and check to see if any model classes have been omitted.
-          - For the extracted model classes, include all necessary items other than those used on the screen.
-          - Please consider the fields for your model classes. A model class represents the structure of data used in the system.
-            Even when dealing with the same model, Request and Response types may have different structures.
-            Please pay attention to the following points when determining the structures:
-            - Guidelines for determining Request types:
-                - The Request type for registering and updating data should be such that the structure of the object is not hierarchical.
-                - When registering data, the Request type should not include an ID field since the ID is undetermined at that stage. 
-                - Request types used for filtering purposes may have additional or different required fields compared to the model. They may also include fields to specify ranges.
-            - Guidelines for determining Response types:
-                - To facilitate the usage of data without the need for further manipulation on the frontend, Response types should be structured in a way that combines multiple models in advance. Instead of storing identifiers like \`xxId\`, the structure should directly hold the corresponding objects.
-          - Define enums as appropriate.
-          - For all model classes, define items and types without omissions (including filters, etc.).
-          - When setting a new class for an item, please define the item and type as a model class without omission.
-          - Please also describe the validation of items.
-          - The Model Classes should be reviewed by experts such as UI/UX designers, security specialists, business analysts, consistency checkers, etc., and an improved version should be presented that incorporates their input (The consistency checker rigorously checks that all classes readable from the design document are reflected, and that classes referenced within the defined propertie's classes are also well defined.).
-          Only the typescript source code Model classes, Enums, Validation Rules as comment is output.
-        `)
-        // - 上記の設計書を元に、全てのモデルクラス(request,response含む)の名前を抽出してください。
-        // - 似ている名前でも異なるものがあることに注意して、モデルクラスの取りこぼしが無いか確認してください。
-        // - 抽出したモデルクラスについて、画面上で使用する項目以外に必要な項目を全て含めてください。
-
-        // - 全てのモデルクラスについて、項目と型を漏れなく定義してください（filter等も含めて）。
-        // - 項目の方として新たにクラスを設定する場合もモデルクラスとして項目と型を漏れなく定義してください。
-        // - 項目のバリデーションについても記載してください。
-
-        // consistency checkers strictly check whether the Model Classes reflects all previous designs
-      },
-    ];
-  }
-}
-
-class Step0060_makeReactModelSource extends BaseStep {
-  constructor() {
-    super();
-    this.chapters = [
-      { title: 'React Model List', content: new Step0050_makeReactModel().result },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Please create the above Model Classes as Typescript classes.
-          Please refer to the following format.
-          - If you are instructed to create an interface, convert it to a class and output it.
-          \`\`\`typescript
-          // ./src/app/models.ts
-          export class ClassName {
-            constructor(
-              public name: type = default,
-            ){
-            }
-          }
-          \`\`\`
-        `)
-      },
-    ];
-  }
-  postProcess(text: string): string {
-    text = text.replace(/```.*/g, '').trim();
-    fs.mkdirSync(`./gen/src/app`, { recursive: true });
-    fs.writeFileSync(`./gen/src/app/models.ts`, text);
-    return text;
-  }
-}
-class Step0065_ReactModelList_to_Json extends BaseStep {
-  constructor() {
-    super();
-    this.chapters = [
-      { title: 'React Model List', content: new Step0050_makeReactModel().result },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Please convert the above List of Screensn into JSON format.
-          {"ModelClassName":{"desc": "A brief description of the Model", "props":[{"name":"propName","type":"propType<generic>","validation":"propValidation",},]},,"EnumName":{"desc": "A brief description of the Enum", "values":["value","value",,]},,}
-          Note that this is minified JSON without newlines and spaces(Do not add extra space.).
-        `)
-      },
-    ];
-  }
-}
-class Step0070_makeApiList extends BaseStep {
-  constructor() {
-    super();
-    this.chapters = [
-      // { title: 'React Component List', content: new Step0010_DomainModelsClassify().result },
-      { title: 'React Service List', content: new Step0040_makeReactService().result },
-      { title: 'React Model List', content: new Step0050_makeReactModel().result },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Please create an API list based on the above design document.
-          - Please make the API list in a tabular format. The only columns should be "Method", "Path", "RequestBody", and "ResponseBody".
-          - For login-related APIs, be sure to include a token in the ResponseBody. Even if the token is not specified in the output item of the service class, it must be returned from the API as a hidden item.
-          - It is not necessary to implement all the methods of the service class. Select functions that should be processed on the server side appropriately and make them into APIs.
-          - The API list should be reviewed by experts such as UI/UX designers, security specialists, business analysts, and strict consistency checkers, and an improved version should be presented with their input. (Strict consistency checkers will rigorously check that all features that should be implemented on the server are reflected in the API list).
-          Only output the Improved APIs List.
-        `)
-      },
-    ];
-    const tail = `# prompt
-Above is a screen-side design document created assuming React.
-Based on this design document, please create an appropriate APIs list.
-- Please make the API list in a tabular format. The only columns should be "Method", "Path", "RequestBody", and "ResponseBody".
-- For login-related APIs, be sure to include a token in the ResponseBody. Even if the token is not specified in the output item of the service class, it must be returned from the API as a hidden item.
-- It is not necessary to implement all the methods of the service class. Select functions that should be processed on the server side appropriately and make them into APIs.
-- The API list should be reviewed by experts such as UI/UX designers, security specialists, business analysts, and strict consistency checkers, and an improved version should be presented with their input. (Strict consistency checkers will rigorously check that all features that should be implemented on the server are reflected in the API list).
-Only output the Improved APIs List.`;
-  }
-}
-class Step0080_makeReactServiceJson extends BaseStep {
-  constructor() {
-    super();
-    this.chapters = [
-      // { title: 'React Component List', content: new Step0010_DomainModelsClassify().result },
-      { title: 'React Service List', content: new Step0040_makeReactService().result },
-      // { title: 'React Model List', content: new Step0050_makeReactModel().result },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Please convert the above List of Screensn into JSON format.
-          {"ServiceName":{"path":". /src/app/services/ServiceName.ts", "models":["modelClassName"],"methods":[{"name":"methodName","params":[{"name":"type"}],"return":"returnType<genericType>"}]},"ServiceName":{"path":". /src/app/services/ServiceName.ts", "models":["modelClassName"],"methods":[{"name":"methodName","params":[{"name":"type"}],"return":"returnType<genericType>"}]},,,}
-          Note that this is correct minified JSON format (Do not add extra space.).
-        `)
-      },
-    ];
-  }
-  preProcess(prompt: string): string {
-    return prompt;
-  }
-  postProcess(result: string): string {
-    ReactCodeGenerator.genService(result);
-    genIndex();
-    return result;
-  }
-}
-
-class Step0100_ApiListJson extends BaseStep {
-  constructor() {
-    super();
-    this.chapters = [
-      { title: 'APIs List', content: new Step0070_makeApiList().result },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Please convert APIs List table to minified JSON format, like below.
-          [{"method":"POST","path":"/api/auth/login","requestBody":"{ username, password }","responseBody":"{ token, user: User }","description":"Authenticates user and returns a token and user object"},{"method":"POST","path":"/api/auth/login","requestBody":"{ username, password }","responseBody":"{ token, user: User }","description":"Authenticates user and returns a token and user object" },,]
-          Output Json only(Do not add extra space.).
-        `)
-      },
-    ];
-  }
-}
-
-class Step0102_createJSONdata extends BaseStep {
-  constructor(chunkArray: any[], index: number, modelList: string,) {
-    super();
-    this.label = `${this.constructor.name}_${index}`;
-    const cols = Object.keys(chunkArray[0]);
-    const header = cols.join(' | ');
-    const border = cols.map(key => '-').join(' | ');
-    const bodies = chunkArray.map(obj => cols.map(key => obj[key]).join(' | '));
-    const apiListTable = [header, border, ...bodies].map(row => `| ${row} |`).join('\n').replace(/  +/g, '');
-
-    this.chapters = [
-      { title: 'APIs List', content: apiListTable },
-      { title: 'Models List', content: modelList },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Based on the above design document, please create a sample data (for Japanese) for the APIs List.
-          Only the ResponseBody is required.
-          Please use all values of Enum.
-          The format is minified JSON as follows.
-          {"\${Method}-\${Path}":\${mockdata}}
-          Please output only JSON data(Do not add extra space.).
-        `)
-      }
-    ];
-    /**
-     * 以上の設計書に基づいてAPIs ListのAPIのサンプルデータ（日本人向け）を作って下さい。
-     * ResponseBodyのみでよいです。
-     * Enumは全ての値を使ってください。
-     * 形式は以下のminifiedJSONで、1つにまとめてください。
-     * {"\${Method}-\${Path}":\${mockdata}}
-     * JSON形式のデータ以外は出力しないでください。
-     */
-  }
-  postProcess(result: string) {
-    try {
-      const all: { [key: string]: any } = Utils.jsonParse(result) as any;
-      Object.keys(all).forEach(key => {
-        let method = key.split('-')[0];
-        let path = key.substring(method.length + 1);
-        // スラッシュを1つにする、かつ先頭と末尾のスラッシュを外す。
-        path = path.replace(/\/\/+/, '/').replace(/^\/|\/$/, '').replace(/[\?=\&]/g, '-');
-        // console.log(path);
-        path = path.replace(/:[^/]*\//g, '1/').replace(/:[^/]*$/g, '1').replace(/[{}]/g, '');
-        // console.log(path);
-        let dire = `./gen/src/assets/mock/${path}`.replace(/\/[^\/]*$/g, '');
-        // ディレクトリを掘る。
-        fs.mkdirSync(dire, { recursive: true });
-        fs.writeFileSync(`./gen/src/assets/mock/${path}-${method}.json`, JSON.stringify(all[key], null, 4));
-      });
-    } catch (e) {
-      // DELETEが無かったりすることもあるので無視する。
-      // console.log(e);
-      // console.log(result);
-    }
-    return result;
-  }
-  static genSteps() {
-    const modelList = new Step0050_makeReactModel().result;
-    const apiList = Utils.jsonParse(new Step0100_ApiListJson().result) as any[];
-    return Utils.toChunkArray(apiList, 3).map((chunkArray: any, index: number) => new Step0102_createJSONdata(chunkArray, index, modelList));
-  }
-}
-
-class Step0105_componentList_to_Json extends BaseStep {
-  constructor() {
-    super();
-    this.chapters = [
-      { title: 'Component List', content: new Step0000_RequirementsToDomainModels().result },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Please convert the above List of Screensn into JSON format.
-          {"ScreenName":{"desc": "A brief description of the screen", "uiList"["UI component",,]},,}
-          Note that this is minified JSON without newlines and spaces(Do not add extra space.).
-        `)
-      },
-    ];
-  }
-}
-
-class Step0120_makeScreenSpec extends BaseStep {
-  // model = 'gpt-4';
-  constructor(index: number, componentName: string, ngUiJSON: any) {
-    super();
-    this.label = `${this.constructor.name}_${index}-${componentName}`;
-
-    const g: any = {};
-    const ngUiList = Utils.spaceNormalize(new Step0010_DomainModelsClassify().result);
-    const systemOverview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0003_RequirementsToSystemOverview().result);
-    const serviceListJSON = new Step0080_makeReactServiceJson().result;
-    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
-    const serviceString = Object.keys(g.services).map(key => ` - ${key}: ${g.services[key].methods.map((method: any) => method.name + '(' + method.params.map((kv: { name: string, type: string }) => kv.name + ': ' + kv.type).join(', ') + '): ' + method.return).join(', ')}`).join('\n');
-    const modelJSON = new Step0065_ReactModelList_to_Json().result;
-    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
-    // console.log(g.models);
-    const modelString = Object.keys(g.models).filter(key => g.models[key].props).map(key => ` - ${key}(${g.models[key].props.map((prop: any) => prop.name + ': ' + prop.type).join(', ')})`).join('\n');
-    const enumString = Object.keys(g.models).filter(key => g.models[key].values).map(key => ` - ${key}: ${g.models[key].values.map((value: string) => '"' + value + '"').join(' | ')}`).join('\n');
-
-    const io = ['props'].map(io => Object.keys(ngUiJSON[componentName][io] || {}).filter(key => key.trim() !== '-').map(key => `- ${key}: ${ngUiJSON[componentName][io][key]}`).join('\n'));
-    this.chapters = [
-      { title: 'System Name', content: `${systemOverview.nickname} (${systemOverview.name})` },
-      { title: 'System Overview', content: `${systemOverview.overview}` },
-      { title: 'All React Components', content: ngUiList },
-      { title: 'All Model Classes', content: modelString },
-      { title: 'All Enums', content: enumString },
-      { title: 'All Service Classes', content: serviceString },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Based on the above design, prepare a detailed screen design document for ${componentName}.
-          > Please think step-by-step when creating the design document.
-          > First, carefully read the System Overview to understand the purpose of this system.
-          > Next, look at the React Component List carefully to understand the position of the ${componentName} within the overall system.
-          > Then, think about the elements and functions you need for the ${componentName}.
-          > Then select from All Service Classes which service (and model) will be used to provide the required information for the component.
-          - Do not include information that will be implemented by child components.
-          The chapter structure should be as follows.
-          \`\`\`markdown
-          # Detailed Screen Design Document
-          ## Screen name
-          ## Description
-          ## Screen layout
-          ## Data to be displayed
-          ## Screen behavior
-          ## Input Form
-          ## Error messages
-          ## React components used
-          ## Model classes used (excluding use from child components)
-          ## Service classes and methods used (excluding calls from child components)
-                    \`\`\`
-        `)
-      }
-    ];
-  }
-  static genSteps() {
-    let ngUiJSON = Utils.jsonParse<any>(new Step0020_domainModelsJson().result.replace(/{"": ""}/g, 'null'));
-    ngUiJSON = filterByComponentName(ngUiJSON);
-    return Object.keys(ngUiJSON).map((componentName, index) => new Step0120_makeScreenSpec(index, componentName, ngUiJSON));
-  }
-}
-
-class Step0130_makeScreenSpecJSON extends BaseStep {
-  constructor(index: number, componentName: string, ngUiJSON: any) {
-    super();
-    this.label = `${this.constructor.name}_${index}-${componentName}`;
-    this.chapters = [
-      { title: '', content: new Step0120_makeScreenSpec(index, componentName, ngUiJSON).result },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Please convert the above List of Screensn into JSON format.
-          {"reactComponentUsed":[\${React component used}], "modelClassesUsed":[\${Model class used}], "serviceClassesUsed":[\${Service class used}]]}
-          * Models and Services shall be by name only List.
-          Note that this is minified JSON without newlines and spaces(Do not add extra space.).
-        `)
-      },
-    ];
-  }
-  static genSteps() {
-    const g: any = {};
-    let ngUiJSON = Utils.jsonParse<any>(new Step0020_domainModelsJson().result);
-    ngUiJSON = filterByComponentName(ngUiJSON);
-    const serviceListJSON = new Step0080_makeReactServiceJson().result;
-    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
-    const modelJSON = new Step0065_ReactModelList_to_Json().result;
-    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
-    return Object.keys(ngUiJSON).map((componentName, index) => new Step0130_makeScreenSpecJSON(index, componentName, ngUiJSON));
-  }
-}
-function filterByComponentName(ngUiJSON: any) {
-  const tmp: { [key: string]: any } = {};
-  Object.keys(ngUiJSON).forEach(key => { if (['ROOT_ROUTER', 'PUBLIC_SCREEN', 'ROUTER', 'PRIVATE_SCREEN', 'HEADER', 'SIDENAVI', 'MAIN', 'MAIN_ROUTER', 'FOOTER',].includes(key)) { } else { tmp[key] = ngUiJSON[key]; } });
-  ngUiJSON = tmp;
-  ['childReactComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(compName => { ngUiJSON[compName][prop] = ngUiJSON[compName][prop].filter((chilName: string) => Object.keys(ngUiJSON).includes(chilName) && !['RouterOutlet', 'HTMLComponents', 'describe'].includes(chilName)); }); });
-  return ngUiJSON;
-}
-
-class Step0140_makeScreen extends BaseStep {
-  // model = 'gpt-4';
-  override systemMessage = 'You are an experienced and talented react programmer.';
-  // 
-  override assistantMessage = '```tsx';
-
-  private dire: string;
-  private nameCamel0: string;
-  private nameKebab0: string;
-  constructor(
-    private index: number,
-    private componentName: string,
-    private ngUiJSON: any,
-    private g: any,) {
-    super();
-    this.label = `${this.constructor.name}_${index}-${componentName}`;
-
-    const doc = new Step0120_makeScreenSpec(index, componentName, ngUiJSON).result;
-    const sv = Utils.jsonParse<{ [key: string]: ServiceClass }>(new Step0080_makeReactServiceJson().result);
-    const md = Utils.jsonParse<{ [key: string]: ModelClass }>(new Step0065_ReactModelList_to_Json().result);
-    const repo = new ModelControlClass(sv, md);
-    const used = Utils.jsonParse(new Step0130_makeScreenSpecJSON(index, componentName, ngUiJSON).result.replace(/```/g, '').trim()) as { modelClassesUsed: string[], serviceClassesUsed: string[] };
-    const svmd = repo.pickUp(used.serviceClassesUsed);
-
-    const nameKebab = Utils.toKebabCase(componentName);
-    this.nameKebab0 = nameKebab;
-    this.nameCamel0 = Utils.toCamelCase(componentName);
-    const io = ['props'].map(io => Object.keys(ngUiJSON[componentName][io] || {}).filter(key => key.trim() !== '-').map(key => `- ${key}: ${ngUiJSON[componentName][io][key]}`).join('\n'));
-    // console.log(ngUiJSON[componentName].childReactComponents);
-    // console.log(ngUiJSON[componentName].modalReactComponents);
-
-    const compDef = ngUiJSON[componentName];
-    this.chapters = [
-      {
-        title: '', content: doc, children: [
           {
-            title: 'Elements to be used', children: [
-              { title: 'React Components', content: (ngUiJSON[componentName].childReactComponents || []).map((chilName: string) => '- ' + chilName + '(' + ['props'].map(io => io + ':{' + Object.keys(ngUiJSON[chilName][io] || {}).filter(key => key.trim() !== '-').map(key => key + ': ' + ngUiJSON[chilName][io][key]).join(',') + '}').join(', ') + ')').join('\n') || 'None' },
-              // { title: 'React Dialogs', content: (ngUiJSON[componentName].modalReactComponents || []).map((chilName: string) => '- ' + chilName + '(' + ['props'].map(io => io + ':{' + Object.keys(ngUiJSON[chilName][io] || {}).filter(key => key.trim() !== '-').map(key => key + ': ' + ngUiJSON[chilName][io][key]).join(',') + '}').join(', ') + ')').join('\n') || 'None' },
-              // { title: 'HTML Elements', content: (ngUiJSON[componentName].HTMLComponents || []).map((name: string) => '- ' + name).join(', ') || 'None' },
+            title: 'Domain Models',
+            // content: new Step0000_RequirementsToDomainModels().result,
+            children: [
+              { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities, boundedContext), },
+              { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects, boundedContext), },
+              { title: `${DomainModelPattern.Aggregates}`, content: domainModel.getAttributeTable(DomainModelPattern.Aggregates, boundedContext), },
+              {
+                title: `Services`, content: Object.keys(boundedContext.DomainServices).map((serviceName: string) => {
+                  // serviceName: methodName,,,
+                  return `- ${serviceName}: ${boundedContext.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}`;
+                }).join('\n'),
+              },
             ]
           },
-          { title: 'props (as React element)', content: io[0] },
-        ]
-      },
-      {
-        title: 'Reference', content: '', children: [
-          { title: 'Service classes', content: svmd.serviceDef },
-          { title: 'Model classes', content: svmd.modelDef },
-        ]
-      },
-      {
-        title: 'prompt', content: Utils.trimLines(`
-          Let's think step by step.
-          Please create ${this.nameCamel0}.tsx based on the above design document.
-          Please note the following points when creating the tsx.
-          - Please use Chakra UI.
-          - Compose the screen using only the given components.
-          - The screen must be in Japanese.
-          Please output only ${this.nameCamel0}.tsx file.
-          \`\`\`tsx
-          import React from 'react';
-          import { /* TODO import */ } from '@chakra-ui/react';
-          import { ${used.modelClassesUsed.join(',')} } from '../models';
-          import { ${used.serviceClassesUsed.map(serviceClassName => Utils.toCamelCase(serviceClassName)).join(',')} } from '../services';
-
-          export interface ${this.nameCamel0}Props {
-            // props
+          // { title: `Table Definitions`, content: tableModels.map((tableModel: TableModel) => tableModel.toDDL()).join('\n'), },
+          {
+            title: `Instructions`,
+            contentJp: Utils.trimLines(`
+              Domain Modelsに基づいて、API仕様書を作成してください。
+              指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
+              - Request / Response の型を詳細に正確に定義してください。必ずしもモデルと一緒ではないはずです。
+              - Domain Models に定義されていないオブジェクト型を利用する場合は、オブジェクト型の内容を明示してください。
+              - トークン数を節約するため、表形式で出力してください。列は以下の通りです。
+                Endpoint, Method, Request, Response, Service.Method, Description
+              イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成したドメインモデルのみを出力してください。
+              出力形式は Output Example を参考にしてください。
+            `),
+            content: Utils.trimLines(`
+              Based on the Domain Models, create an API specification.
+              The instructions are just guidelines. Please proceed while self-completing the know-how that is recalled based on the instructions.
+              - Define the types of Request / Response in detail and accurately. It shouldn't always be the same as the model.
+              - If you use an object type that is not defined in Domain Models, please specify the contents of the object type.
+              - To save tokens, output in tabular form. The columns are as follows.
+                Endpoint, Method, Request, Response, Service.Method, Description
+              Repeat the iteration several times, perform appropriate refactoring, and output only the completed domain model.
+              Please refer to Output Example for the output format.
+            `),
+          },
+          {
+            title: `Output Example`,
+            content: Utils.trimLines(`
+              {"UserService": {
+                "findAll":{"endpoint":"/api/v1/users","pathVariable":null,"method":"GET","request":null,"response":"User[]","description":"Getallusers"},
+                "findById":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"GET","request":null,"response":"User","description":"Getauserbyid"},
+                "create":{"endpoint":"/api/v1/users","pathVariable":null,"method":"POST","request":"{name:string,email:string,passowrd:string}","response":"User","description":"Createauser"},
+                "update":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"PUT","request":"{name:string,email:string,passowrd:string}","response":"User","description":"Updateauser"},
+                "delete":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"DELETE","request":null,"response":null,"description":"Deleteauser"}
+              }}
+            `),
           }
-          
-          const ${this.nameCamel0} = (props:${this.nameCamel0}Props) => {
-
-            // TODO implement
-
-            return (
-              // JSX elements
-            );
-          };
-          export default ${this.nameCamel0};
-          \`\`\`
-        `)
-      },
-    ];
-
-    ////////////////// 
-    this.dire = `./gen/src/app/${ngUiJSON[componentName].type.toLowerCase().replace(/s$/g, '')}s`;
-    if (fs.existsSync(this.dire)) {
-    } else {
-      fs.mkdirSync(this.dire, { recursive: true });
-      console.log(`Directory ${this.dire} created.`);
+        ];
+      }
+      postProcess(result: string): string {
+        // ディレクトリが無ければ掘る
+        if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
+        // ファイル書き込み
+        try { fs.writeFileSync(`${this.dire}API-${Utils.toPascalCase(this.boundedContext.name)}.json`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
+        return result;
+      }
     }
+    this.childStepList = Object.keys(domainModel.BoundedContexts).map(boundedContextName => new Step0030_CreateEntityChil(domainModel.BoundedContexts[boundedContextName]));
   }
-
-  preProcess(prompt: string): string {
-    fs.writeFileSync(`${this.dire}/${Utils.toPascalCase(this.nameCamel0)}.tsx.prompt.md`, prompt);
-    // fs.writeFileSync(`./${this.dire}/${this.nameCamel0}.scss`, '');
-    return prompt;
-  }
-
-  postProcess(result: string) {
-    fs.writeFileSync(`${this.dire}/${Utils.toPascalCase(this.nameCamel0)}.tsx`, result
-      .replace(/.*```.*\n/, '')
-      .replace(/\n```.*/, '')
-      .replace(/from ["']\.\/services\/.*["']/g, 'from \'../services\'')
-      .replace(/from ["']\.\/services["']/g, 'from \'../services\'')
-      .replace(/from ["']\.\/models\/.*["']/g, 'from \'../models\'')
-      .replace(/from ["']\.\/models["']/g, 'from \'../models\'')
-      .replace(/from ["']\.\.\/services\/.*["']/g, 'from \'../services\'')
-      .replace(/from ["']\.\.\/services["']/g, 'from \'../services\'')
-      .replace(/from ["']\.\.\/models\/.*["']/g, 'from \'../models\'')
-      .replace(/from ["']\.\.\/models["']/g, 'from \'../models\'')
-      .replace(/from ["']\.\.\/\.\.\/services\/.*["']/g, 'from \'../services\'')
-      .replace(/from ["']\.\.\/\.\.\/models\/.*["']/g, 'from \'../models\'')
-      .replace(/from '\.\.\/modals\//g, 'from \'../modals/')
-      .replace(/from '\.\.\/pages\//g, 'from \'../pages/')
-      .replace(/from '\.\.\/parts\//g, 'from \'../parts/')
-      // .replace('$event.target.value', `$event.target['value']`)
-      // .replace(/\.controls\.([a-zA-Z0-9_$]*)\./g, `.controls['$1']?.`)
-      // .replace(/(\.controls[a-zA-Z0-9_$\[\]"']*\.errors)\.([a-zA-Z0-9_$]*)/g, `$1['$2']`)
-    );
+  postProcess(result: string[]): string[] {
     return result;
   }
+}
 
-  static genSteps() {
-    const g: any = {};
-    let ngUiJSON = Utils.jsonParse<any>(new Step0020_domainModelsJson().result);
-    // console.log(Object.keys(ngUiJSON));
-    ngUiJSON = filterByComponentName(ngUiJSON);
-    const serviceListJSON = new Step0080_makeReactServiceJson().result;
-    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
-    const modelJSON = new Step0065_ReactModelList_to_Json().result;
-    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
-    g.classes = new RepoSyncer().loadDefs();
-    // console.log(g.models);
-    // console.log(Object.keys(ngUiJSON));
-    return Object.keys(ngUiJSON).map((componentName, index) => new Step0140_makeScreen(index, componentName, ngUiJSON, g));
+
+class Step0040_CreateService extends MultiStep {
+  // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
+  // model = 'gpt-4';
+  // dire: string = `./gen/domain-models/`;
+  constructor() {
+    super();
+    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0003_RequirementsToSystemOverview().result);
+    const domainModel = DomainModel.loadModels();
+
+    class Step0040_CreateServiceChil extends BaseStep {
+      // model = 'gpt-4';
+      dire: string = `./gen/domain-models/`;
+      constructor(public serviceName: string) {
+        super();
+        this.label = `${this.constructor.name}_${serviceName}`;
+
+        const boundedContextName = Object.keys(domainModel.BoundedContexts).find((boundedContextName) => domainModel.BoundedContexts[boundedContextName].DomainServices[serviceName]);
+        const boundedContext: BoundedContext = domainModel.BoundedContexts[boundedContextName || ''];
+        // ドメインモデルに存在しないサービス名が指定された場合はエラー 
+        if (boundedContext) { } else { throw new Error(`BoundedContext not found. ${serviceName}`); }
+        this.chapters = [
+          // { title: 'System Name', content: `${overview.nickname} (${overview.name})` },
+          // { title: 'System Overview', content: overview.overview },
+          { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
+          {
+            title: 'System Requirements', content: Utils.trimLines(`
+            - Server Side Framework: Spring Boot (JPA, Web, Batch, Security, Actuator, Lombok, MapStruct, etc.)
+            - Frontend Framework: React (Chakra-UI, etc.)
+            - Database: PostgreSQL
+            - Infrastructure: AWS
+          `)
+          },
+          {
+            title: 'Domain Models',
+            children: [
+              { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities, boundedContext), },
+              { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects, boundedContext), },
+              { title: `${DomainModelPattern.Aggregates}`, content: domainModel.getAttributeTable(DomainModelPattern.Aggregates, boundedContext), },
+            ]
+          },
+          { title: `Sample Code`, content: '```java\n' + fs.readFileSync(`./gen/src/main/java/com/example/demo/service/${serviceName}.java.md`, 'utf-8') + '\n```' },
+          {
+            title: `Instructions`,
+            contentJp: Utils.trimLines(`
+              Domain Modelsの内容を理解してSample Codeの"TODO implementation"の部分を実装してください。
+            `),
+            content: Utils.trimLines(`
+              Understand the contents of Domain Models and implement the "TODO implementation" part of Sample Code.
+            `),
+          },
+          {
+            title: `Output Format`, content: Utils.trimLines(`
+              {"additionalImports": ["\${import}"],"methods": {"\${methodName}": "\${body source code of methods, which replaces \"TODO implementation\"}" },}
+            `),
+          },
+          {
+            title: `Output Example`, content: Utils.trimLines(`
+              {"additionalImports": ["java.util.List"],"methods": {"findAll": "    public List<Entity> findAll(){\\n        List<Entity> findAll = this.employeeRepository.findAll();\\n        return findAll;\\n    ]" },}
+            `),
+          },
+        ];
+      }
+      postProcess(result: string): string {
+        // ディレクトリが無ければ掘る
+        if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
+        // ファイル書き込み
+        try { fs.writeFileSync(`${this.dire}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
+        return result;
+      }
+    }
+    this.childStepList = Object.keys(domainModel.DomainServices).map(serviceName => new Step0040_CreateServiceChil(serviceName));
+  }
+  postProcess(result: string[]): string[] {
+    return result;
   }
 }
 
@@ -1416,103 +671,20 @@ export async function main() {
     obj = new MultiStep(Step0021_domainModelEntitysJson.genSteps());
     obj.initPrompt();
     return obj.run();
-  })
-
-
-  // obj = new Step0030_CreateEntity();
-  // obj.initPrompt();
-  // await obj.run();
-
-
-  // obj = new Step0017_RelationCardinality();
-  // obj.initPrompt();
-  // await obj.run();
-
-
-  // obj = new Step0017_RelationCardinality();
-  // obj.initPrompt();
-  // await obj.run();
-
-
-  // obj = new Step0018_TableItemDefine();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0019_TableItemDefine();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new MultiStep(Step0021_makeDDL.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0022_makeDDL();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new MultiStep(Step0023_makeDDL.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new MultiStep(Step0024_makeEntity.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-
-
-  // obj = new Step0040_makeReactService();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0050_makeReactModel();
-  // obj.initPrompt();
-  // await obj.run();
-
-
-  // obj = new Step0060_makeReactModelSource();
-  // obj.initPrompt();
-  // await obj.run();
-
-
-  // obj = new Step0065_ReactModelList_to_Json();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0070_makeApiList();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0080_makeReactServiceJson();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
-
-  // obj = new Step0100_ApiListJson();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new MultiStep(Step0102_createJSONdata.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0105_componentList_to_Json();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new MultiStep(Step0120_makeScreenSpec.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new MultiStep(Step0130_makeScreenSpecJSON.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new MultiStep(Step0140_makeScreen.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-
-  // Step0140_makeScreen.genSteps().forEach(step => step.preProcess(fs.readFileSync(step.promptPath, 'utf-8')));
-  // Step0140_makeScreen.genSteps().forEach(step => { step.preProcess(step.prompt); step.postProcess(step.result) });
+  }).then(() => {
+    obj = new Step0030_CreateEntity();
+    obj.initPrompt();
+    return obj.run();
+    // obj.childStepList.forEach((step) => step.postProcess(step.result));
+  }).then(() => {
+    obj = new Step0040_CreateService();
+    obj.initPrompt();
+    return obj.run();
+  }).then(() => {
+  }).then(() => {
+  }).then(() => {
+    genEntityAndRepository();
+  });
 }
 // main();
 

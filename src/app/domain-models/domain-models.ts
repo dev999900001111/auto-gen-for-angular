@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import { Utils } from '../common/utils';
+import { isNumberObject } from 'util/types';
 
 const domainModelsDire = `./gen/domain-models/`;
 export enum DomainModelPattern {
@@ -47,7 +48,7 @@ export interface DomainService { name: string; Methods: Method[]; }
 
 export interface Repository { name: string; Methods: Method[]; }
 
-export interface BoundedContext { name: string; Entities: Entity[]; ValueObjects: ValueObject[]; Aggregates: Aggrigate[]; DomainServices: DomainService[]; DomainEvents: DomainEvents[]; }
+export interface BoundedContext { name: string; Entities: { [key: string]: Entity }; ValueObjects: { [key: string]: ValueObject }; Aggregates: { [key: string]: Aggrigate }; DomainServices: { [key: string]: DomainService }; DomainEvents: { [key: string]: DomainEvents }; }
 export interface ContextMapping { type: ContextMapRelationshipType; source: BoundedContext; target: BoundedContext; }
 
 export interface BatchJob { name: string; Methods: Method[]; Attributes: Attribute[]; Description: string; }
@@ -80,7 +81,7 @@ export class DomainModel {
         Object.values(DomainModelPattern).forEach(pattern => {
             if (fs.existsSync(`${domainModelsDire}${pattern}.json`)) {
                 try {
-                    domainModelsRawMap[pattern] = JSON.parse(fs.readFileSync(`${domainModelsDire}${pattern}.json`, 'utf-8'));
+                    domainModelsRawMap[pattern] = Utils.jsonParse(fs.readFileSync(`${domainModelsDire}${pattern}.json`, 'utf-8'));
                 } catch (e) {
                     console.error(`Error parsing ${pattern}.json`);
                 }
@@ -139,7 +140,7 @@ export class DomainModel {
         Object.keys(domainModelsRawMap.BoundedContexts).forEach(boundedContextName => {
             boundedContextName = Utils.toPascalCase(boundedContextName);
             const key = `Entities-${boundedContextName}`;
-            domainModelsRawMap[key] = JSON.parse(fs.readFileSync(`${domainModelsDire}${key}.json`, 'utf-8'));
+            domainModelsRawMap[key] = Utils.jsonParse(fs.readFileSync(`${domainModelsDire}${key}.json`, 'utf-8'));
             Object.keys(domainModelsRawMap[key] || []).filter(entityName => {
                 // ValueObjectに登録済みの場合は重複定義になってしまうので除外
                 return !domainModel.ValueObjects[entityName];
@@ -175,7 +176,7 @@ export class DomainModel {
         Object.keys(domainModelsRawMap.BoundedContexts).forEach(boundedContextName => {
             boundedContextName = Utils.toPascalCase(boundedContextName);
             const key = `DomainServices-${boundedContextName}`;
-            domainModelsRawMap[key] = JSON.parse(fs.readFileSync(`${domainModelsDire}${key}.json`, 'utf-8'));
+            domainModelsRawMap[key] = Utils.jsonParse(fs.readFileSync(`${domainModelsDire}${key}.json`, 'utf-8'));
             Object.keys(domainModelsRawMap[key] || []).forEach(domainServiceName => {
                 const domainServiceRaw = domainModelsRawMap[key][domainServiceName];
                 const domainService: DomainService = {
@@ -219,11 +220,23 @@ export class DomainModel {
             const entitiesAndValueObjectsNames = [...(boundedContextRaw.Entities || []), ...(boundedContextRaw.ValueObjects || [])];
             const boundedContext: BoundedContext = {
                 name: boundedContextName,
-                Entities: (entitiesAndValueObjectsNames).filter((entityName: string) => domainModel.Entities[entityName]).map((entityName: string) => entitiesAndValueObjects[entityName]) as Entity[],
-                ValueObjects: (entitiesAndValueObjectsNames).filter((valueObjectName: string) => domainModel.ValueObjects[valueObjectName]).map((valueObjectName: string) => entitiesAndValueObjects[valueObjectName]) as ValueObject[],
-                Aggregates: (boundedContextRaw.Aggregates || []).map((aggregateName: string) => domainModel.Aggregates[aggregateName]),
-                DomainServices: (boundedContextRaw.DomainServices || []).map((domainServiceName: string) => domainModel.DomainServices[domainServiceName]),
-                DomainEvents: (boundedContextRaw.DomainEvents || []).map((DomainEventName: string) => domainModel.DomainEvents[DomainEventName]),
+                Entities: entitiesAndValueObjectsNames.reduce((entities: { [key: string]: Entity }, name: string) => {
+                    if (domainModel.Entities[name]) { entities[name] = entitiesAndValueObjects[name] as Entity; } else { }
+                    return entities;
+                }, {} as { [key: string]: Entity }),
+                ValueObjects: entitiesAndValueObjectsNames.reduce((entities: { [key: string]: ValueObject }, name: string) => {
+                    if (domainModel.ValueObjects[name]) { entities[name] = entitiesAndValueObjects[name] as ValueObject; } else { }
+                    return entities;
+                }, {} as { [key: string]: ValueObject }),
+                Aggregates: (boundedContextRaw.Aggregates || []).reduce((aggregates: { [key: string]: Aggrigate }, name: string) => {
+                    aggregates[name] = domainModel.Aggregates[name]; return aggregates;
+                }, {} as { [key: string]: Aggrigate }),
+                DomainServices: (boundedContextRaw.DomainServices || []).reduce((domainServices: { [key: string]: DomainService }, name: string) => {
+                    domainServices[name] = domainModel.DomainServices[name]; return domainServices;
+                }, {} as { [key: string]: DomainService }),
+                DomainEvents: (boundedContextRaw.DomainEvents || []).reduce((domainEvents: { [key: string]: DomainEvents }, name: string) => {
+                    domainEvents[name] = domainModel.DomainEvents[name]; return domainEvents;
+                }, {} as { [key: string]: DomainEvents }),
             };
             domainModel.BoundedContexts[boundedContextName] = boundedContext;
         });
@@ -309,9 +322,9 @@ export class DomainModel {
      * 
      * @returns 
      */
-    getAttributeTable(pattern: DomainModelPattern): string {
+    getAttributeTable(pattern: DomainModelPattern, domainModelParam: DomainModel | BoundedContext = this): string {
         let table = '';
-        const domainModel: { [key: string]: any } = this;
+        const domainModel: { [key: string]: any } = domainModelParam;
 
         if (DomainModelPattern.Aggregates === pattern) {
             table = Object.keys(domainModel.Aggregates).map((aggregateName: string) => {
@@ -325,12 +338,14 @@ export class DomainModel {
         } else {
             table = Object.keys(domainModel[pattern]).map(objectName => {
                 const object = domainModel[pattern][objectName];
+                // 数字から始まるものは、objectNameには名前が入っていないので、objectから取得する
+                // if (`${objectName}`.match(/^[0-9]+/)) { objectName = object.name; } else { }
                 // Attributesを持たないパターンのものは無視
                 if (object && object.Attributes) { } else { return }
                 let buffer = `- ${objectName}\n`;
                 buffer += object.Attributes.map((attribute: Attribute) => `   - ${attribute.name}: ${attribute.type};`).join('\n');
                 return buffer;
-            }).join('\n');
+            }).join('\n\n');
         }
         return table;
     }
@@ -528,7 +543,7 @@ export class TableModel {
 // }
 // generateEntityClasses()
 
-function genEntityAndRepository() {
+export function genEntityAndRepository() {
     const model = DomainModel.loadModels();
 
     const packageName = 'com.example.demo';
@@ -624,6 +639,7 @@ function genEntityAndRepository() {
 
         return classCode;
     }).join('\n\n');
+
     const valueObjects = Object.keys(model.ValueObjects).map((valueObjectName: string) => {
         let classCode = ``;
         classCode += `package ${packageName}.entity;\n`;
@@ -646,10 +662,206 @@ function genEntityAndRepository() {
         return classCode;
     }).join('\n\n');
 
-    // console.log(entities);
-    // console.log(valueObjects);
+    // API用Attributes設定
+    interface API { endpoint: string, method: string, pathVariable: string, request: string, response: string, description: string, }
+    const apiObj = Object.keys(model.BoundedContexts).reduce(
+        (apiObj: { [key: string]: { [key: string]: API } }, boundedContextName: string) => {
+            boundedContextName = Utils.toPascalCase(boundedContextName);
+            apiObj = { ...Utils.jsonParse(fs.readFileSync(`${domainModelsDire}API-${boundedContextName}.json`, 'utf-8')), ...apiObj };
+            return apiObj;
+        }, {}
+    ) as { [key: string]: { [key: string]: API } };
+    // console.log(JSON.stringify(apiObj, null, 4));
+
+    Object.keys(apiObj).map((apiName: string) => {
+        const controllerName = apiName.replace(/Service$/g, 'Controller');
+        let classCode = ``;
+        classCode += `package ${packageName}.controller;\n`;
+        classCode += `\n`;
+        classCode += `import com.example.demo.entity.Employee;\n`;
+        classCode += `import org.springframework.beans.factory.annotation.Autowired;\n`;
+        classCode += `import org.springframework.web.bind.annotation.*;\n`;
+        classCode += `import ${packageName}.entity.*;\n`;
+        classCode += `import ${packageName}.service.${apiName};\n`;
+        classCode += `import java.util.*;\n`;
+        classCode += `import lombok.Data;\n`;
+        classCode += `\n`;
+        classCode += `@RestController\n`;
+        // classCode += `@RequestMapping("/${apiName.replace(/Service$/g, '')}")\n`;
+        classCode += `public class ${controllerName} {\n\n`;
+
+        classCode += `    @Autowired\n`;
+        classCode += `    private ${apiName} ${Utils.toCamelCase(apiName)};\n\n`;
+
+        Object.keys(apiObj[apiName]).forEach((methodName: string) => {
+            const api = apiObj[apiName][methodName];
+            const requestType = `${Utils.toPascalCase(methodName)}Request`;
+            let controllerParamAry: string[] = [];
+            let serviceParamAry: string[] = [];
+            if (api.pathVariable) {
+                const type = convertStringToJson(api.pathVariable);
+                controllerParamAry = Object.keys(type).map((key: string) => `@PathVariable ${type[key]} ${key}`);
+                serviceParamAry = Object.keys(type).map((key: string) => key);
+            } { }
+            if (api.request) {
+                // classCode += typeToInterface(requestType, convertStringToJson(api.request));
+                controllerParamAry.push(`@RequestBody ${requestType} requestBody`);
+                serviceParamAry.push(`requestBody`);
+            } else { }
+
+            classCode += `    @${Utils.toPascalCase(api.method)}Mapping("${api.endpoint.replace(/\/api\/v1\//g, '/')}")\n`;
+            classCode += `    private ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
+            classCode += `    }\n`;
+        });
+        classCode += `}\n`;
+        fs.mkdirSync(`./gen/src/main/java/com/example/demo/controller`, { recursive: true });
+        fs.writeFileSync(`./gen/src/main/java/com/example/demo/controller/${controllerName}.java`, classCode);
+        return classCode;
+    }).join('\n\n');
+
+    Object.keys(apiObj).map((apiName: string) => {
+
+        let classCode = ``;
+        classCode += `package ${packageName}.service;\n`;
+        classCode += `\n`;
+        classCode += `import com.example.demo.entity.Employee;\n`;
+        classCode += `import org.springframework.beans.factory.annotation.Autowired;\n`;
+        classCode += `import org.springframework.web.bind.annotation.*;\n`;
+        classCode += `import ${packageName}.entity.*;\n`;
+        classCode += `import ${packageName}.repository.*;\n`;
+        classCode += `import java.util.*;\n`;
+        classCode += `import lombok.Data;\n`;
+        classCode += `\n`;
+        classCode += `@Service\n`;
+        classCode += `public class ${apiName} {\n\n`;
+
+        // Serviceが属するBoundedContextを特定
+        const boundedContextName = Object.keys(model.BoundedContexts).find((boundedContextName: string) => model.BoundedContexts[boundedContextName].DomainServices[apiName]);
+        if (boundedContextName) {
+            Object.keys(model.BoundedContexts[boundedContextName].Entities).forEach((entityName: string) => {
+                const entity = model.BoundedContexts[boundedContextName].Entities[entityName];
+                classCode += `    @Autowired\n`;
+                classCode += `    private ${entity.name}Repository ${Utils.toCamelCase(entity.name)}Repository;\n\n`;
+            });
+        } else { }
+
+
+        Object.keys(apiObj[apiName]).forEach((methodName: string) => {
+            const api = apiObj[apiName][methodName];
+            const requestType = `${Utils.toPascalCase(methodName)}Request`;
+            let controllerParamAry: string[] = [];
+            let serviceParamAry: string[] = [];
+            if (api.pathVariable) {
+                const type = convertStringToJson(api.pathVariable);
+                controllerParamAry = Object.keys(type).map((key: string) => `${type[key]} ${key}`);
+                serviceParamAry = Object.keys(type).map((key: string) => key);
+            } { }
+            if (api.request) {
+                classCode += typeToInterface(requestType, convertStringToJson(api.request));
+                controllerParamAry.push(`${requestType} requestBody`);
+                serviceParamAry.push(`requestBody`);
+            } else { }
+
+            classCode += `    private ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
+            classCode += `        // TODO implementation\n`;
+            classCode += `    }\n`;
+        });
+        classCode += `}\n`;
+        fs.mkdirSync(`./gen/src/main/java/com/example/demo/service`, { recursive: true });
+        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/${apiName}.java.md`, classCode);
+        return classCode;
+    }).join('\n\n');
+
+    Object.keys(apiObj).map((apiName: string) => {
+
+        const impl = (Utils.jsonParse(fs.readFileSync(`${domainModelsDire}ServiceImplementation-${Utils.toPascalCase(apiName)}.json`, 'utf-8')) as any);
+
+        let classCode = ``;
+        classCode += `package ${packageName}.service;\n`;
+        classCode += `\n`;
+        classCode += `import org.springframework.beans.factory.annotation.Autowired;\n`;
+        classCode += `import org.springframework.web.bind.annotation.*;\n`;
+        classCode += `import ${packageName}.entity.*;\n`;
+        classCode += `import ${packageName}.repository.*;\n`;
+        classCode += `import java.util.*;\n`;
+        classCode += `import lombok.Data;\n`;
+        classCode += impl.additionalImports.map((importName: string) => `import ${importName};\n`).join('');
+        classCode += `\n`;
+        classCode += `@Service\n`;
+        classCode += `public class ${apiName} {\n\n`;
+
+        // Serviceが属するBoundedContextを特定
+        const boundedContextName = Object.keys(model.BoundedContexts).find((boundedContextName: string) => model.BoundedContexts[boundedContextName].DomainServices[apiName]);
+        if (boundedContextName) {
+            Object.keys(model.BoundedContexts[boundedContextName].Entities).forEach((entityName: string) => {
+                const entity = model.BoundedContexts[boundedContextName].Entities[entityName];
+                classCode += `    @Autowired\n`;
+                classCode += `    private ${entity.name}Repository ${Utils.toCamelCase(entity.name)}Repository;\n\n`;
+            });
+        } else { }
+
+
+        Object.keys(apiObj[apiName]).forEach((methodName: string) => {
+            const api = apiObj[apiName][methodName];
+            const requestType = `${Utils.toPascalCase(methodName)}Request`;
+            let controllerParamAry: string[] = [];
+            let serviceParamAry: string[] = [];
+            if (api.pathVariable) {
+                const type = convertStringToJson(api.pathVariable);
+                controllerParamAry = Object.keys(type).map((key: string) => `${type[key]} ${key}`);
+                serviceParamAry = Object.keys(type).map((key: string) => key);
+            } { }
+            if (api.request) {
+                classCode += typeToInterface(requestType, convertStringToJson(api.request));
+                controllerParamAry.push(`${requestType} requestBody`);
+                serviceParamAry.push(`requestBody`);
+            } else { }
+
+            // classCode += `    private ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            classCode += `${impl.methods[methodName]}\n`;
+            // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
+            // classCode += `        // TODO implementation\n`;
+            // classCode += `    }\n`;
+        });
+        classCode += `}\n`;
+        fs.mkdirSync(`./gen/src/main/java/com/example/demo/service`, { recursive: true });
+        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/${apiName}.java`, classCode);
+        return classCode;
+    }).join('\n\n');
 }
-// genEntityAndRepository();
+function typeToInterface(className: string, obj: { [key: string]: any }, layer: number = 0) {
+    let classCode = ``;
+    const indent = '    ';
+    classCode += `${indent.repeat(layer + 1)}@Data\n`;
+    classCode += `${indent.repeat(layer + 1)}public static class ${className} {\n`;
+    Object.keys(obj).forEach(key => {
+        if (typeof obj[key] === 'object') {
+            classCode += typeToInterface(Utils.toPascalCase(key), obj[key], layer + 1);
+            classCode += `${indent.repeat(layer + 2)}private ${Utils.toPascalCase(key)} ${key};\n`;
+        } else {
+            classCode += `${indent.repeat(layer + 2)}private ${Utils.toPascalCase(obj[key] === 'int' ? 'integer' : obj[key])} ${key};\n`;
+        }
+    });
+    classCode += `${indent.repeat(layer + 1)}}\n`;
+    // console.log(classCode);
+    return classCode;
+}
+
+import * as ts from "typescript";
+function convertStringToJson(input: string): { [key: string]: any } {
+    const sourceFile = ts.createSourceFile('test.ts', `const dat:${input};`, ts.ScriptTarget.Latest);
+    return (sourceFile.statements[0] as any).declarationList.declarations.map((state: any) => {
+        const typeStringToObject = function (type: ts.MappedTypeNode): { [key: string]: any } {
+            return type.members?.reduce((obj: { [key: string]: any }, member: any) => {
+                obj[member.name.escapedText] = member.type.members ? typeStringToObject(member.type) : member.type.getText(sourceFile);
+                return obj;
+            }, {} as { [key: string]: any }) || {};
+        }
+        return typeStringToObject(state.type);
+    })[0];
+}
 
 
 function toJavaClass(type: string): string {
@@ -734,14 +946,8 @@ function relationshipTypeReverse(relationshipType: RelationshipType): Relationsh
 function stringToEnum<T extends string>(str: string, enumObj: { [key: string]: T }): T {
     const enumValues = Object.values(enumObj);
     if (enumValues.includes(str as T)) { return str as T; }
-    throw new Error(`Unexpected enum: ${str} in ${enumValues}`);
+    throw new Error(`Unexpected enum: ${str} in ${enumValues} `);
 }
-
-
-
-
-
-
 
 
 

@@ -77,16 +77,15 @@ export abstract class BaseStep extends BaseStepInterface<string> {
 }
 
 export class MultiStep extends BaseStepInterface<string[]> {
-    private promiseList: Promise<string>[] = [];
 
     constructor(
-        protected stepList: BaseStep[] = []
+        public childStepList: BaseStep[] = []
     ) {
         super();
     }
 
     initPrompt(): string[] {
-        return this.stepList.map(step => step.initPrompt());
+        return this.childStepList.map(step => step.initPrompt());
     }
 
     preProcess(prompt: string[]): string[] {
@@ -95,7 +94,7 @@ export class MultiStep extends BaseStepInterface<string[]> {
 
     async run(): Promise<string[]> {
         return new Promise<string[]>((resolve, reject) => {
-            Promise.all(this.stepList.map(step => step.run())).then((resultList: string[]) => {
+            Promise.all(this.childStepList.map(step => step.run())).then((resultList: string[]) => {
                 resolve(this.postProcess(resultList));
             }).catch((err: any) => {
                 reject(err);
