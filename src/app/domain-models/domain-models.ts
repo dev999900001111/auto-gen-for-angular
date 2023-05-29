@@ -646,7 +646,12 @@ export function genEntityAndRepository() {
 
             classCode += `    @${Utils.toPascalCase(api.method)}Mapping("${api.endpoint.replace(/\/api\/v1\//g, '/')}")\n`;
             classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
-            classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
+            if (toJavaClass(api.response) === 'void') {
+                // voidの場合は戻り値を返さない。
+                classCode += `        ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
+            } else {
+                classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
+            }
             classCode += `    }\n`;
         });
         classCode += `}\n`;

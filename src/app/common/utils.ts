@@ -237,7 +237,18 @@ export class Utils {
      * @returns 
      */
     static mdTrim(str0: string): string {
-        return str0.trim().replace(/^```.*$/gm, '').trim();
+        if (str0.indexOf('```') < 0) { return str0; }
+        else {
+            let flg = false;
+            return str0.split('\n').filter(line => {
+                if (line.trim().startsWith('```')) {
+                    flg = !flg;
+                    return false;
+                } else {
+                }
+                return flg;
+            }).join('\n');
+        }
     }
 
 
@@ -274,7 +285,9 @@ export interface StructuredPrompt {
 }
 
 // const code = `
-// \`\`\`
+// Here is the JSON format for the Entities of the "User Management" Bounded Context:
+
+// \`\`\`json
 // {
 //     "name": "hoge",
 //     "age": 20,

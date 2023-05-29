@@ -638,6 +638,8 @@ class Step0040_CreateService extends MultiStep {
         ];
       }
       preProcess(prompt: string): string {
+        fs.mkdirSync(`./gen/src/main/java/com/example/demo/service/impl`, { recursive: true });
+        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/impl/${this.serviceName}Impl.java.prompt.md`, prompt);
         return prompt;
       }
       postProcess(result: string): string {
