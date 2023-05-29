@@ -12,6 +12,7 @@ packName=${1}
 # Create a tgz archive
 tar -cvf "${packName}".tar prompts/ 000-requirements.md
 tar -rvf "${packName}".tar -C ${dire} src
+tar -rvf "${packName}".tar -C ${dire} domain-models
 gzip "${packName}".tar
 #	/src/app/dialogs/ \
 #	/src/app/pages/ \
@@ -31,6 +32,7 @@ if [ ${ret} -eq 0 ]; then
   # Remove the original directories and files
   rm -fr src/app/dialogs/ \
 	  ${dire}/src/ \
+	  ${dire}/domain-models/ \
 	  prompts/
 else
   echo "Failed to create the archive"

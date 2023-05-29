@@ -774,8 +774,11 @@ export function serviceImpl() {
     const jpaMethods: { [key: string]: string[] } = {};
     // ServiceImpl実装
     Object.keys(apiObj).map((apiName: string) => {
-
-        const impl = (Utils.jsonParse(fs.readFileSync(`${domainModelsDire}ServiceImplementation-${Utils.toPascalCase(apiName)}.json`, 'utf-8')) as any);
+        let impl: any = {};
+        if (fs.existsSync(`${domainModelsDire}ServiceImplementation-${Utils.toPascalCase(apiName)}.json`)) {
+            try { impl = (Utils.jsonParse(fs.readFileSync(`${domainModelsDire}ServiceImplementation-${Utils.toPascalCase(apiName)}.json`, 'utf-8')) as any); } catch (e) { return; }
+        } else { return; }
+        // console.log(`ServiceImplementation-${Utils.toPascalCase(apiName)}.json`);
         Object.keys(impl.additionalJPAMethods || {}).forEach((repositoryName: string) => {
             jpaMethods[repositoryName] = [...(jpaMethods[repositoryName] || []), ...impl.additionalJPAMethods[repositoryName]];
         });

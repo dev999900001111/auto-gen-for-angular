@@ -11,33 +11,6 @@ class Step0000_RequirementsToDomainModels extends BaseStep {
     super();
     this.chapters = [
       { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
-      // {
-      //   title: 'Prompt',
-      //   contentJp: Utils.trimLines(`
-      //     ドメインエキスパートとの対話をシミュレートし、ドメインモデルを作成してください。
-      //     Entities, Value Objects, Aggregates, Domain Services, Repositories, Domain Events を適切に設定してください。
-      //   `),
-      //   content: Utils.trimLines(`
-      //     Please simulate a conversation with a domain expert and create a business domain model.
-      //     Please set Entities, Value Objects, Aggregates, Domain Services, Repositories, Domain Events appropriately.
-      //   `),
-      // },
-      // Bounded Context
-      // {
-      //   title: 'Instructions',
-      //   contentJp: Utils.trimLines(`
-      //     以下のステップを踏んでRequirementsに基づいてドメインを特定する資料を作成して下さい。
-      //     - プロジェクトのビジネス要件と目標を理解する。
-      //     - ドメインエキスパートとコミュニケーションを取る。
-      //     - ドメインを特定し、ビジネス要件に関連する主要な概念とプロセスを抽出する。
-      //   `),
-      //   content: Utils.trimLines(`
-      //     Please create a document that identifies the domain based on the requirements by following the steps below.
-      //     - Understand the business requirements and goals of the project.
-      //     - Communicate with the domain expert.
-      //     - Identify the domain and extract the key concepts and processes related to the business requirements.
-      //   `),
-      // },
       {
         title: `Instructions`,
         contentJp: Utils.trimLines(`
@@ -58,17 +31,6 @@ class Step0000_RequirementsToDomainModels extends BaseStep {
              10. **リファクタリング**: ドメインとシステムについて学ぶにつれて、モデルと設計をリファクタリングする必要がある場合があります。これはDDDの正常な部分であり、受け入れられるべきです。
           ここまでのステップを繰り返し、最終的に完成したドメインモデルのみを出力してください。
           `),
-        // 10. **継続的な統合**: システムを開発するにつれて、変更を継続的に統合して、すべてが正しく動作していることを確認する必要があります。これには、定期的に変更をメインブランチにマージし、自動テストを実行することが含まれます。
-        // 9. **Continuous Integration**: As you're developing the system, you'll want to continuously integrate your changes to ensure that everything is working together correctly. This involves regularly merging your changes with the main branch and running automated tests.
-        // 出力フォーマットは以下の通りとしてください。
-        // {"BoundedContexts":{
-        //   "\${BoundedContextName}":{"Entities":{"\${EntityName}":{"Attributes":["\${name}","\${name}"],"Methods":["\${name}()","\${name}()"]}},"ValueObjects":{"\${ValueObjectName}":{"Attributes":["\${name}","\${name}"],"Methods":["\${name}()","\${name}()"]}},"Aggregates":{"\${AggregateName}":{"RootEntity":"\${EntityName}","Entities":["\${EntityName}","\${EntityName}"],"ValueObjects":["\${ValueObjectName}","\${ValueObjectName}"]}},"DomainEvents":{"\${DomainEventName}":{"Describe":"\${describe}","Attributes":["\${name}","\${name}"]}},"DomainEventsHandler":{"Methods":["\${name}()","\${name}()"]},"DomainServices":{"\${ServiceName}":{"Methods":["\${name}()","\${name}()"]}},"Factories":{"\${FactoryName}":{"Methods":["\${name}()","\${name}()"]}},},
-        //   "\${BoundedContextName}":{"Entities":{"\${EntityName}":{"Attributes":["\${name}","\${name}"],"Methods":["\${name}()","\${name}()"]}},"ValueObjects":{"\${ValueObjectName}":{"Attributes":["\${name}","\${name}"],"Methods":["\${name}()","\${name}()"]}},"Aggregates":{"\${AggregateName}":{"RootEntity":"\${EntityName}","Entities":["\${EntityName}","\${EntityName}"],"ValueObjects":["\${ValueObjectName}","\${ValueObjectName}"]}},"DomainEvents":{"\${DomainEventName}":{"Describe":"\${describe}","Attributes":["\${name}","\${name}"]}},"DomainEventsHandler":{"Methods":["\${name}()","\${name}()"]},"DomainServices":{"\${ServiceName}":{"Methods":["\${name}()","\${name}()"]}},"Factories":{"\${FactoryName}":{"Methods":["\${name}()","\${name}()"]}},},
-        // },"Relationships":[{"type":"\${relationship}","source":"\${BoundedContextName}","target":"\${BoundedContextName}",}]}
-        // {"boundedContexts":{
-        //   "\${BoundedContextName}":{"entities":{"\${EntityName}":{"attributes":{"\${name}":"\${type}",},"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}},},"valueObjects":{"\${ValueObjectName}":{"attributes":{"\${name}":"\${type}",},"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}},},"aggregates":{"\${AggregateName}":{"rootEntity":"\${EntityName}","entities":["\${EntityName}","\${EntityName}"],"valueObjects":["\${ValueObjectName}","\${ValueObjectName}"]},},"domainEvents":{"\${DomainEventName}":{"describe":"\${describe}","attributes":{"\${name}":"\${type}",}}},"domainEventsHandler":{"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}},"domainServices":{"\${ServiceName}":{"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}}},"factories":{"\${FactoryName}":{"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}}},"applicationServices":{"\${ServiceName}":{"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}}},"repositories":{"\${RepositoryName}":{"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}}}},
-        //   "\${BoundedContextName}":{"entities":{"\${EntityName}":{"attributes":{"\${name}":"\${type}",},"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}},},"valueObjects":{"\${ValueObjectName}":{"attributes":{"\${name}":"\${type}",},"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}},},"aggregates":{"\${AggregateName}":{"rootEntity":"\${EntityName}","entities":["\${EntityName}","\${EntityName}"],"valueObjects":["\${ValueObjectName}","\${ValueObjectName}"]},},"domainEvents":{"\${DomainEventName}":{"describe":"\${describe}","attributes":{"\${name}":"\${type}",}}},"domainEventsHandler":{"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}},"domainServices":{"\${ServiceName}":{"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}}},"factories":{"\${FactoryName}":{"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}}},"applicationServices":{"\${ServiceName}":{"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}}},"repositories":{"\${RepositoryName}":{"methods":{"\${name}":[{"\${argName}":"\${argType}"},"\${returnType}"],}}}},
-        // },"relationships": [{ "type": "\${relationship}", "source": "\${BoundedContextName}", "target": "\${BoundedContextName}", }], }
         content: Utils.trimLines(`
           Please create a domain model step by step according to the following instructions. The instructions are just guidelines. Please proceed while self-completing the points that are recalled based on the instructions.
              1. **Domain Analysis**: The first step in DDD is to understand the problem domain. This involves working closely with domain experts to understand the business rules, processes, and entities involved in the domain. This step is crucial for developing the Ubiquitous Language, a shared language between developers and domain experts that is used throughout the development process.
@@ -87,68 +49,7 @@ class Step0000_RequirementsToDomainModels extends BaseStep {
              10. **Refactoring**: As you learn more about the domain and the system, you'll likely need to refactor your models and design. This is a normal part of DDD and should be embraced.
           Please repeat the steps so far and output only the completed domain model.
         `),
-        // Please use the following output format.
-        // {"BoundedContexts":{
-        //   "\${BoundedContextName}":{"Entities":{"\${EntityName}":{"Attributes":["\${name}","\${name}"],"Methods":["\${name}()","\${name}()"]}},"ValueObjects":{"\${ValueObjectName}":{"Attributes":["\${name}","\${name}"],"Methods":["\${name}()","\${name}()"]}},"Aggregates":{"\${AggregateName}":{"RootEntity":"\${EntityName}","Entities":["\${EntityName}","\${EntityName}"],"ValueObjects":["\${ValueObjectName}","\${ValueObjectName}"]}},"DomainEvents":{"\${DomainEventName}":{"Describe":"\${describe}","Attributes":["\${name}","\${name}"]}},"DomainEventsHandler":{"Methods":["\${name}()","\${name}()"]},"DomainServices":{"\${ServiceName}":{"Methods":["\${name}()","\${name}()"]}},"Factories":{"\${FactoryName}":{"Methods":["\${name}()","\${name}()"]}},},
-        //   "\${BoundedContextName}":{"Entities":{"\${EntityName}":{"Attributes":["\${name}","\${name}"],"Methods":["\${name}()","\${name}()"]}},"ValueObjects":{"\${ValueObjectName}":{"Attributes":["\${name}","\${name}"],"Methods":["\${name}()","\${name}()"]}},"Aggregates":{"\${AggregateName}":{"RootEntity":"\${EntityName}","Entities":["\${EntityName}","\${EntityName}"],"ValueObjects":["\${ValueObjectName}","\${ValueObjectName}"]}},"DomainEvents":{"\${DomainEventName}":{"Describe":"\${describe}","Attributes":["\${name}","\${name}"]}},"DomainEventsHandler":{"Methods":["\${name}()","\${name}()"]},"DomainServices":{"\${ServiceName}":{"Methods":["\${name}()","\${name}()"]}},"Factories":{"\${FactoryName}":{"Methods":["\${name}()","\${name}()"]}},},
-        // },"Relationships":[{"type":"\${relationship}","source":"\${BoundedContextName}","target":"\${BoundedContextName}",}]}
       },
-      // {
-      //   title: 'Output Rules',
-      //   contentJp: '出力はドメインモデルのみです（ドメインエキスパートとの対話は出力に含めないでください）。',
-      //   content: 'The output is only the domain model (please do not include the conversation with the domain expert in the output).',
-      // },
-      // {
-      //   title: 'Instructions',
-      //   contentJp: Utils.trimLines(`
-      //     ドメイン駆動設計（Domain-Driven Design, DDD）に基づいて開発を進める一般的な手順を示します。
-
-      //     1. ビジネスの理解とドメインの特定:
-      //       - プロジェクトのビジネス要件と目標を理解し、ドメインエキスパートとコミュニケーションを取ります。
-      //       - ドメインを特定し、ビジネス要件に関連する主要な概念とプロセスを抽出します。
-
-      //     2. コンテキストマッピング:
-      //       - 関連するコンテキストやドメイン間の関係を可視化するために、コンテキストマップを作成します。
-      //       - コンテキスト間の相互作用と共有される言語を特定します。
-
-      //     3. ドメインモデルの設計:
-      //       - ドメインモデルを作成します。ドメインモデルは、ビジネス要件とドメイン概念の表現です。
-      //       - モデル駆動設計手法（Ubiquitous Language、エンティティ、バリューオブジェクト、集約、サービスなど）を使用して、ドメインモデルを構築します。
-
-      //     4. ドメインロジックの実装:
-      //       - ドメインモデルに基づいて、ドメインロジックを実装します。
-      //       - ドメインエキスパートとの継続的なコミュニケーションを通じて、モデルを洗練し、適応させます。
-
-      //     5. アプリケーション層の作成:
-      //       - ドメインモデルを使用して、アプリケーション層を作成します。
-      //       - ドメインサービスやファクトリなどの要素を実装し、ドメインロジックとの連携を管理します。
-
-      //     6. インフラストラクチャ層の作成:
-      //       - データベース、外部サービス、UIなどのインフラストラクチャ層を作成します。
-      //       - ドメインモデルやアプリケーション層との間のデータの永続化や通信を担当します。
-
-      //     7. 単体テストと結合テストの実施:
-      //       - ドメインモデル、アプリケーション層、インフラストラクチャ層に対して、単体テストと結合テストを実施します。
-      //       - ドメインロジックが正しく機能し、ビジネス要件を満たしていることを確認します。
-
-      //     8. ドメイン駆動設計のパターンの適用:
-      //       - ドメイン駆動設計には、さまざまなパターン（エンティティ、値オブジェクト、集約、ドメインサービスなど）があります。
-      //       - 適切なパターンを適用し、ドメインモデルをより表現力豊かにし、柔軟性を高めます。
-
-      //     9. UIの実装:
-      //       - ユーザーインターフェース（UI）を実装します。
-      //       - UIはドメインモデルやアプリケーション層と対話し、ユーザーとのインタラクションを処理します。
-
-      //     10. 反復的な開発とドメインの洗練:
-      //         - 反復的な開発手法を採用し、機能を追加・変更しながらドメインを洗練します。
-      //         - ドメインエキスパートとの継続的なフィードバックを取り入れ、ドメインモデルや実装を改善します。
-
-      //     11. ドメインイベントの活用:
-      //         - ドメインイベントを使用して、ドメイン内での重要な変更やアクションをキャプチャし、他のコンテキストとの連携を実現します。
-
-      //     12. エンタープライズアーキテクチャの検討:
-      //         - ドメイン駆動設計をエンタープライズレベルで適用する場合、大規模なアーキテクチャの設計を検討します。
-      //         - ドメインの境界、コンテキストの相互作用、インフラストラクチャの統合などを考慮します。
     ];
   }
 }
@@ -186,22 +87,6 @@ class Step0010_DomainModelsClassify extends BaseStep {
       { title: 'Domain Models', content: new Step0000_RequirementsToDomainModels().result },
       {
         title: 'Instructions',
-        // それぞれについての要素について、各要素のインターフェースシグネチャ（I/O項目）を明示してください。
-        // DBテーブル定義書、API仕様書、画面設計の入力情報となるように、各要素のインターフェース（I/O項目）を明示してください。
-        // * **サービスの設計**: サービスは、エンティティや値オブジェクトに自然に属さない操作です。ドメインオブジェクトには適合しないビジネスロジックをカプセル化します。
-        // 3. **モデル駆動設計**: 各バウンデッドコンテキスト内で、モデル駆動設計を使用して、ドメインを反映したモデルを作成します。これには、エンティティ、値オブジェクト、集約、ドメインイベントの特定が含まれます。
-        //   - **エンティティ**は、明確な識別子を持つオブジェクトです。
-        //   - **値オブジェクト**は、識別子ではなく属性によって定義されるオブジェクトです。
-        //   - **集約**は、単一のユニットとして扱われるエンティティと値オブジェクトのクラスタです。
-        //   - **ドメインイベント**は、ドメインエキスパートが関心を持つ重要なイベントです。
-        // 4. **リポジトリの設計**: リポジトリは、集約の永続化を処理するために使用されます。リポジトリは、システムから集約を取得、追加、削除する方法を提供します。
-        // 5. **サービスの設計**: サービスは、エンティティや値オブジェクトに自然に属さない操作です。ドメインオブジェクトには適合しないビジネスロジックをカプセル化します。
-        // 6. **ファクトリの設計**: ファクトリは、複雑なオブジェクトや集約を作成するために使用されます。ファクトリは、これらのオブジェクトを作成するロジックをカプセル化します。
-        // * **コンテキストマッピング**: 各バウンデッドコンテキスト内のモデルを設計した後は、これらのコンテキストがどのように相互作用するかを理解する必要があります。これは、コンテキストマッピングによって行われ、バウンデッドコンテキスト間の関係を特定します。
-        // * **コンテキストマッピング**: 各バウンデッドコンテキスト内のモデルを設計した後は、これらのコンテキストがどのように相互作用するかを理解する必要があります。これは、コンテキストマッピングによって行われ、バウンデッドコンテキスト間の関係を特定します。
-        // - Domain Events => Attributes, Description
-        // - Domain Services => Methods
-        // - Batch Jobs => Methods, Attributes, Description
         contentJp: Utils.trimLines(`
           Requirements と Domain Modelsに基づいて、以下のように情報を展開してください。
           指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
@@ -234,20 +119,6 @@ class Step0010_DomainModelsClassify extends BaseStep {
           - The delimiter of the item should be a pipe delimiter, and if it is further divided within the pipe delimiter, it should be a comma delimiter.
         `)
       }
-      // {
-      //   title: 'prompt',
-      //   contentJp: Utils.trimLines(`
-      //     上記のrequirementsとドメインモデルを良く理解し、ドメイン駆動設計パターンに基づいて分類して下さい。
-      //     一般的なお作法に準拠し、かつ以下の点にも注意を払って作業を進めてください。
-      //     - ドメインモデルに足りていないものがある場合は追加して下さい。
-      //     - モデルの目的や責務を明確に説明する。
-      //     - エンティティやバリューオブジェクトの属性と操作を記述する。
-      //     - エンティティやバリューオブジェクトの関連性と集約を明示する。
-      //     - ビジネスルールや制約条件をドメインモデル内にドキュメント化する。
-      //     - イベントや通知の発生条件や影響範囲を記述する。
-      //     - ドメインサービスやリポジトリの役割と責務を明確に説明する。
-      //     - クラスやメソッドの意図と目的をドキュメント化する。
-      //   `),
     ];
   }
 }
@@ -650,7 +521,9 @@ class Step0040_CreateService extends MultiStep {
         return result;
       }
     }
-    this.childStepList = Object.keys(domainModel.DomainServices).map(serviceName => new Step0040_CreateServiceChil(serviceName));
+    this.childStepList = Object.keys(domainModel.DomainServices).filter((serviceName: string) =>
+      Object.keys(domainModel.BoundedContexts).find((boundedContextName) => domainModel.BoundedContexts[boundedContextName].DomainServices[serviceName])
+    ).map(serviceName => new Step0040_CreateServiceChil(serviceName));
   }
   postProcess(result: string[]): string[] {
     return result;
