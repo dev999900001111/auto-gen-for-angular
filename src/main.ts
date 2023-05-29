@@ -1,9 +1,9 @@
 const start = Date.now();
 console.log('start');
 import { aiApi } from './app/common/base-step';
-import * as generatorAngular from './app/for-angular/generator-angular';
-import * as generatorReact from './app/for-react/generator-react';
-import * as generatorSpring from './app/for-spring/generator-spring';
+import * as generatorAngular from './app/for-angular/task-runner';
+import * as generatorReact from './app/for-react/task-runner';
+import * as generatorSpring from './app/for-spring/task-runner';
 
 type GeneratorType = 'angular' | 'react' | 'spring';
 
