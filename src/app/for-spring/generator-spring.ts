@@ -1,7 +1,7 @@
 import * as  fs from 'fs';
 import { Utils } from '../common/utils';
 import { BaseStep, MultiStep } from "../common/base-step";
-import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, Entity, RelationshipType, TableModel, ValueObject, genEntityAndRepository } from '../domain-models/domain-models';
+import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, Entity, RelationshipType, TableModel, ValueObject, genEntityAndRepository, serviceImpl } from '../domain-models/domain-models';
 
 class Step0000_RequirementsToDomainModels extends BaseStep {
   model = 'gpt-4';
@@ -691,13 +691,14 @@ export async function main() {
     return obj.run();
     // obj.childStepList.forEach((step) => step.postProcess(step.result));
   }).then(() => {
+    genEntityAndRepository();
+  }).then(() => {
     obj = new Step0040_CreateService();
     obj.initPrompt();
     return obj.run();
   }).then(() => {
+    serviceImpl();
   }).then(() => {
-  }).then(() => {
-    genEntityAndRepository();
   });
 }
 // main();

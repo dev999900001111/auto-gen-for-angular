@@ -487,11 +487,10 @@ export class TableModel {
 //   // 'ConsiderEnterpriseArchitecture',
 //   // 'DomainDrivenDesign',
 // ];
+const packageName = 'com.example.demo';
 
 export function genEntityAndRepository() {
     const model = DomainModel.loadModels();
-
-    const packageName = 'com.example.demo';
 
     // Entity
     const entities = Object.keys(model.Entities).map((entityName: string) => {
@@ -646,7 +645,7 @@ export function genEntityAndRepository() {
             } else { }
 
             classCode += `    @${Utils.toPascalCase(api.method)}Mapping("${api.endpoint.replace(/\/api\/v1\//g, '/')}")\n`;
-            classCode += `    private ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             classCode += `    }\n`;
         });
@@ -749,8 +748,23 @@ export function genEntityAndRepository() {
         classCode += `}\n`;
         fs.mkdirSync(`./gen/src/main/java/com/example/demo/service/impl`, { recursive: true });
         fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/impl/${apiName}.java.md`, classCode);
+        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/${apiName}.java.md`, classCode);
         return classCode;
     }).join('\n\n');
+}
+export function serviceImpl() {
+    const model = DomainModel.loadModels();
+
+    // API用json定義読み込み
+    interface API { endpoint: string, method: string, pathVariable: string, request: string, validation: string, response: string, description: string, }
+    const apiObj = Object.keys(model.BoundedContexts).reduce(
+        (apiObj: { [key: string]: { [key: string]: API } }, boundedContextName: string) => {
+            boundedContextName = Utils.toPascalCase(boundedContextName);
+            apiObj = { ...Utils.jsonParse(fs.readFileSync(`${domainModelsDire}API-${boundedContextName}.json`, 'utf-8')), ...apiObj };
+            return apiObj;
+        }, {}
+    ) as { [key: string]: { [key: string]: API } };
+    // console.log(JSON.stringify(apiObj, null, 4));
 
     const jpaMethods: { [key: string]: string[] } = {};
     // ServiceImpl実装
@@ -850,6 +864,7 @@ export function genEntityAndRepository() {
         return classCode;
     }).join('\n\n');
     // console.log(jpaMethods);
+
 }
 function typeToInterface(className: string, obj: { [key: string]: any }, api: { [key: string]: any }, layer: number = 0) {
     let classCode = ``;
