@@ -204,7 +204,7 @@ export class Utils {
      * @returns 
      */
     static jsonParse<T>(str0: string): T {
-        const str = str0.replace(/{"":"[^"]*"[,]{0,1}}/g, 'null').replace(/,}/g, '}');
+        const str = Utils.mdTrim(str0).replace(/{"":"[^"]*"[,]{0,1}}/g, 'null').replace(/,}/g, '}');
         try {
             return JSON.parse(str);
         } catch (e0) {
@@ -229,6 +229,17 @@ export class Utils {
             }
         }
     }
+
+
+    /**
+     * Markdownのコードブロックを```を外したものにする。
+     * @param {*} str 
+     * @returns 
+     */
+    static mdTrim(str0: string): string {
+        return str0.trim().replace(/^```.*$/gm, '').trim();
+    }
+
 
     /**
      * [{title: 'hoge', content: 'fuga', children: [{title: 'hoge', content: 'fuga'}]}]のようなオブジェクトをMarkdownに変換する
@@ -261,6 +272,22 @@ export interface StructuredPrompt {
     contentJp?: string;
     children?: StructuredPrompt[];
 }
+
+// const code = `
+// \`\`\`
+// {
+//     "name": "hoge",
+//     "age": 20,
+//     "hobbies": [
+//         "programming",
+//         "reading",
+//         "music"
+//     ]
+// }
+// \`\`\`
+// `;
+
+// console.log(Utils.mdTrim(code));
 
 // console.log('plane=' + Utils.toCamelCase('camelCaseCase'));
 // console.log('plane=' + Utils.toCamelCase('snake_caseCase'));

@@ -547,6 +547,8 @@ export function genEntityAndRepository() {
     const model = DomainModel.loadModels();
 
     const packageName = 'com.example.demo';
+
+    // Entity
     const entities = Object.keys(model.Entities).map((entityName: string) => {
 
         let classCode = ``;
@@ -614,7 +616,7 @@ export function genEntityAndRepository() {
                     classCode += `    @Column\n`;
                 }
             }
-            classCode += `    private ${toJavaClass(attribute.type)} ${attribute.name};\n\n`;
+            classCode += `    private ${toJavaClass(attribute.type)} ${Utils.toCamelCase(attribute.name)};\n\n`;
         });
         classCode += `}\n`;
 
@@ -640,6 +642,7 @@ export function genEntityAndRepository() {
         return classCode;
     }).join('\n\n');
 
+    // ValueObject実装作成
     const valueObjects = Object.keys(model.ValueObjects).map((valueObjectName: string) => {
         let classCode = ``;
         classCode += `package ${packageName}.entity;\n`;
@@ -654,7 +657,7 @@ export function genEntityAndRepository() {
         classCode += `public class ${valueObjectName} {\n\n`;
         model.ValueObjects[valueObjectName].Attributes.forEach((attribute: Attribute) => {
             classCode += `    @Column(name="${Utils.toSnakeCase(valueObjectName)}_${Utils.toSnakeCase(attribute.name)}")\n`;
-            classCode += `    private ${toJavaClass(attribute.type)} ${attribute.name};\n\n`;
+            classCode += `    private ${toJavaClass(attribute.type)} ${Utils.toCamelCase(attribute.name)};\n\n`;
         });
         classCode += `}\n`;
         fs.mkdirSync(`./gen/src/main/java/com/example/demo/entity`, { recursive: true });
@@ -673,18 +676,19 @@ export function genEntityAndRepository() {
     ) as { [key: string]: { [key: string]: API } };
     // console.log(JSON.stringify(apiObj, null, 4));
 
+    // Controller実装作成
     Object.keys(apiObj).map((apiName: string) => {
         const controllerName = apiName.replace(/Service$/g, 'Controller');
         let classCode = ``;
         classCode += `package ${packageName}.controller;\n`;
         classCode += `\n`;
-        classCode += `import com.example.demo.entity.Employee;\n`;
         classCode += `import org.springframework.beans.factory.annotation.Autowired;\n`;
         classCode += `import org.springframework.web.bind.annotation.*;\n`;
+        classCode += `import org.springframework.validation.BindingResult;\n`;
         classCode += `import ${packageName}.entity.*;\n`;
         classCode += `import ${packageName}.service.${apiName};\n`;
+        classCode += `import jakarta.validation.Valid;\n`;
         classCode += `import java.util.*;\n`;
-        classCode += `import lombok.Data;\n`;
         classCode += `\n`;
         classCode += `@RestController\n`;
         // classCode += `@RequestMapping("/${apiName.replace(/Service$/g, '')}")\n`;
@@ -705,7 +709,8 @@ export function genEntityAndRepository() {
             } { }
             if (api.request) {
                 // classCode += typeToInterface(requestType, convertStringToJson(api.request));
-                controllerParamAry.push(`@RequestBody ${requestType} requestBody`);
+                // controllerParamAry.push(`@Valid @RequestBody ${requestType} requestBody, BindingResult bindingResult`);
+                controllerParamAry.push(`@Valid @RequestBody ${apiName}.${requestType} requestBody`);
                 serviceParamAry.push(`requestBody`);
             } else { }
 
@@ -720,32 +725,18 @@ export function genEntityAndRepository() {
         return classCode;
     }).join('\n\n');
 
+    // Service実装作成
     Object.keys(apiObj).map((apiName: string) => {
 
         let classCode = ``;
         classCode += `package ${packageName}.service;\n`;
         classCode += `\n`;
-        classCode += `import com.example.demo.entity.Employee;\n`;
-        classCode += `import org.springframework.beans.factory.annotation.Autowired;\n`;
         classCode += `import org.springframework.web.bind.annotation.*;\n`;
         classCode += `import ${packageName}.entity.*;\n`;
-        classCode += `import ${packageName}.repository.*;\n`;
-        classCode += `import java.util.*;\n`;
         classCode += `import lombok.Data;\n`;
+        classCode += `import java.util.*;\n`;
         classCode += `\n`;
-        classCode += `@Service\n`;
-        classCode += `public class ${apiName} {\n\n`;
-
-        // Serviceが属するBoundedContextを特定
-        const boundedContextName = Object.keys(model.BoundedContexts).find((boundedContextName: string) => model.BoundedContexts[boundedContextName].DomainServices[apiName]);
-        if (boundedContextName) {
-            Object.keys(model.BoundedContexts[boundedContextName].Entities).forEach((entityName: string) => {
-                const entity = model.BoundedContexts[boundedContextName].Entities[entityName];
-                classCode += `    @Autowired\n`;
-                classCode += `    private ${entity.name}Repository ${Utils.toCamelCase(entity.name)}Repository;\n\n`;
-            });
-        } else { }
-
+        classCode += `public interface ${apiName} {\n\n`;
 
         Object.keys(apiObj[apiName]).forEach((methodName: string) => {
             const api = apiObj[apiName][methodName];
@@ -763,64 +754,7 @@ export function genEntityAndRepository() {
                 serviceParamAry.push(`requestBody`);
             } else { }
 
-            classCode += `    private ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
-            // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
-            classCode += `        // TODO implementation\n`;
-            classCode += `    }\n`;
-        });
-        classCode += `}\n`;
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/service`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/${apiName}.java.md`, classCode);
-        return classCode;
-    }).join('\n\n');
-
-    Object.keys(apiObj).map((apiName: string) => {
-
-        const impl = (Utils.jsonParse(fs.readFileSync(`${domainModelsDire}ServiceImplementation-${Utils.toPascalCase(apiName)}.json`, 'utf-8')) as any);
-
-        let classCode = ``;
-        classCode += `package ${packageName}.service;\n`;
-        classCode += `\n`;
-        classCode += `import org.springframework.beans.factory.annotation.Autowired;\n`;
-        classCode += `import org.springframework.web.bind.annotation.*;\n`;
-        classCode += `import ${packageName}.entity.*;\n`;
-        classCode += `import ${packageName}.repository.*;\n`;
-        classCode += `import java.util.*;\n`;
-        classCode += `import lombok.Data;\n`;
-        classCode += impl.additionalImports.map((importName: string) => `import ${importName};\n`).join('');
-        classCode += `\n`;
-        classCode += `@Service\n`;
-        classCode += `public class ${apiName} {\n\n`;
-
-        // Serviceが属するBoundedContextを特定
-        const boundedContextName = Object.keys(model.BoundedContexts).find((boundedContextName: string) => model.BoundedContexts[boundedContextName].DomainServices[apiName]);
-        if (boundedContextName) {
-            Object.keys(model.BoundedContexts[boundedContextName].Entities).forEach((entityName: string) => {
-                const entity = model.BoundedContexts[boundedContextName].Entities[entityName];
-                classCode += `    @Autowired\n`;
-                classCode += `    private ${entity.name}Repository ${Utils.toCamelCase(entity.name)}Repository;\n\n`;
-            });
-        } else { }
-
-
-        Object.keys(apiObj[apiName]).forEach((methodName: string) => {
-            const api = apiObj[apiName][methodName];
-            const requestType = `${Utils.toPascalCase(methodName)}Request`;
-            let controllerParamAry: string[] = [];
-            let serviceParamAry: string[] = [];
-            if (api.pathVariable) {
-                const type = convertStringToJson(api.pathVariable);
-                controllerParamAry = Object.keys(type).map((key: string) => `${type[key]} ${key}`);
-                serviceParamAry = Object.keys(type).map((key: string) => key);
-            } { }
-            if (api.request) {
-                classCode += typeToInterface(requestType, convertStringToJson(api.request));
-                controllerParamAry.push(`${requestType} requestBody`);
-                serviceParamAry.push(`requestBody`);
-            } else { }
-
-            // classCode += `    private ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
-            classCode += `${impl.methods[methodName]}\n`;
+            classCode += `    public ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) ;\n\n`;
             // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             // classCode += `        // TODO implementation\n`;
             // classCode += `    }\n`;
@@ -828,6 +762,130 @@ export function genEntityAndRepository() {
         classCode += `}\n`;
         fs.mkdirSync(`./gen/src/main/java/com/example/demo/service`, { recursive: true });
         fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/${apiName}.java`, classCode);
+        return classCode;
+    }).join('\n\n');
+
+    // ServiceImplひな形作成
+    Object.keys(apiObj).map((apiName: string) => {
+
+        let classCode = ``;
+        classCode += `package ${packageName}.service.impl;\n`;
+        classCode += `\n`;
+        classCode += `import org.springframework.beans.factory.annotation.Autowired;\n`;
+        classCode += `import org.springframework.web.bind.annotation.*;\n`;
+        classCode += `import ${packageName}.entity.*;\n`;
+        classCode += `import ${packageName}.repository.*;\n`;
+        classCode += `import java.util.*;\n`;
+        classCode += `import lombok.Data;\n`;
+        classCode += `\n`;
+        classCode += `@Service\n`;
+        classCode += `public class ${apiName}Impl {\n\n`;
+
+        // Serviceが属するBoundedContextを特定
+        const boundedContextName = Object.keys(model.BoundedContexts).find((boundedContextName: string) => model.BoundedContexts[boundedContextName].DomainServices[apiName]);
+        if (boundedContextName) {
+            Object.keys(model.BoundedContexts[boundedContextName].Entities).forEach((entityName: string) => {
+                const entity = model.BoundedContexts[boundedContextName].Entities[entityName];
+                classCode += `    @Autowired\n`;
+                classCode += `    private ${entity.name}Repository ${Utils.toCamelCase(entity.name)}Repository;\n\n`;
+            });
+        } else { }
+
+
+        Object.keys(apiObj[apiName]).forEach((methodName: string) => {
+            const api = apiObj[apiName][methodName];
+            const requestType = `${Utils.toPascalCase(methodName)}Request`;
+            let controllerParamAry: string[] = [];
+            let serviceParamAry: string[] = [];
+            if (api.pathVariable) {
+                const type = convertStringToJson(api.pathVariable);
+                controllerParamAry = Object.keys(type).map((key: string) => `${type[key]} ${key}`);
+                serviceParamAry = Object.keys(type).map((key: string) => key);
+            } { }
+            if (api.request) {
+                classCode += typeToInterface(requestType, convertStringToJson(api.request));
+                controllerParamAry.push(`${requestType} requestBody`);
+                serviceParamAry.push(`requestBody`);
+            } else { }
+
+            classCode += `    public ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
+            classCode += `        // TODO implementation\n`;
+            classCode += `    }\n`;
+        });
+        classCode += `}\n`;
+        fs.mkdirSync(`./gen/src/main/java/com/example/demo/service/impl`, { recursive: true });
+        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/impl/${apiName}.java.md`, classCode);
+        return classCode;
+    }).join('\n\n');
+
+    // ServiceImpl実装
+    Object.keys(apiObj).map((apiName: string) => {
+
+        const impl = (Utils.jsonParse(fs.readFileSync(`${domainModelsDire}ServiceImplementation-${Utils.toPascalCase(apiName)}.json`, 'utf-8')) as any);
+
+        let classCode = ``;
+        classCode += `package ${packageName}.service.impl;\n`;
+        classCode += `\n`;
+        classCode += `import org.springframework.beans.factory.annotation.Autowired;\n`;
+        classCode += `import org.springframework.web.bind.annotation.*;\n`;
+        classCode += `import org.springframework.stereotype.Service;\n`;
+        classCode += `import ${packageName}.entity.*;\n`;
+        classCode += `import ${packageName}.repository.*;\n`;
+        classCode += `import ${packageName}.service.${apiName};\n`;
+        classCode += `import java.util.*;\n`;
+        classCode += `import lombok.Data;\n`;
+        classCode += `\n`;
+        classCode += impl.additionalImports.map((importName: string) => `import ${importName};\n`).join('');
+        classCode += Object.keys(apiObj[apiName]).filter((methodName: string) => apiObj[apiName][methodName].request).map((methodName: string) => `import com.example.demo.service.${apiName}.${Utils.toPascalCase(methodName)}Request;\n`).join('');
+        classCode += `\n`;
+        classCode += `@Service\n`;
+        classCode += `public class ${apiName}Impl implements ${apiName} {\n\n`;
+
+        // Serviceが属するBoundedContextを特定
+        const boundedContextName = Object.keys(model.BoundedContexts).find((boundedContextName: string) => model.BoundedContexts[boundedContextName].DomainServices[apiName]);
+        if (boundedContextName) {
+            Object.keys(model.BoundedContexts[boundedContextName].Entities).forEach((entityName: string) => {
+                const entity = model.BoundedContexts[boundedContextName].Entities[entityName];
+                classCode += `    @Autowired\n`;
+                classCode += `    private ${entity.name}Repository ${Utils.toCamelCase(entity.name)}Repository;\n\n`;
+            });
+        } else { }
+
+
+        Object.keys(apiObj[apiName]).forEach((methodName: string) => {
+            const api = apiObj[apiName][methodName];
+            const requestType = `${apiName}.${Utils.toPascalCase(methodName)}Request`;
+            let controllerParamAry: string[] = [];
+            let serviceParamAry: string[] = [];
+            if (api.pathVariable) {
+                const type = convertStringToJson(api.pathVariable);
+                controllerParamAry = Object.keys(type).map((key: string) => `${type[key]} ${key}`);
+                serviceParamAry = Object.keys(type).map((key: string) => key);
+            } { }
+            if (api.request) {
+                // classCode += typeToInterface(requestType, convertStringToJson(api.request));
+                controllerParamAry.push(`${apiName}.${requestType} requestBody`);
+                serviceParamAry.push(`requestBody`);
+            } else { }
+
+            classCode += `    @Override\n`;
+            if ((impl.methods[methodName] || '').trim().startsWith('public ') || (impl.methods[methodName] || '').trim().startsWith('@')) {
+            } else {
+                classCode += `    public ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            }
+            // classCode += `    private ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            classCode += `${(impl.methods[methodName] || '').replace(/^(.*)$/gm, `    $1`)}\n`;
+            // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
+            // classCode += `        // TODO implementation\n`;
+            if ((impl.methods[methodName] || '').trim().startsWith('public ') || (impl.methods[methodName] || '').trim().startsWith('@')) {
+            } else {
+                classCode += `    }\n`;
+            }
+        });
+        classCode += `}\n`;
+        fs.mkdirSync(`./gen/src/main/java/com/example/demo/service/impl`, { recursive: true });
+        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/impl/${apiName}Impl.java`, classCode);
         return classCode;
     }).join('\n\n');
 }

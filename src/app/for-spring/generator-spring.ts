@@ -1,11 +1,6 @@
 import * as  fs from 'fs';
 import { Utils } from '../common/utils';
 import { BaseStep, MultiStep } from "../common/base-step";
-import { RepoSyncer } from '../common/repo-syncer';
-// import { GenModuleFiles, genIndex } from './gen-angular-modules';
-import { genIndex } from '../for-react/react-service';
-import { ReactCodeGenerator } from '../for-react/react-service';
-import { ModelControlClass, ServiceClass, ServiceClassMethod, ModelClass, ClassProp } from '../model-repo/to-use';
 import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, Entity, RelationshipType, TableModel, ValueObject, genEntityAndRepository } from '../domain-models/domain-models';
 
 class Step0000_RequirementsToDomainModels extends BaseStep {
@@ -373,7 +368,7 @@ class Step0020_domainModelsJson extends BaseStep {
   }
   postProcess(result: string): string {
     try {
-      fs.writeFileSync(`${this.dire}${this.pattern}.json`, JSON.stringify(Utils.jsonParse(result)));
+      fs.writeFileSync(`${this.dire}${this.pattern}.json`, Utils.mdTrim(result));
     } catch (e) {
       if (this.pattern == DomainModelPattern.BatchJobs) {
         console.log(`BatchJobsは空`);
@@ -437,7 +432,9 @@ class Step0021_domainModelEntitysJson extends BaseStep {
         `),
         content: Utils.trimLines(`
           Please refer to the domain model and extract only the ${pattern} of BoundexContext "${boundedContext}" and convert it to the following JSON format.
+          \`\`\`json
           ${formatMap[pattern]}
+          \`\`\`
         `)
       },
     ];
@@ -452,7 +449,7 @@ class Step0021_domainModelEntitysJson extends BaseStep {
   }
   postProcess(result: string): string {
     try {
-      fs.writeFileSync(`${this.dire}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json`, JSON.stringify(Utils.jsonParse(result)));
+      fs.writeFileSync(`${this.dire}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json`, Utils.mdTrim(result));
     } catch (e) {
       console.log(e);
     }
@@ -478,7 +475,7 @@ class Step0030_CreateEntity extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0030_CreateEntityChil extends BaseStep {
-      model = 'gpt-4';
+      // model = 'gpt-4';
       dire: string = `./gen/domain-models/`;
       constructor(public boundedContext: BoundedContext) {
         super();
@@ -518,8 +515,8 @@ class Step0030_CreateEntity extends MultiStep {
               指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
               - Request / Response の型を詳細に正確に定義してください。必ずしもモデルと一緒ではないはずです。
               - Domain Models に定義されていないオブジェクト型を利用する場合は、オブジェクト型の内容を明示してください。
-              - トークン数を節約するため、表形式で出力してください。列は以下の通りです。
-                Endpoint, Method, Request, Response, Service.Method, Description
+              - 以下の項目について設計して下さい。
+                Endpoint, Method, Request, Validation, Response, Service.Method, Description
               イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成したドメインモデルのみを出力してください。
               出力形式は Output Example を参考にしてください。
             `),
@@ -528,8 +525,8 @@ class Step0030_CreateEntity extends MultiStep {
               The instructions are just guidelines. Please proceed while self-completing the know-how that is recalled based on the instructions.
               - Define the types of Request / Response in detail and accurately. It shouldn't always be the same as the model.
               - If you use an object type that is not defined in Domain Models, please specify the contents of the object type.
-              - To save tokens, output in tabular form. The columns are as follows.
-                Endpoint, Method, Request, Response, Service.Method, Description
+              - Design the following items.
+                Endpoint, Method, Request, Validation, Response, Service.Method, Description
               Repeat the iteration several times, perform appropriate refactoring, and output only the completed domain model.
               Please refer to Output Example for the output format.
             `),
@@ -537,13 +534,15 @@ class Step0030_CreateEntity extends MultiStep {
           {
             title: `Output Example`,
             content: Utils.trimLines(`
+              \`\`\`json
               {"UserService": {
-                "findAll":{"endpoint":"/api/v1/users","pathVariable":null,"method":"GET","request":null,"response":"User[]","description":"Getallusers"},
-                "findById":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"GET","request":null,"response":"User","description":"Getauserbyid"},
-                "create":{"endpoint":"/api/v1/users","pathVariable":null,"method":"POST","request":"{name:string,email:string,passowrd:string}","response":"User","description":"Createauser"},
-                "update":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"PUT","request":"{name:string,email:string,passowrd:string}","response":"User","description":"Updateauser"},
-                "delete":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"DELETE","request":null,"response":null,"description":"Deleteauser"}
+                "findAll":{"endpoint":"/api/v1/users","pathVariable":null,"method":"GET","request":null,"validation":null,"response":"User[]","description":"Getallusers"},
+                "findById":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"GET","request":null,"validation":null,"response":"User","description":"Getauserbyid"},
+                "create":{"endpoint":"/api/v1/users","pathVariable":null,"method":"POST","request":"{name:string,email:string,passowrd:string}","validation":"{name:[\\"@NotBlank\\"],email:[\\"@Email\\"],passowrd:[\\"@NotBlank\\"]}","response":"User","description":"Createauser"},
+                "update":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"PUT","request":"{name:string,email:string,passowrd:string}","validation":"{name:[\\"@NotBlank\\"],email:[\\"@Email\\"],passowrd:[\\"@NotBlank\\"]}","response":"User","description":"Updateauser"},
+                "delete":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"DELETE","request":null,"validation":null,"response":null,"description":"Deleteauser"}
               }}
+              \`\`\`
             `),
           }
         ];
@@ -552,7 +551,7 @@ class Step0030_CreateEntity extends MultiStep {
         // ディレクトリが無ければ掘る
         if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
         // ファイル書き込み
-        try { fs.writeFileSync(`${this.dire}API-${Utils.toPascalCase(this.boundedContext.name)}.json`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
+        try { fs.writeFileSync(`${this.dire}API-${Utils.toPascalCase(this.boundedContext.name)}.json`, Utils.mdTrim(result)); } catch (e) { console.log(e); }
         return result;
       }
     }
@@ -574,7 +573,7 @@ class Step0040_CreateService extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0040_CreateServiceChil extends BaseStep {
-      // model = 'gpt-4';
+      model = 'gpt-4';
       dire: string = `./gen/domain-models/`;
       constructor(public serviceName: string) {
         super();
@@ -608,29 +607,42 @@ class Step0040_CreateService extends MultiStep {
           {
             title: `Instructions`,
             contentJp: Utils.trimLines(`
-              Domain Modelsの内容を理解してSample Codeの"TODO implementation"の部分を実装してください。
+              Requirements と Domain Modelsの内容を理解してSample Codeの"TODO implementation"の部分を実装してください。
+              指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
+              イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成した実装のみを出力してください。
+              出力形式は Output Example を参考にしてください。
             `),
             content: Utils.trimLines(`
-              Understand the contents of Domain Models and implement the "TODO implementation" part of Sample Code.
+              Please understand the contents of Requirements and Domain Models and implement the "TODO implementation" part of Sample Code.
+              The instructions are just guidelines. Please proceed while self-completing the know-how recalled based on the instructions.
+              Repeat the iteration several times, perform appropriate refactoring, and output only the completed implementation.
+              Please refer to Output Example for the output format.
             `),
           },
           {
             title: `Output Format`, content: Utils.trimLines(`
-              {"additionalImports": ["\${import}"],"methods": {"\${methodName}": "\${body source code of methods, which replaces \"TODO implementation\"}" },}
+              \`\`\`json
+              {"additionalImports": ["\${import}"],"methods": {"\${methodName}": "\${body source code of methods, which replaces \\"TODO implementation\\"}" },}
+              \`\`\`
             `),
           },
           {
             title: `Output Example`, content: Utils.trimLines(`
+              \`\`\`json
               {"additionalImports": ["java.util.List"],"methods": {"findAll": "    public List<Entity> findAll(){\\n        List<Entity> findAll = this.employeeRepository.findAll();\\n        return findAll;\\n    ]" },}
+              \`\`\`
             `),
           },
         ];
+      }
+      preProcess(prompt: string): string {
+        return prompt;
       }
       postProcess(result: string): string {
         // ディレクトリが無ければ掘る
         if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
         // ファイル書き込み
-        try { fs.writeFileSync(`${this.dire}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json`, result.replace(/^```.*$/gm, '')); } catch (e) { console.log(e); }
+        try { fs.writeFileSync(`${this.dire}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json`, Utils.mdTrim(result)); } catch (e) { console.log(e); }
         return result;
       }
     }
@@ -648,34 +660,34 @@ export async function main() {
 
   let obj;
   return Promise.resolve().then(() => {
-    obj = new Step0000_RequirementsToDomainModels();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new Step0003_RequirementsToSystemOverview();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new Step0010_DomainModelsClassify();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new Step0011_DomainModelsClassify();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new MultiStep(Step0020_domainModelsJson.genSteps());
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new MultiStep(Step0021_domainModelEntitysJson.genSteps());
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new Step0030_CreateEntity();
-    obj.initPrompt();
-    return obj.run();
-    // obj.childStepList.forEach((step) => step.postProcess(step.result));
+    //   obj = new Step0000_RequirementsToDomainModels();
+    //   obj.initPrompt();
+    //   return obj.run();
+    // }).then(() => {
+    //   obj = new Step0003_RequirementsToSystemOverview();
+    //   obj.initPrompt();
+    //   return obj.run();
+    // }).then(() => {
+    //   obj = new Step0010_DomainModelsClassify();
+    //   obj.initPrompt();
+    //   return obj.run();
+    // }).then(() => {
+    //   obj = new Step0011_DomainModelsClassify();
+    //   obj.initPrompt();
+    //   return obj.run();
+    // }).then(() => {
+    //   obj = new MultiStep(Step0020_domainModelsJson.genSteps());
+    //   obj.initPrompt();
+    //   return obj.run();
+    // }).then(() => {
+    //   obj = new MultiStep(Step0021_domainModelEntitysJson.genSteps());
+    //   obj.initPrompt();
+    //   return obj.run();
+    // }).then(() => {
+    //   obj = new Step0030_CreateEntity();
+    //   obj.initPrompt();
+    //   return obj.run();
+    //   // obj.childStepList.forEach((step) => step.postProcess(step.result));
   }).then(() => {
     obj = new Step0040_CreateService();
     obj.initPrompt();
