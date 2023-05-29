@@ -573,7 +573,7 @@ class Step0040_CreateService extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0040_CreateServiceChil extends BaseStep {
-      model = 'gpt-4';
+      // model = 'gpt-4';
       dire: string = `./gen/domain-models/`;
       constructor(public serviceName: string) {
         super();
@@ -607,14 +607,16 @@ class Step0040_CreateService extends MultiStep {
           {
             title: `Instructions`,
             contentJp: Utils.trimLines(`
-              Requirements と Domain Modelsの内容を理解してSample Codeの"TODO implementation"の部分を実装してください。
+              Requirements と Domain Modelsの内容を理解してSample Codeの"TODO implementation"の部分を作成してください。
               指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
+              テストをシミュレートしてバグを取り除いてください。
               イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成した実装のみを出力してください。
               出力形式は Output Example を参考にしてください。
             `),
             content: Utils.trimLines(`
               Please understand the contents of Requirements and Domain Models and implement the "TODO implementation" part of Sample Code.
               The instructions are just guidelines. Please proceed while self-completing the know-how recalled based on the instructions.
+              Simulate the test and remove the bug.
               Repeat the iteration several times, perform appropriate refactoring, and output only the completed implementation.
               Please refer to Output Example for the output format.
             `),
@@ -622,14 +624,14 @@ class Step0040_CreateService extends MultiStep {
           {
             title: `Output Format`, content: Utils.trimLines(`
               \`\`\`json
-              {"additionalImports": ["\${import}"],"methods": {"\${methodName}": "\${body source code of methods, which replaces \\"TODO implementation\\"}" },}
+              {"additionalImports": ["\${import}"], "additionalJPAMethods": ["\${repository method}"], "methods": {"\${methodName}": "\${body source code of methods, which replaces \\"TODO implementation\\" without method signature}" }}
               \`\`\`
             `),
           },
           {
             title: `Output Example`, content: Utils.trimLines(`
               \`\`\`json
-              {"additionalImports": ["java.util.List"],"methods": {"findAll": "    public List<Entity> findAll(){\\n        List<Entity> findAll = this.employeeRepository.findAll();\\n        return findAll;\\n    ]" },}
+              {"additionalImports": ["java.util.List"], "additionalJPAMethods": {"EntityRepository":["List<Entity> findByEntityNameAndEntityLabel(String entityName,String entityLabel)"]}, "methods": {"findAll": "        List<Entity> findAll = this.employeeRepository.findAll();\\n        return findAll;" }}
               \`\`\`
             `),
           },

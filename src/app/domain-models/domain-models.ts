@@ -488,61 +488,6 @@ export class TableModel {
 //   // 'DomainDrivenDesign',
 // ];
 
-// const domainModel = DomainModelManager.loadModels();
-
-// console.log(JSON.stringify(domainModel, null, 4));
-// console.log(domainModel.getEntityTable());
-
-
-
-
-
-
-
-
-
-// const jsonData = JSON.parse('{"Employee":{"Attributes":{"id":"int","name":"EmployeeName","contactDetails":"ContactDetails","position":"Position","department":"Department","team":"Team","employmentType":"EmploymentType","attendanceRecords":"List<AttendanceRecord>","salary":"Salary","performanceEvaluations":"List<PerformanceEvaluation>","trainingHistory":"List<TrainingHistory>"},"Methods":{"register":{"args":{"name":"EmployeeName","contactDetails":"ContactDetails","position":"Position","department":"Department","team":"Team","employmentType":"EmploymentType"},"returnType":"void"},"updateInfo":{"args":{"name":"EmployeeName","contactDetails":"ContactDetails","position":"Position","department":"Department","team":"Team","employmentType":"EmploymentType"},"returnType":"void"},"delete":{"args":{},"returnType":"void"}}},"EmploymentType":{"Attributes":{"id":"int","name":"String"},"Methods":{"create":{"args":{"name":"String"},"returnType":"void"},"update":{"args":{"name":"String"},"returnType":"void"},"delete":{"args":{},"returnType":"void"}}},"Position":{"Attributes":{"id":"int","name":"String"},"Methods":{"create":{"args":{"name":"String"},"returnType":"void"},"update":{"args":{"name":"String"},"returnType":"void"},"delete":{"args":{},"returnType":"void"}}},"Department":{"Attributes":{"id":"int","name":"String","teams":"List<Team>"},"Methods":{"create":{"args":{"name":"String"},"returnType":"void"},"update":{"args":{"name":"String"},"returnType":"void"},"delete":{"args":{},"returnType":"void"},"addTeam":{"args":{"team":"Team"},"returnType":"void"},"removeTeam":{"args":{"team":"Team"},"returnType":"void"}}},"Team":{"Attributes":{"id":"int","name":"String","department":"Department","employees":"List<Employee>"},"Methods":{"create":{"args":{"name":"String","department":"Department"},"returnType":"void"},"update":{"args":{"name":"String"},"returnType":"void"},"delete":{"args":{},"returnType":"void"},"addEmployee":{"args":{"employee":"Employee"},"returnType":"void"},"removeEmployee":{"args":{"employee":"Employee"},"returnType":"void"}}},' +
-
-
-// export interface Attribute { name: string; type: string; }
-// export interface Method { name: string; args: Attribute[]; returnType: string; }
-// export interface Entity { name: string; Attributes: Attribute[]; Methods: Method[]; }
-
-// function generateEntityClasses(jsonData: any): string[] {
-//     const entityClasses: string[] = [];
-//     for (const entityName in jsonData) {
-//         const entityData = jsonData[entityName];
-//         const attributes: Attribute[] = [];
-//         for (const attributeName in entityData.Attributes) {
-//             const attributeType = entityData.Attributes[attributeName];
-//             const attribute: Attribute = {
-//                 name: attributeName,
-//                 type: attributeType,
-//             };
-//             attributes.push(attribute);
-//         }
-//         let classCode = `import javax.persistence.*;\n\n`;
-//         classCode += `@Entity\n`;
-//         classCode += `@Table(name = "${Utils.toSnakeCase(entityName)}")\n`;
-//         classCode += `public class ${entityName} {\n\n`;
-//         attributes.forEach(attribute => {
-//             classCode += `    @Column\n`;
-//             classCode += `    private ${attribute.type} ${attribute.name};\n\n`;
-//         });
-//         classCode += `    // getters and setters\n\n`;
-//         classCode += `}\n`;
-// @OneToOne(cascade = CascadeType.ALL)
-// @JoinColumn(name = "contact_details_id")
-// private ContactDetails contactDetails;
-
-
-//         const entityClass = entity.generateEntityClass();
-//         entityClasses.push(entityClass);
-//     }
-//     return entityClasses;
-// }
-// generateEntityClasses()
-
 export function genEntityAndRepository() {
     const model = DomainModel.loadModels();
 
@@ -624,22 +569,6 @@ export function genEntityAndRepository() {
         fs.mkdirSync(`./gen/src/main/java/com/example/demo/entity`, { recursive: true });
         fs.writeFileSync(`./gen/src/main/java/com/example/demo/entity/${entityName}.java`, classCode);
 
-
-        // repository
-        classCode = ``;
-        classCode += `package ${packageName}.repository;\n`;
-        classCode += `\n`;
-        classCode += `import ${packageName}.entity.${entityName};\n`;
-        classCode += `import org.springframework.data.jpa.repository.JpaRepository;\n`;
-        classCode += `import org.springframework.stereotype.Repository;\n`;
-        classCode += `\n`;
-        classCode += `@Repository\n`;
-        classCode += `public interface ${entityName}Repository extends JpaRepository<${entityName}, Integer> {\n`;
-        classCode += `\n`;
-        classCode += `}\n`;
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/repository`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/repository/${entityName}Repository.java`, classCode);
-
         return classCode;
     }).join('\n\n');
 
@@ -667,8 +596,8 @@ export function genEntityAndRepository() {
         return classCode;
     }).join('\n\n');
 
-    // API用Attributes設定
-    interface API { endpoint: string, method: string, pathVariable: string, request: string, response: string, description: string, }
+    // API用json定義読み込み
+    interface API { endpoint: string, method: string, pathVariable: string, request: string, validation: string, response: string, description: string, }
     const apiObj = Object.keys(model.BoundedContexts).reduce(
         (apiObj: { [key: string]: { [key: string]: API } }, boundedContextName: string) => {
             boundedContextName = Utils.toPascalCase(boundedContextName);
@@ -735,8 +664,9 @@ export function genEntityAndRepository() {
         classCode += `\n`;
         classCode += `import org.springframework.web.bind.annotation.*;\n`;
         classCode += `import ${packageName}.entity.*;\n`;
-        classCode += `import lombok.Data;\n`;
+        classCode += `import jakarta.validation.constraints.*;\n`;
         classCode += `import java.util.*;\n`;
+        classCode += `import lombok.Data;\n`;
         classCode += `\n`;
         classCode += `public interface ${apiName} {\n\n`;
 
@@ -751,7 +681,7 @@ export function genEntityAndRepository() {
                 serviceParamAry = Object.keys(type).map((key: string) => key);
             } { }
             if (api.request) {
-                classCode += typeToInterface(requestType, convertStringToJson(api.request));
+                classCode += typeToInterface(requestType, convertStringToJson(api.request), convertStringToJson(api.validation));
                 controllerParamAry.push(`${requestType} requestBody`);
                 serviceParamAry.push(`requestBody`);
             } else { }
@@ -778,6 +708,7 @@ export function genEntityAndRepository() {
         classCode += `import ${packageName}.entity.*;\n`;
         classCode += `import ${packageName}.repository.*;\n`;
         classCode += `import java.util.*;\n`;
+        classCode += `import jakarta.validation.constraints.*;\n`;
         classCode += `import lombok.Data;\n`;
         classCode += `\n`;
         classCode += `@Service\n`;
@@ -805,7 +736,7 @@ export function genEntityAndRepository() {
                 serviceParamAry = Object.keys(type).map((key: string) => key);
             } { }
             if (api.request) {
-                classCode += typeToInterface(requestType, convertStringToJson(api.request));
+                classCode += typeToInterface(requestType, convertStringToJson(api.request), convertStringToJson(api.validation));
                 controllerParamAry.push(`${requestType} requestBody`);
                 serviceParamAry.push(`requestBody`);
             } else { }
@@ -821,10 +752,14 @@ export function genEntityAndRepository() {
         return classCode;
     }).join('\n\n');
 
+    const jpaMethods: { [key: string]: string[] } = {};
     // ServiceImpl実装
     Object.keys(apiObj).map((apiName: string) => {
 
         const impl = (Utils.jsonParse(fs.readFileSync(`${domainModelsDire}ServiceImplementation-${Utils.toPascalCase(apiName)}.json`, 'utf-8')) as any);
+        Object.keys(impl.additionalJPAMethods || {}).forEach((repositoryName: string) => {
+            jpaMethods[repositoryName] = [...(jpaMethods[repositoryName] || []), ...impl.additionalJPAMethods[repositoryName]];
+        });
 
         let classCode = ``;
         classCode += `package ${packageName}.service.impl;\n`;
@@ -839,7 +774,7 @@ export function genEntityAndRepository() {
         classCode += `import lombok.Data;\n`;
         classCode += `\n`;
         classCode += impl.additionalImports.map((importName: string) => `import ${importName};\n`).join('');
-        classCode += Object.keys(apiObj[apiName]).filter((methodName: string) => apiObj[apiName][methodName].request).map((methodName: string) => `import com.example.demo.service.${apiName}.${Utils.toPascalCase(methodName)}Request;\n`).join('');
+        classCode += Object.keys(apiObj[apiName]).filter((methodName: string) => apiObj[apiName][methodName].request).map((methodName: string) => `import ${packageName}.service.${apiName}.${Utils.toPascalCase(methodName)}Request;\n`).join('');
         classCode += `\n`;
         classCode += `@Service\n`;
         classCode += `public class ${apiName}Impl implements ${apiName} {\n\n`;
@@ -857,7 +792,7 @@ export function genEntityAndRepository() {
 
         Object.keys(apiObj[apiName]).forEach((methodName: string) => {
             const api = apiObj[apiName][methodName];
-            const requestType = `${apiName}.${Utils.toPascalCase(methodName)}Request`;
+            const requestType = `${Utils.toPascalCase(methodName)}Request`;
             let controllerParamAry: string[] = [];
             let serviceParamAry: string[] = [];
             if (api.pathVariable) {
@@ -867,7 +802,7 @@ export function genEntityAndRepository() {
             } { }
             if (api.request) {
                 // classCode += typeToInterface(requestType, convertStringToJson(api.request));
-                controllerParamAry.push(`${apiName}.${requestType} requestBody`);
+                controllerParamAry.push(`${requestType} requestBody`);
                 serviceParamAry.push(`requestBody`);
             } else { }
 
@@ -891,17 +826,48 @@ export function genEntityAndRepository() {
         fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/impl/${apiName}Impl.java`, classCode);
         return classCode;
     }).join('\n\n');
+
+    // repository
+    const repository = Object.keys(model.Entities).map((entityName: string) => {
+        let classCode = '';
+        classCode = ``;
+        classCode += `package ${packageName}.repository;\n`;
+        classCode += `\n`;
+        // classCode += `import ${packageName}.entity.${entityName};\n`;
+        classCode += `import ${packageName}.entity.*;\n`;
+        classCode += `import java.util.List;\n`;
+        classCode += `import java.util.Optional;\n`;
+        classCode += `import org.springframework.data.jpa.repository.JpaRepository;\n`;
+        classCode += `import org.springframework.stereotype.Repository;\n`;
+        classCode += `\n`;
+        classCode += `@Repository\n`;
+        classCode += `public interface ${entityName}Repository extends JpaRepository<${entityName}, Integer> {\n`;
+        classCode += (jpaMethods[`${entityName}Repository`] || []).map((methodSignature: string) => `    public ${methodSignature};`).join('\n');
+        classCode += `\n`;
+        classCode += `}\n`;
+        fs.mkdirSync(`./gen/src/main/java/com/example/demo/repository`, { recursive: true });
+        fs.writeFileSync(`./gen/src/main/java/com/example/demo/repository/${entityName}Repository.java`, classCode);
+        return classCode;
+    }).join('\n\n');
+    // console.log(jpaMethods);
 }
-function typeToInterface(className: string, obj: { [key: string]: any }, layer: number = 0) {
+function typeToInterface(className: string, obj: { [key: string]: any }, api: { [key: string]: any }, layer: number = 0) {
     let classCode = ``;
     const indent = '    ';
     classCode += `${indent.repeat(layer + 1)}@Data\n`;
     classCode += `${indent.repeat(layer + 1)}public static class ${className} {\n`;
+    // console.log(api);
     Object.keys(obj).forEach(key => {
         if (typeof obj[key] === 'object') {
-            classCode += typeToInterface(Utils.toPascalCase(key), obj[key], layer + 1);
+            // console.log(key);
+            classCode += typeToInterface(Utils.toPascalCase(key), obj[key], api, layer + 1);
             classCode += `${indent.repeat(layer + 2)}private ${Utils.toPascalCase(key)} ${key};\n`;
         } else {
+            // constraint
+            JSON.parse((api[key] || '[]').replace(/'/g, '"')).forEach((validation: string) => {
+                classCode += `${indent.repeat(layer + 2)}${validation}\n`;
+            });
+            // classCode += `${indent.repeat(layer + 2)}private ${Utils.toPascalCase(toJavaClass(obj[key]))} ${key};\n`;
             classCode += `${indent.repeat(layer + 2)}private ${Utils.toPascalCase(toJavaClass(obj[key]))} ${key};\n`;
         }
     });
@@ -947,7 +913,7 @@ function toJavaClass(type: string): string {
         .replace('short', 'Short')
         .replace('byte', 'Byte')
         .replace('char', 'Character')
-        .replace('void', 'Void')
+        .replace('void', 'void')
         .replace('object', 'Object')
         .replace('Object', 'byte[]')
         .replace('integer', 'Integer')
@@ -1017,75 +983,6 @@ function stringToEnum<T extends string>(str: string, enumObj: { [key: string]: T
     throw new Error(`Unexpected enum: ${str} in ${enumValues} `);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// 2023-05-26T03:54:46.686+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.686+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_b4efrhyqk5dmblysn7xf7qo68" of relation "absence_request" does not exist, skipping
-// 2023-05-26T03:54:46.694+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.694+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_jjfhk1hnymo8swl734mrym9fi" of relation "attendance_record_absence_requests" does not exist, skipping
-// 2023-05-26T03:54:46.700+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.700+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_ekqx4q5o3pkdv9des9vacadx3" of relation "attendance_record_leave_requests" does not exist, skipping
-// 2023-05-26T03:54:46.706+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.707+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_5mruup9hmv4bhgyo94d17bif" of relation "dashboard_reports" does not exist, skipping
-// 2023-05-26T03:54:46.713+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.713+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_jb3km7rfxg17eerlf04174axb" of relation "department_teams" does not exist, skipping
-// 2023-05-26T03:54:46.719+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.720+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_hr5ovw667hkx0jl5cmyo66wb8" of relation "employee" does not exist, skipping
-// 2023-05-26T03:54:46.725+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.726+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_o1pwi5xuhx54ki6qgm8igygiy" of relation "employee" does not exist, skipping
-// 2023-05-26T03:54:46.732+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.733+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_6o1mvrxpyqmb7haarvayfcn5j" of relation "employee" does not exist, skipping
-// 2023-05-26T03:54:46.739+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.739+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_2w7fjaj0v5xnxeup7mwddestc" of relation "employee" does not exist, skipping
-// 2023-05-26T03:54:46.745+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.746+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_egstclw344rualkm39e6s575g" of relation "employee_attendance_records" does not exist, skipping
-// 2023-05-26T03:54:46.752+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.753+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_rfutdg860kr6canvnwvsp1kr3" of relation "employee_performance_evaluations" does not exist, skipping
-// 2023-05-26T03:54:46.759+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.759+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_r1mpgeykb4bnqkmbuyuy8yx9p" of relation "employee_training_history" does not exist, skipping
-// 2023-05-26T03:54:46.765+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.766+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_r9j8669vqh6j6ct4vwj7pmyf9" of relation "feedback" does not exist, skipping
-// 2023-05-26T03:54:46.772+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.772+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_6xv8dl5wxoug5of6svw950pjr" of relation "feedback" does not exist, skipping
-// 2023-05-26T03:54:46.778+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.800+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_g1hrokrjcbt9dttatq7v6vfjk" of relation "growth_plan" does not exist, skipping
-// 2023-05-26T03:54:46.807+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.807+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_blx4dctja7mghn1tf3vqjjr1q" of relation "leave_request" does not exist, skipping
-// 2023-05-26T03:54:46.813+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.813+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_fecd8x6kh0mkr8fmcr3xebmkm" of relation "performance_evaluation" does not exist, skipping
-// 2023-05-26T03:54:46.819+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.820+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_4yn4vwtgs9ypl4gss3r5qvs4v" of relation "performance_evaluation_feedback" does not exist, skipping
-// 2023-05-26T03:54:46.825+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.826+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_fn436uxx2yh1tin5mou2x7l61" of relation "performance_evaluation_performance_goals" does not exist, skipping
-// 2023-05-26T03:54:46.831+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.832+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_geiiljhf05nlffmioxap27d0s" of relation "performance_goal" does not exist, skipping
-// 2023-05-26T03:54:46.837+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.838+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_nj7cnkmj2erls2orbun4e08s" of relation "salary" does not exist, skipping
-// 2023-05-26T03:54:46.845+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.845+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_mih9rvj7sl4surrjp8ffohsur" of relation "salary_salary_payments" does not exist, skipping
-// 2023-05-26T03:54:46.851+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.851+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_fildivt3njtlx85urhswn3qbv" of relation "skill_matrix" does not exist, skipping
-// 2023-05-26T03:54:46.857+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.858+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_p23cm1sniyq843ffd71rcjrsc" of relation "team_employees" does not exist, skipping
-// 2023-05-26T03:54:46.864+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.865+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_rpgboa35j548hpukutbgjvoei" of relation "training_history" does not exist, skipping
-// 2023-05-26T03:54:46.871+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Warning Code: 0, SQLState: 00000
-// 2023-05-26T03:54:46.871+09:00  WARN 41100 --- [  restartedMain] o.h.engine.jdbc.spi.SqlExceptionHelper   : constraint "uk_k1y0fv644ro3y6qtbg3w2pybu" of relation "training_schedule" does not exist, skipping
 
 //  DROP TABLE absence_request                            CASCADE ;
 //  DROP TABLE attendance_record                          CASCADE ;
