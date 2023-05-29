@@ -556,7 +556,8 @@ export function genEntityAndRepository() {
         classCode += `\n`;
         classCode += `import jakarta.persistence.*;\n`;
         classCode += `import lombok.Data;\n`;
-        classCode += `import java.util.*;\n`;
+        classCode += `import java.util.Date;\n`;
+        classCode += `import java.sql.Time;\n`;
         classCode += `import java.time.*;\n`;
         classCode += `import java.util.List;\n`;
         classCode += `\n`;
@@ -648,7 +649,8 @@ export function genEntityAndRepository() {
         classCode += `package ${packageName}.entity;\n`;
         classCode += `\n`;
         classCode += `import jakarta.persistence.*;\n`;
-        classCode += `import java.util.*;\n`;
+        classCode += `import java.util.Date;\n`;
+        classCode += `import java.sql.Time;\n`;
         classCode += `import java.time.*;\n`;
         classCode += `import lombok.Data;\n`;
         classCode += `\n`;
@@ -715,7 +717,7 @@ export function genEntityAndRepository() {
             } else { }
 
             classCode += `    @${Utils.toPascalCase(api.method)}Mapping("${api.endpoint.replace(/\/api\/v1\//g, '/')}")\n`;
-            classCode += `    private ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            classCode += `    private ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             classCode += `    }\n`;
         });
@@ -754,7 +756,7 @@ export function genEntityAndRepository() {
                 serviceParamAry.push(`requestBody`);
             } else { }
 
-            classCode += `    public ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) ;\n\n`;
+            classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) ;\n\n`;
             // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             // classCode += `        // TODO implementation\n`;
             // classCode += `    }\n`;
@@ -808,7 +810,7 @@ export function genEntityAndRepository() {
                 serviceParamAry.push(`requestBody`);
             } else { }
 
-            classCode += `    public ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             classCode += `        // TODO implementation\n`;
             classCode += `    }\n`;
@@ -872,10 +874,11 @@ export function genEntityAndRepository() {
             classCode += `    @Override\n`;
             if ((impl.methods[methodName] || '').trim().startsWith('public ') || (impl.methods[methodName] || '').trim().startsWith('@')) {
             } else {
-                classCode += `    public ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+                classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             }
             // classCode += `    private ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             classCode += `${(impl.methods[methodName] || '').replace(/^(.*)$/gm, `    $1`)}\n`;
+            // .replace(/([a-z0-9])Id\(/g, '$1ID(').replace(/\.findByID\(/g, '.findById(')
             // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             // classCode += `        // TODO implementation\n`;
             if ((impl.methods[methodName] || '').trim().startsWith('public ') || (impl.methods[methodName] || '').trim().startsWith('@')) {
@@ -899,7 +902,7 @@ function typeToInterface(className: string, obj: { [key: string]: any }, layer: 
             classCode += typeToInterface(Utils.toPascalCase(key), obj[key], layer + 1);
             classCode += `${indent.repeat(layer + 2)}private ${Utils.toPascalCase(key)} ${key};\n`;
         } else {
-            classCode += `${indent.repeat(layer + 2)}private ${Utils.toPascalCase(obj[key] === 'int' ? 'integer' : obj[key])} ${key};\n`;
+            classCode += `${indent.repeat(layer + 2)}private ${Utils.toPascalCase(toJavaClass(obj[key]))} ${key};\n`;
         }
     });
     classCode += `${indent.repeat(layer + 1)}}\n`;
@@ -923,6 +926,13 @@ function convertStringToJson(input: string): { [key: string]: any } {
 
 
 function toJavaClass(type: string): string {
+    type = type || 'void';
+    if (type.startsWith('list[')) {
+        type = type.replace('list[', 'List<').replace(']', '>')
+    } else { }
+    if (type.endsWith('[]') || type.endsWith('<>')) {
+        type = `List<${type.substring(0, type.length - 2)}>`;
+    } else { }
     return type
         .replace('list[', 'List<').replace(']', '>')
         .replace('string', 'String')
@@ -1114,3 +1124,5 @@ function stringToEnum<T extends string>(str: string, enumObj: { [key: string]: T
 //  DROP TABLE training_history                           CASCADE ;
 //  DROP TABLE training_program                           CASCADE ;
 //  DROP TABLE training_schedule                          CASCADE ;
+
+genEntityAndRepository();
