@@ -1125,4 +1125,4 @@ function stringToEnum<T extends string>(str: string, enumObj: { [key: string]: T
 //  DROP TABLE training_program                           CASCADE ;
 //  DROP TABLE training_schedule                          CASCADE ;
 
-genEntityAndRepository();
+// genEntityAndRepository();
