@@ -55,7 +55,7 @@ class Step0000_RequirementsToDomainModels extends BaseStep {
   }
 }
 
-class Step0003_RequirementsToSystemOverview extends BaseStep {
+class Step0005_RequirementsToSystemOverview extends BaseStep {
   model = 'gpt-4';
   constructor() {
     super();
@@ -77,7 +77,7 @@ class Step0003_RequirementsToSystemOverview extends BaseStep {
 }
 
 
-class Step0010_DomainModelsClassify extends BaseStep {
+class Step0010_DomainModelsInitialize extends BaseStep {
   // model = 'gpt-4';
   model = 'gpt-4-0314';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
@@ -123,7 +123,7 @@ class Step0010_DomainModelsClassify extends BaseStep {
     ];
   }
 }
-class Step0011_DomainModelsClassify extends BaseStep {
+class Step0020_DomainModelsClassify extends BaseStep {
   model = 'gpt-4-0314';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
   constructor() {
@@ -133,7 +133,7 @@ class Step0011_DomainModelsClassify extends BaseStep {
     this.chapters = [
       { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
       { title: 'Domain Models Base', content: new Step0000_RequirementsToDomainModels().result },
-      { title: 'Domain Models Refined', content: new Step0010_DomainModelsClassify().result },
+      { title: 'Domain Models Refined', content: new Step0010_DomainModelsInitialize().result },
       {
         title: 'System Requirements', content: Utils.trimLines(`
         - Server Side Framework: Spring Boot (JPA, Web, Batch, Security, Actuator, Lombok, MapStruct, etc.)
@@ -179,174 +179,183 @@ class Step0011_DomainModelsClassify extends BaseStep {
   }
 }
 
+class Step0030_domainModelsJson extends MultiStep {
 
-
-class Step0020_domainModelsJson extends BaseStep {
-  // model = 'gpt-4';
-  dire: string;
-  constructor(private pattern: string = 'Entities', private boundedContext: string = '') {
+  constructor() {
     super();
-    this.label = `${this.constructor.name}_${pattern}`;
 
-    // export interface BoundedContext { name: string; Entities: Entity[]; ValueObjects: ValueObject[]; Aggregates: Aggrigate[]; DomainServices: DomainService[]; DomainEvents: DomainEvents[]; }
-    const formatMap: { [key: string]: string } = {
-      Entities: '{"${EntityName}": {"Attributes": {"${name}": "${type}"},"Methods": {"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"},"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
-      ValueObjects: '{"${ValueObjectName}": {"${name}": "${type}","${name}": "${type}"}}',
-      Aggregates: '{"${AggregateName}": {"RootEntity": "${EntityName}","Entities": ["${EntityName}"],"ValueObjects": ["${ValueObjectName}"]}}',
+    class Step0030_domainModelsJsonChil extends BaseStep {
+      // model = 'gpt-4';
+      dire: string;
+      constructor(private pattern: string) {
+        super();
+        this.label = `${this.constructor.name}_${pattern}`;
 
-      DomainEvents: '{"${EventyName}": {"description":"${EventTrigger and behavior}","Attributes": {"${name}": "${type}"},"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
-      DomainServices: '{"${DomainServiceName}": {"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
+        // export interface BoundedContext { name: string; Entities: Entity[]; ValueObjects: ValueObject[]; Aggregates: Aggrigate[]; DomainServices: DomainService[]; DomainEvents: DomainEvents[]; }
+        const formatMap: { [key: string]: string } = {
+          Entities: '{"${EntityName}": {"Attributes": {"${name}": "${type}"},"Methods": {"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"},"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
+          ValueObjects: '{"${ValueObjectName}": {"${name}": "${type}","${name}": "${type}"}}',
+          Aggregates: '{"${AggregateName}": {"RootEntity": "${EntityName}","Entities": ["${EntityName}"],"ValueObjects": ["${ValueObjectName}"]}}',
 
-      Repositories: '{"${RepositoryName}": {"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
+          DomainEvents: '{"${EventyName}": {"description":"${EventTrigger and behavior}","Attributes": {"${name}": "${type}"},"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
+          DomainServices: '{"${DomainServiceName}": {"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
 
-      BoundedContexts: '{"${BoundedContextName}":{"Entities":["${entityName}"],"ValueObjects":["${valueObjectName}"],"Aggregates":["${aggrigateName}"],"DomainServices":["${domainServiceName}"],"DomainEvents":["${domainEventName}"]},}',
-      ContextMappings: `[{"type": "\${${Object.values(ContextMapRelationshipType).join('|')}}","source": "\${BoundedContextName}","target": "\${BoundedContextName}",}]`,
+          Repositories: '{"${RepositoryName}": {"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
 
-      BatchJobs: '{"${BatchJobName}": {"description":"${BatchJobTrigger and behavior}","Attributes": {"${name}": "${type}"},"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
-      Relationships: `[{"type": "\${${Object.values(RelationshipType).join('|')}}","source": "\${(Entity|ValueObject)Name}","target": "\${(Entity|ValueObject)Name}",}]`,
-    };
+          BoundedContexts: '{"${BoundedContextName}":{"Entities":["${entityName}"],"ValueObjects":["${valueObjectName}"],"Aggregates":["${aggrigateName}"],"DomainServices":["${domainServiceName}"],"DomainEvents":["${domainEventName}"]},}',
+          ContextMappings: `[{"type": "\${${Object.values(ContextMapRelationshipType).join('|')}}","source": "\${BoundedContextName}","target": "\${BoundedContextName}",}]`,
 
-    const step0010 = ['Entities', 'ValueObjects', 'Aggregates', 'Repositories', 'DomainServices',];
-    const step0011 = ['DomainEvents', 'BatchJobs', 'Relationships', 'BoundedContexts', 'ContextMapping',];
-    // const domainModelString = step0010.includes(pattern) ? new Step0010_DomainModelsClassify().result : new Step0011_DomainModelsClassify().result;
-    const domainModelString = new Step0010_DomainModelsClassify().result + '\n\n' + new Step0011_DomainModelsClassify().result;
+          BatchJobs: '{"${BatchJobName}": {"description":"${BatchJobTrigger and behavior}","Attributes": {"${name}": "${type}"},"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
+          Relationships: `[{"type": "\${${Object.values(RelationshipType).join('|')}}","source": "\${(Entity|ValueObject)Name}","target": "\${(Entity|ValueObject)Name}",}]`,
+        };
 
-    this.chapters = [
-      // { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
-      // { title: 'Domain Models', content: new Step0000_RequirementsToDomainModels().result },
-      { title: 'Domain Models', content: domainModelString },
-      {
-        title: 'prompt',
-        contentJp: Utils.trimLines(`
-          リテラルはJavaの表現を利用してください。
-          ドメインモデルから${pattern}を抽出して以下のJSON形式に変換してください。
-          ${formatMap[pattern]}
-        `),
-        content: Utils.trimLines(`
-          Literals should use Java expressions.
-          Please extract the ${pattern} from the domain model and convert them to the following JSON format.
-          ${formatMap[pattern]}
-        `)
-      },
-    ];
+        const step0010 = ['Entities', 'ValueObjects', 'Aggregates', 'Repositories', 'DomainServices',];
+        const step0011 = ['DomainEvents', 'BatchJobs', 'Relationships', 'BoundedContexts', 'ContextMapping',];
+        // const domainModelString = step0010.includes(pattern) ? new Step0010_DomainModelsInitialize().result : new Step0020_DomainModelsClassify().result;
+        const domainModelString = new Step0010_DomainModelsInitialize().result + '\n\n' + new Step0020_DomainModelsClassify().result;
 
-    ////////////////// 
-    this.dire = `./gen/domain-models/`;
-    if (fs.existsSync(this.dire)) {
-    } else {
-      fs.mkdirSync(this.dire, { recursive: true });
-      console.log(`Directory ${this.dire} created.`);
-    }
-  }
-  postProcess(result: string): string {
-    try {
-      fs.writeFileSync(`${this.dire}${this.pattern}.json`, Utils.mdTrim(result));
-    } catch (e) {
-      if (this.pattern == DomainModelPattern.BatchJobs) {
-        console.log(`BatchJobsは空`);
-      } else {
-        console.log(e);
+        this.chapters = [
+          // { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
+          // { title: 'Domain Models', content: new Step0000_RequirementsToDomainModels().result },
+          { title: 'Domain Models', content: domainModelString },
+          {
+            title: 'prompt',
+            contentJp: Utils.trimLines(`
+              リテラルはJavaの表現を利用してください。
+              ドメインモデルから${pattern}を抽出して以下のJSON形式に変換してください。
+              ${formatMap[pattern]}
+            `),
+            content: Utils.trimLines(`
+              Literals should use Java expressions.
+              Please extract the ${pattern} from the domain model and convert them to the following JSON format.
+              ${formatMap[pattern]}
+            `)
+          },
+        ];
+
+        ////////////////// 
+        this.dire = `./gen/domain-models/`;
+        if (fs.existsSync(this.dire)) {
+        } else {
+          fs.mkdirSync(this.dire, { recursive: true });
+          console.log(`Directory ${this.dire} created.`);
+        }
+      }
+      postProcess(result: string): string {
+        try {
+          fs.writeFileSync(`${this.dire}${this.pattern}.json`, Utils.mdTrim(result));
+        } catch (e) {
+          if (this.pattern == DomainModelPattern.BatchJobs) {
+            console.log(`BatchJobsは空`);
+          } else {
+            console.log(e);
+          }
+        }
+        return result;
       }
     }
-    return result;
-  }
-  static genSteps() {
-    return Object.values(DomainModelPattern).filter((pattern) => ![DomainModelPattern.Entities, DomainModelPattern.DomainServices].includes(pattern)).map((pattern) => new Step0020_domainModelsJson(pattern));
+    this.childStepList = Object.values(DomainModelPattern).filter((pattern) => ![DomainModelPattern.Entities, DomainModelPattern.DomainServices].includes(pattern)).map((pattern) => new Step0030_domainModelsJsonChil(pattern));
   }
 }
 
-class Step0021_domainModelEntitysJson extends BaseStep {
-  // model = 'gpt-4';
-  dire: string;
-  constructor(private pattern: string = 'Entities', private boundedContext: string = '') {
+class Step0040_domainModelEntitysJson extends MultiStep {
+  constructor() {
     super();
-    this.label = `${this.constructor.name}_${pattern}-${Utils.toPascalCase(this.boundedContext)}`;
 
-    const formatMap: { [key: string]: string } = {
-      Entities: '{"${EntityName}": {"Attributes": {"${name}": "${type}"},"Methods": {"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"},"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
-      ValueObjects: '{"${ValueObjectName}": {"${name}": "${type}","${name}": "${type}"}}',
-      Aggregates: '{"${AggregateName}": {"RootEntity": "${EntityName}","Entities": ["${EntityName}"],"ValueObjects": ["${ValueObjectName}"]}}',
+    class Step0040_domainModelEntitysJsonChil extends BaseStep {
+      // model = 'gpt-4';
+      dire: string;
+      constructor(private pattern: string = 'Entities', private boundedContext: string = '') {
+        super();
+        this.label = `${this.constructor.name}_${pattern}-${Utils.toPascalCase(this.boundedContext)}`;
 
-      DomainEvents: '{"${EventyName}": {"description":"${EventTrigger and behavior}","Attributes": {"${name}": "${type}"},"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
-      DomainServices: '{"${DomainServiceName}": {"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
+        const formatMap: { [key: string]: string } = {
+          Entities: '{"${EntityName}": {"Attributes": {"${name}": "${type}"},"Methods": {"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"},"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
+          ValueObjects: '{"${ValueObjectName}": {"${name}": "${type}","${name}": "${type}"}}',
+          Aggregates: '{"${AggregateName}": {"RootEntity": "${EntityName}","Entities": ["${EntityName}"],"ValueObjects": ["${ValueObjectName}"]}}',
 
-      Repositories: '{"${RepositoryName}": {"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
+          DomainEvents: '{"${EventyName}": {"description":"${EventTrigger and behavior}","Attributes": {"${name}": "${type}"},"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
+          DomainServices: '{"${DomainServiceName}": {"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
 
-      BoundedContexts: '{"${BoundedContextName}":{"Entities":["${entityName}"],"ValueObjects":["${valueObjectName}"],"Aggregates":["${aggrigateName}"],"DomainServices":["${domainServiceName}"],"DomainEvents":["${domainEventName}"]},}',
-      ContextMappings: `[{"type": "\${${Object.values(ContextMapRelationshipType).join('|')}}","source": "\${BoundedContextName}","target": "\${BoundedContextName}",}]`,
+          Repositories: '{"${RepositoryName}": {"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
 
-      BatchJobs: '{"${BatchJobName}": {"description":"${BatchJobTrigger and behavior}","Attributes": {"${name}": "${type}"},"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
-      Relationships: `[{"type": "\${${Object.values(RelationshipType).join('|')}}","source": "\${(Entity|ValueObject)Name}","target": "\${(Entity|ValueObject)Name}",}]`,
-    };
+          BoundedContexts: '{"${BoundedContextName}":{"Entities":["${entityName}"],"ValueObjects":["${valueObjectName}"],"Aggregates":["${aggrigateName}"],"DomainServices":["${domainServiceName}"],"DomainEvents":["${domainEventName}"]},}',
+          ContextMappings: `[{"type": "\${${Object.values(ContextMapRelationshipType).join('|')}}","source": "\${BoundedContextName}","target": "\${BoundedContextName}",}]`,
 
-    const step0010 = ['Entities', 'ValueObjects', 'Aggregates', 'Repositories', 'DomainServices',];
-    const step0011 = ['DomainEvents', 'BatchJobs', 'Relationships', 'BoundedContexts', 'ContextMapping',];
-    // const domainModelString = step0010.includes(pattern) ? new Step0010_DomainModelsClassify().result : new Step0011_DomainModelsClassify().result;
-    const domainModelString = new Step0010_DomainModelsClassify().result + '\n\n' + new Step0011_DomainModelsClassify().result;
+          BatchJobs: '{"${BatchJobName}": {"description":"${BatchJobTrigger and behavior}","Attributes": {"${name}": "${type}"},"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
+          Relationships: `[{"type": "\${${Object.values(RelationshipType).join('|')}}","source": "\${(Entity|ValueObject)Name}","target": "\${(Entity|ValueObject)Name}",}]`,
+        };
 
-    this.chapters = [
-      { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
-      // { title: 'Domain Models', content: new Step0000_RequirementsToDomainModels().result },
-      {
-        title: 'System Requirements', content: Utils.trimLines(`
-        - Server Side Framework: Spring Boot (JPA, Web, Batch, Security, Actuator, Lombok, MapStruct, etc.)
-        - Frontend Framework: React (Chakra-UI, etc.)
-        - Database: PostgreSQL
-        - Infrastructure: AWS
-      `)
-      },
-      { title: 'Domain Models', content: domainModelString },
-      {
-        title: 'Instructions',
-        contentJp: Utils.trimLines(`
-          ドメインモデルを参照し、BoundexContextが"${boundedContext}"の${pattern}のみを抽出して以下のJSON形式に変換してください。
-          ${formatMap[pattern]}
-        `),
-        content: Utils.trimLines(`
-          Please refer to the domain model and extract only the ${pattern} of BoundexContext "${boundedContext}" and convert it to the following JSON format.
-          \`\`\`json
-          ${formatMap[pattern]}
-          \`\`\`
-        `)
-      },
-    ];
+        const step0010 = ['Entities', 'ValueObjects', 'Aggregates', 'Repositories', 'DomainServices',];
+        const step0011 = ['DomainEvents', 'BatchJobs', 'Relationships', 'BoundedContexts', 'ContextMapping',];
+        // const domainModelString = step0010.includes(pattern) ? new Step0010_DomainModelsInitialize().result : new Step0020_DomainModelsClassify().result;
+        const domainModelString = new Step0010_DomainModelsInitialize().result + '\n\n' + new Step0020_DomainModelsClassify().result;
 
-    ////////////////// 
-    this.dire = `./gen/domain-models/`;
-    if (fs.existsSync(this.dire)) {
-    } else {
-      fs.mkdirSync(this.dire, { recursive: true });
-      console.log(`Directory ${this.dire} created.`);
+        this.chapters = [
+          { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
+          // { title: 'Domain Models', content: new Step0000_RequirementsToDomainModels().result },
+          {
+            title: 'System Requirements', content: Utils.trimLines(`
+            - Server Side Framework: Spring Boot (JPA, Web, Batch, Security, Actuator, Lombok, MapStruct, etc.)
+            - Frontend Framework: React (Chakra-UI, etc.)
+            - Database: PostgreSQL
+            - Infrastructure: AWS
+          `)
+          },
+          { title: 'Domain Models', content: domainModelString },
+          {
+            title: 'Instructions',
+            contentJp: Utils.trimLines(`
+              ドメインモデルを参照し、BoundexContextが"${boundedContext}"の${pattern}のみを抽出して以下のJSON形式に変換してください。
+              ${formatMap[pattern]}
+            `),
+            content: Utils.trimLines(`
+              Please refer to the domain model and extract only the ${pattern} of BoundexContext "${boundedContext}" and convert it to the following JSON format.
+              \`\`\`json
+              ${formatMap[pattern]}
+              \`\`\`
+            `)
+          },
+        ];
+
+        ////////////////// 
+        this.dire = `./gen/domain-models/`;
+        if (fs.existsSync(this.dire)) {
+        } else {
+          fs.mkdirSync(this.dire, { recursive: true });
+          console.log(`Directory ${this.dire} created.`);
+        }
+      }
+      postProcess(result: string): string {
+        try {
+          fs.writeFileSync(`${this.dire}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json`, Utils.mdTrim(result));
+        } catch (e) {
+          console.log(e);
+        }
+        return result;
+      }
     }
-  }
-  postProcess(result: string): string {
-    try {
-      fs.writeFileSync(`${this.dire}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json`, Utils.mdTrim(result));
-    } catch (e) {
-      console.log(e);
-    }
-    return result;
-  }
-  static genSteps() {
-    const boundedContexts: { [key: string]: { Entities: string[] } } = Utils.jsonParse(new Step0020_domainModelsJson(DomainModelPattern.BoundedContexts).result);
-    return Object.keys(boundedContexts).map((boundedContextName) =>
+
+    const boundedContexts: { [key: string]: { Entities: string[] } } = Utils.jsonParse(fs.readFileSync(`./gen/domain-models/${DomainModelPattern.BoundedContexts}.json`, 'utf-8'));
+    this.childStepList = Object.keys(boundedContexts).map((boundedContextName) =>
       [DomainModelPattern.Entities, DomainModelPattern.DomainServices].map(pattern =>
-        new Step0021_domainModelEntitysJson(pattern, boundedContextName)
+        new Step0040_domainModelEntitysJsonChil(pattern, boundedContextName)
       )
     ).reduce((a, b) => a.concat(b), []);
   }
 }
 
-class Step0030_CreateEntity extends MultiStep {
+
+class Step0050_CreateEntity extends MultiStep {
   // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
   // model = 'gpt-4';
   // dire: string = `./gen/domain-models/`;
   constructor() {
     super();
-    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0003_RequirementsToSystemOverview().result);
+    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().result);
     const domainModel = DomainModel.loadModels();
 
-    class Step0030_CreateEntityChil extends BaseStep {
+    class Step0050_CreateEntityChil extends BaseStep {
       // model = 'gpt-4';
       dire: string = `./gen/domain-models/`;
       constructor(public boundedContext: BoundedContext) {
@@ -427,7 +436,7 @@ class Step0030_CreateEntity extends MultiStep {
         return result;
       }
     }
-    this.childStepList = Object.keys(domainModel.BoundedContexts).map(boundedContextName => new Step0030_CreateEntityChil(domainModel.BoundedContexts[boundedContextName]));
+    this.childStepList = Object.keys(domainModel.BoundedContexts).map(boundedContextName => new Step0050_CreateEntityChil(domainModel.BoundedContexts[boundedContextName]));
   }
   postProcess(result: string[]): string[] {
     return result;
@@ -435,16 +444,16 @@ class Step0030_CreateEntity extends MultiStep {
 }
 
 
-class Step0040_CreateService extends MultiStep {
+class Step0060_CreateService extends MultiStep {
   // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
   // model = 'gpt-4';
   // dire: string = `./gen/domain-models/`;
   constructor() {
     super();
-    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0003_RequirementsToSystemOverview().result);
+    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().result);
     const domainModel = DomainModel.loadModels();
 
-    class Step0040_CreateServiceChil extends BaseStep {
+    class Step0060_CreateServiceChil extends BaseStep {
       // model = 'gpt-4';
       dire: string = `./gen/domain-models/`;
       constructor(public serviceName: string) {
@@ -524,7 +533,7 @@ class Step0040_CreateService extends MultiStep {
     }
     this.childStepList = Object.keys(domainModel.DomainServices).filter((serviceName: string) =>
       Object.keys(domainModel.BoundedContexts).find((boundedContextName) => domainModel.BoundedContexts[boundedContextName].DomainServices[serviceName])
-    ).map(serviceName => new Step0040_CreateServiceChil(serviceName));
+    ).map(serviceName => new Step0060_CreateServiceChil(serviceName));
   }
   postProcess(result: string[]): string[] {
     return result;
@@ -542,36 +551,36 @@ export async function main() {
     obj.initPrompt();
     return obj.run();
   }).then(() => {
-    obj = new Step0003_RequirementsToSystemOverview();
+    obj = new Step0005_RequirementsToSystemOverview();
     obj.initPrompt();
     return obj.run();
   }).then(() => {
-    obj = new Step0010_DomainModelsClassify();
+    obj = new Step0010_DomainModelsInitialize();
     obj.initPrompt();
     return obj.run();
   }).then(() => {
-    obj = new Step0011_DomainModelsClassify();
+    obj = new Step0020_DomainModelsClassify();
     obj.initPrompt();
     return obj.run();
   }).then(() => {
-    obj = new MultiStep(Step0020_domainModelsJson.genSteps());
+    obj = new Step0030_domainModelsJson();
     obj.initPrompt();
     return obj.run();
   }).then(() => {
-    obj = new MultiStep(Step0021_domainModelEntitysJson.genSteps());
+    obj = new Step0040_domainModelEntitysJson();
     obj.initPrompt();
     return obj.run();
     // }).then(() => {
-    //   Step0021_domainModelEntitysJson.genSteps().forEach((step) => step.postProcess(step.result));
+    //   Step0040_domainModelEntitysJson.genSteps().forEach((step) => step.postProcess(step.result));
   }).then(() => {
-    obj = new Step0030_CreateEntity();
+    obj = new Step0050_CreateEntity();
     obj.initPrompt();
     return obj.run();
     // obj.childStepList.forEach((step) => step.postProcess(step.result));
   }).then(() => {
     genEntityAndRepository();
   }).then(() => {
-    obj = new Step0040_CreateService();
+    obj = new Step0060_CreateService();
     obj.initPrompt();
     return obj.run();
   }).then(() => {
