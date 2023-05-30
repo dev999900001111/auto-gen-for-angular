@@ -25,12 +25,13 @@ To run it, simply run src/main.ts.
 # Install libraries
 npm install
 # Run
-ts-node src/main.ts [angular|react|spring]
+# Usage: ts-node src/main.ts [angular|react|spring]
+ts-node src/main.ts spring
 ```
 
 
 ## cost
-The cost of the sample 000-requirements.md was about 300,000 tokens, or about $0.4 yen.
+The cost of the sample 000-requirements.md was about 300,000 tokens, or about $0.4.
 
 If you use GPT-4 for all source generators, it costs about $6.
 
@@ -38,7 +39,7 @@ If you use GPT-4 for all source generators, it costs about $6.
 ## Usage 
 The bottom of the generator.js file is where the steps are executed,
 
-Create a prompt with ``initPrompt'' and run it with ``run''.
+Create a prompt with `initPrompt` and run it with `run`.
 
 ```javascript
   obj = new Step000_RequirementsToComponentList();
