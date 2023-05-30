@@ -169,7 +169,7 @@ public class DemoApplication {
             let serviceParamAry: string[] = [];
             if (api.pathVariable) {
                 const type = convertStringToJson(api.pathVariable);
-                controllerParamAry = Object.keys(type).map((key: string) => `@PathVariable ${type[key]} ${key}`);
+                controllerParamAry = Object.keys(type).map((key: string) => `@PathVariable ${toJavaClass(type[key])} ${key}`);
                 serviceParamAry = Object.keys(type).map((key: string) => key);
             } { }
             if (api.request) {
@@ -178,16 +178,21 @@ public class DemoApplication {
                 controllerParamAry.push(`@Valid @RequestBody ${apiName}.${requestType} requestBody`);
                 serviceParamAry.push(`requestBody`);
             } else { }
+            let responseType = toJavaClass(api.response);
+            if (api.response && api.response.startsWith('{') && api.response.endsWith('}')) {
+                // classCode += typeToInterface(`${Utils.toPascalCase(methodName)}Response`, convertStringToJson(api.response), {});
+                responseType = `${apiName}.${Utils.toPascalCase(methodName)}Response`;
+            } else { }
 
             classCode += `    @${Utils.toPascalCase(api.method)}Mapping("${api.endpoint.replace(/\/api\/v1\//g, '/')}")\n`;
-            classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            classCode += `    public ${toJavaClass(responseType)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             if (toJavaClass(api.response) === 'void') {
                 // voidの場合は戻り値を返さない。
                 classCode += `        ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             } else {
                 classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             }
-            classCode += `    }\n`;
+            classCode += `    }\n\n`;
         });
         classCode += `}\n`;
         fs.mkdirSync(`./gen/src/main/java/com/example/demo/controller`, { recursive: true });
@@ -216,7 +221,7 @@ public class DemoApplication {
             let serviceParamAry: string[] = [];
             if (api.pathVariable) {
                 const type = convertStringToJson(api.pathVariable);
-                controllerParamAry = Object.keys(type).map((key: string) => `${type[key]} ${key}`);
+                controllerParamAry = Object.keys(type).map((key: string) => `${toJavaClass(type[key])} ${key}`);
                 serviceParamAry = Object.keys(type).map((key: string) => key);
             } { }
             if (api.request) {
@@ -225,7 +230,12 @@ public class DemoApplication {
                 serviceParamAry.push(`requestBody`);
             } else { }
 
-            classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) ;\n\n`;
+            let responseType = toJavaClass(api.response);
+            if (api.response && api.response.startsWith('{') && api.response.endsWith('}')) {
+                classCode += typeToInterface(`${Utils.toPascalCase(methodName)}Response`, convertStringToJson(api.response), {});
+                responseType = `${Utils.toPascalCase(methodName)}Response`;
+            } else { }
+            classCode += `    public ${responseType} ${methodName}(${controllerParamAry.join(', ')}) ;\n\n`;
             // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             // classCode += `        // TODO implementation\n`;
             // classCode += `    }\n`;
@@ -236,7 +246,7 @@ public class DemoApplication {
         return classCode;
     }).join('\n\n');
 
-    // ServiceImplひな形作成
+    // ServiceImplひな形作成(promptで使うだけ。実際の実装は別途)
     Object.keys(apiObj).map((apiName: string) => {
 
         let classCode = ``;
@@ -271,7 +281,7 @@ public class DemoApplication {
             let serviceParamAry: string[] = [];
             if (api.pathVariable) {
                 const type = convertStringToJson(api.pathVariable);
-                controllerParamAry = Object.keys(type).map((key: string) => `${type[key]} ${key}`);
+                controllerParamAry = Object.keys(type).map((key: string) => `${toJavaClass(type[key])} ${key}`);
                 serviceParamAry = Object.keys(type).map((key: string) => key);
             } { }
             if (api.request) {
@@ -280,10 +290,16 @@ public class DemoApplication {
                 serviceParamAry.push(`requestBody`);
             } else { }
 
+            let responseType = toJavaClass(api.response);
+            if (api.response && api.response.startsWith('{') && api.response.endsWith('}')) {
+                classCode += typeToInterface(`${Utils.toPascalCase(methodName)}Response`, convertStringToJson(api.response), {});
+                responseType = `${Utils.toPascalCase(methodName)}Response`;
+            } else { }
+
             classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             classCode += `        // TODO implementation\n`;
-            classCode += `    }\n`;
+            classCode += `    }\n\n`;
         });
         classCode += `}\n`;
         fs.mkdirSync(`./gen/src/main/java/com/example/demo/service/impl`, { recursive: true });
@@ -313,8 +329,13 @@ export function serviceImpl() {
         if (fs.existsSync(`${domainModelsDire}ServiceImplementation-${Utils.toPascalCase(apiName)}.json`)) {
             try { impl = (Utils.jsonParse(fs.readFileSync(`${domainModelsDire}ServiceImplementation-${Utils.toPascalCase(apiName)}.json`, 'utf-8')) as any); } catch (e) { return; }
         } else { return; }
+        // impl 正規化
+        impl.additionalImports = impl.additionalImports || [];
+        impl.additionalJPAMethods = impl.additionalJPAMethods || {};
+        impl.methods = impl.methods || {};
+
         // console.log(`ServiceImplementation-${Utils.toPascalCase(apiName)}.json`);
-        Object.keys(impl.additionalJPAMethods || {}).forEach((repositoryName: string) => {
+        Object.keys(impl.additionalJPAMethods).forEach((repositoryName: string) => {
             jpaMethods[repositoryName] = [...(jpaMethods[repositoryName] || []), ...impl.additionalJPAMethods[repositoryName]];
         });
 
@@ -354,13 +375,19 @@ export function serviceImpl() {
             let serviceParamAry: string[] = [];
             if (api.pathVariable) {
                 const type = convertStringToJson(api.pathVariable);
-                controllerParamAry = Object.keys(type).map((key: string) => `${type[key]} ${key}`);
+                controllerParamAry = Object.keys(type).map((key: string) => `${toJavaClass(type[key])} ${key}`);
                 serviceParamAry = Object.keys(type).map((key: string) => key);
             } { }
             if (api.request) {
                 // classCode += typeToInterface(requestType, convertStringToJson(api.request));
                 controllerParamAry.push(`${requestType} requestBody`);
                 serviceParamAry.push(`requestBody`);
+            } else { }
+
+            let responseType = toJavaClass(api.response);
+            if (api.response && api.response.startsWith('{') && api.response.endsWith('}')) {
+                classCode += typeToInterface(`${Utils.toPascalCase(methodName)}Response`, convertStringToJson(api.response), {});
+                responseType = `${Utils.toPascalCase(methodName)}Response`;
             } else { }
 
             classCode += `    @Override\n`;
@@ -375,7 +402,7 @@ export function serviceImpl() {
             // classCode += `        // TODO implementation\n`;
             if ((impl.methods[methodName] || '').trim().startsWith('public ') || (impl.methods[methodName] || '').trim().startsWith('@')) {
             } else {
-                classCode += `    }\n`;
+                classCode += `    }\n\n`;
             }
         });
         classCode += `}\n`;

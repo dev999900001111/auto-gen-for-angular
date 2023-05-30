@@ -120,6 +120,12 @@ export class DomainModel {
             });
         };
 
+        const boundedContexts: { [key: string]: BoundedContext } = {};
+        Object.keys(domainModelsRawMap.BoundedContexts).forEach(boundedContextName => {
+            boundedContexts[Utils.toPascalCase(boundedContextName)] = domainModelsRawMap.BoundedContexts[boundedContextName];
+        });
+        domainModelsRawMap.BoundedContexts = boundedContexts;
+
         // ValueObjects
         Object.keys(domainModelsRawMap.ValueObjects).forEach(valueObjectName => {
             const valueObjectRaw = domainModelsRawMap.ValueObjects[valueObjectName];
@@ -138,7 +144,6 @@ export class DomainModel {
 
         // Entities
         Object.keys(domainModelsRawMap.BoundedContexts).forEach(boundedContextName => {
-            boundedContextName = Utils.toPascalCase(boundedContextName);
             const key = `Entities-${boundedContextName}`;
             domainModelsRawMap[key] = Utils.jsonParse(fs.readFileSync(`${domainModelsDire}${key}.json`, 'utf-8'));
             Object.keys(domainModelsRawMap[key] || []).filter(entityName => {
@@ -174,7 +179,6 @@ export class DomainModel {
 
         // DomainServices
         Object.keys(domainModelsRawMap.BoundedContexts).forEach(boundedContextName => {
-            boundedContextName = Utils.toPascalCase(boundedContextName);
             const key = `DomainServices-${boundedContextName}`;
             domainModelsRawMap[key] = Utils.jsonParse(fs.readFileSync(`${domainModelsDire}${key}.json`, 'utf-8'));
             Object.keys(domainModelsRawMap[key] || []).forEach(domainServiceName => {
@@ -325,7 +329,6 @@ export class DomainModel {
     getAttributeTable(pattern: DomainModelPattern, domainModelParam: DomainModel | BoundedContext = this): string {
         let table = '';
         const domainModel: { [key: string]: any } = domainModelParam;
-
         if (DomainModelPattern.Aggregates === pattern) {
             table = Object.keys(domainModel.Aggregates).map((aggregateName: string) => {
                 const aggrigate = domainModel.Aggregates[aggregateName];

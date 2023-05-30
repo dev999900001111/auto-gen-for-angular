@@ -436,7 +436,9 @@ class Step0050_CreateEntity extends MultiStep {
         return result;
       }
     }
-    this.childStepList = Object.keys(domainModel.BoundedContexts).map(boundedContextName => new Step0050_CreateEntityChil(domainModel.BoundedContexts[boundedContextName]));
+    this.childStepList = Object.keys(domainModel.BoundedContexts).map(boundedContextName => {
+      return new Step0050_CreateEntityChil(domainModel.BoundedContexts[boundedContextName]);
+    });
   }
   postProcess(result: string[]): string[] {
     return result;
