@@ -167,8 +167,7 @@ public class DemoApplication {
         }, {}
     ) as { [key: string]: { [key: string]: API } };
     // console.log(JSON.stringify(apiObj, null, 4));
-
-    console.log(apiObj);
+    // console.log(apiObj);
 
     // Controller実装作成
     Object.keys(apiObj).map((apiName: string) => {
