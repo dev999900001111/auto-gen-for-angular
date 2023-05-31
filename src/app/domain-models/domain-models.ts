@@ -91,7 +91,8 @@ export class DomainModel {
         const domainModel: DomainModel = new DomainModel();
 
         const loadMethod = (rawObj: any): Method[] => {
-            const methods = rawObj['Methods'] || rawObj['methods'];
+            rawObj = rawObj || {};
+            const methods = rawObj['Methods'] || rawObj['methods'] || {};
             return Object.keys(methods).map(methodName => {
                 const methodRaw = methods[methodName];
                 const method: Method = {
@@ -103,7 +104,8 @@ export class DomainModel {
             });
         };
         const loadAttribute = (rawObj: any): Attribute[] => {
-            const attributes = rawObj['Attributes'] || rawObj['attributes'];
+            rawObj = rawObj || {};
+            const attributes = rawObj['Attributes'] || rawObj['attributes'] || {};
             return Object.keys(attributes).map(attributeName => {
                 return {
                     name: attributeName,
@@ -112,6 +114,7 @@ export class DomainModel {
             });
         };
         const loadArgs = (rawObj: any): Attribute[] => {
+            rawObj = rawObj || {};
             return Object.keys(rawObj['args']).map(argName => {
                 return {
                     name: argName,
@@ -233,7 +236,13 @@ export class DomainModel {
                     return entities;
                 }, {} as { [key: string]: ValueObject }),
                 Aggregates: (boundedContextRaw.Aggregates || []).reduce((aggregates: { [key: string]: Aggrigate }, name: string) => {
-                    aggregates[name] = domainModel.Aggregates[name]; return aggregates;
+                    // Aggregateは名前にAggregateがついたりつかなかったりするので両方受けられるようにしておく。
+                    if (name.includes('Aggregate')) {
+                        aggregates[name] = domainModel.Aggregates[name] || domainModel.Aggregates[name.replace(/Aggregate/g, '')];
+                    } else {
+                        aggregates[name] = domainModel.Aggregates[name] || domainModel.Aggregates[name + 'Aggregate'];
+                    }
+                    return aggregates;
                 }, {} as { [key: string]: Aggrigate }),
                 DomainServices: (boundedContextRaw.DomainServices || []).reduce((domainServices: { [key: string]: DomainService }, name: string) => {
                     domainServices[name] = domainModel.DomainServices[name]; return domainServices;

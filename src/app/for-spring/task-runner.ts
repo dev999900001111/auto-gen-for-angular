@@ -78,8 +78,8 @@ class Step0005_RequirementsToSystemOverview extends BaseStep {
 
 
 class Step0010_DomainModelsInitialize extends BaseStep {
-  // model = 'gpt-4';
-  model = 'gpt-4-0314';
+  model = 'gpt-4';
+  // model = 'gpt-3.5-turbo';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
   constructor() {
     super();
@@ -124,7 +124,8 @@ class Step0010_DomainModelsInitialize extends BaseStep {
   }
 }
 class Step0020_DomainModelsClassify extends BaseStep {
-  model = 'gpt-4-0314';
+  model = 'gpt-4';
+  // model = 'gpt-3.5-turbo';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
   constructor() {
     super();
@@ -278,7 +279,7 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
 
     class Step0040_domainModelEntityAndDomainServiceJsonChil extends BaseStep {
       // model = 'gpt-4';
-      dire: string;
+      dire: string = `./gen/domain-models/`;
       constructor(private pattern: string = 'Entities', private boundedContext: string = '') {
         super();
         this.label = `${this.constructor.name}_${pattern}-${Utils.toPascalCase(this.boundedContext)}`;
@@ -331,17 +332,15 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
             `)
           },
         ];
-
-        ////////////////// 
-        this.dire = `./gen/domain-models/`;
-        if (fs.existsSync(this.dire)) {
-        } else {
-          fs.mkdirSync(this.dire, { recursive: true });
-          console.log(`Directory ${this.dire} created.`);
-        }
+      }
+      preProcess(prompt: string): string {
+        if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
+        fs.writeFileSync(`${this.dire}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json.prompt.md`, this.prompt);
+        return prompt;
       }
       postProcess(result: string): string {
         try {
+          ////////////////// 
           fs.writeFileSync(`${this.dire}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json`, Utils.mdTrim(result));
         } catch (e) {
           console.log(e);
@@ -442,6 +441,14 @@ class Step0050_CreateAPI extends MultiStep {
           }
         ];
       }
+      preProcess(prompt: string): string {
+        // ディレクトリが無ければ掘る
+        if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
+        // ファイル書き込み
+        try { fs.writeFileSync(`${this.dire}API-${Utils.toPascalCase(this.boundedContext.name)}.json.prompt.md`, this.prompt); } catch (e) { console.log(e); }
+        return prompt;
+      }
+
       postProcess(result: string): string {
         // ディレクトリが無ければ掘る
         if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
@@ -500,35 +507,49 @@ class Step0060_CreateService extends MultiStep {
               { title: `${DomainModelPattern.Aggregates}`, content: domainModel.getAttributeTable(DomainModelPattern.Aggregates, boundedContext), },
             ]
           },
-          { title: `Sample Code`, content: '```java\n' + fs.readFileSync(`./gen/src/main/java/com/example/demo/service/${serviceName}.java.md`, 'utf-8') + '\n```' },
+          { title: `Base Code`, content: '```java\n' + fs.readFileSync(`./gen/src/main/java/com/example/demo/service/${serviceName}.java.md`, 'utf-8') + '\n```' },
           {
             title: `Instructions`,
             contentJp: Utils.trimLines(`
-              Requirements と Domain Modelsの内容を理解してSample Codeの"TODO implementation"の部分を作成してください。
+              Requirements と Domain Modelsの内容を理解してBase Code "${serviceName}"の全てのメソッドの実装を書いて下さい。
+              対象は以下の通りです。
+              - ${boundedContext.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}
               指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
-              テストをシミュレートしてバグを取り除いてください。
-              イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成した実装のみを出力してください。
+              - 項目名に一貫性に注意してください。
+              - メソッドのシグネチャを変更せず、あくまでメソッドの中身だけを考えてください。
+              - "TODO implementation"をメソッドの中身に置き換えるソースコードを書いてください。
+              - lombokを使用してください。Entityは全て@Builder, @Dataが付与されています。
+              - エラーは全てRuntimeExceptionでthrowしてください。
+              - テストをシミュレートしてバグを取り除いてください。
+              - イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成した実装のみを出力してください。
               出力形式は Output Example を参考にしてください。
             `),
             content: Utils.trimLines(`
-              Please understand the contents of Requirements and Domain Models and implement the "TODO implementation" part of Sample Code.
+              Please understand the contents of Requirements and Domain Models and write the implementation of all methods of Base Code "${serviceName}".
+              The target is as follows.
+              - ${boundedContext.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}
               The instructions are just guidelines. Please proceed while self-completing the know-how recalled based on the instructions.
-              Simulate the test and remove the bug.
-              Repeat the iteration several times, perform appropriate refactoring, and output only the completed implementation.
+              - Pay attention to consistency in item names.
+              - Do not change the signature of the method, but consider only the contents of the method.
+              - Write the source code that replaces "TODO implementation" in the contents of the method.
+              - Use lombok. All entities are annotated with @Builder, @Data.
+              - Throw all errors with RuntimeException.
+              - Simulate the test and remove the bug.
+              - Repeat the iteration several times, perform appropriate refactoring, and output only the completed implementation.
               Please refer to Output Example for the output format.
             `),
           },
           {
             title: `Output Format`, content: Utils.trimLines(`
               \`\`\`json
-              {"additionalImports": ["\${import}"], "additionalJPAMethods": ["\${repository method}"], "methods": {"\${methodName}": "\${body source code of methods, which replaces \\"TODO implementation\\" without method signature}" }}
+              {"additionalImports": ["\${import}"], "additionalJPAMethods": ["\${repository method}"], "methods": {"\${methodName}": {"annotations":["\${method annotation}"],"body":"\${body source code of methods, which replaces \\"TODO implementation\\" without method signature}"} }}
               \`\`\`
             `),
           },
           {
             title: `Output Example`, content: Utils.trimLines(`
               \`\`\`json
-              {"additionalImports": ["java.util.List"], "additionalJPAMethods": {"EntityRepository":["List<Entity> findByEntityNameAndEntityLabel(String entityName,String entityLabel)"]}, "methods": {"findAll": "        List<Entity> findAll = this.employeeRepository.findAll();\\n        return findAll;" }}
+              {"additionalImports": ["java.util.List"], "additionalJPAMethods": {"EntityRepository":["List<Entity> findByEntityNameAndEntityLabel(String entityName,String entityLabel)"]}, "methods": {"findAll": {"annotations":["\${method annotation}"],"body":"        List<Entity> findAll = this.employeeRepository.findAll();\\n        return findAll;"} }}
               \`\`\`
             `),
           },
@@ -537,6 +558,11 @@ class Step0060_CreateService extends MultiStep {
       preProcess(prompt: string): string {
         fs.mkdirSync(`./gen/src/main/java/com/example/demo/service/impl`, { recursive: true });
         fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/impl/${this.serviceName}Impl.java.prompt.md`, prompt);
+
+        // ディレクトリが無ければ掘る
+        if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
+        // ファイル書き込み
+        try { fs.writeFileSync(`${this.dire}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json.prompt.md`, this.prompt); } catch (e) { console.log(e); }
         return prompt;
       }
       postProcess(result: string): string {

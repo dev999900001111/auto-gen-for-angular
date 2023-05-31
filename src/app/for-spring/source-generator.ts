@@ -334,6 +334,7 @@ export function serviceImpl() {
         } else { return; }
         // impl 正規化
         impl.additionalImports = impl.additionalImports || [];
+        impl.additionalImports = impl.additionalImports.filter((value: any, index: number, self: any) => self.indexOf(value) === index);
         impl.additionalJPAMethods = impl.additionalJPAMethods || {};
         impl.methods = impl.methods || {};
 
@@ -395,19 +396,22 @@ export function serviceImpl() {
             } else { }
 
             classCode += `    @Override\n`;
-            if ((impl.methods[methodName] || '').trim().startsWith('public ') || (impl.methods[methodName] || '').trim().startsWith('@')) {
-            } else {
-                classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
-            }
+            impl.methods[methodName] = impl.methods[methodName] || { annotations: [], body: '' };
+            // if ((impl.methods[methodName] || '').trim().startsWith('public ') || (impl.methods[methodName] || '').trim().startsWith('@')) {
+            // } else {
+            //     classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
+            // }
+            classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             // classCode += `    private ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
-            classCode += `${(impl.methods[methodName] || '').replace(/^(.*)$/gm, `    $1`)}\n`;
+            classCode += `${(impl.methods[methodName].body || '').replace(/^(.*)$/gm, `    $1`)}\n`;
             // .replace(/([a-z0-9])Id\(/g, '$1ID(').replace(/\.findByID\(/g, '.findById(')
             // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
             // classCode += `        // TODO implementation\n`;
-            if ((impl.methods[methodName] || '').trim().startsWith('public ') || (impl.methods[methodName] || '').trim().startsWith('@')) {
-            } else {
-                classCode += `    }\n\n`;
-            }
+            classCode += `    }\n\n`;
+            // if ((impl.methods[methodName].body || '').trim().startsWith('public ') || (impl.methods[methodName].body || '').trim().startsWith('@')) {
+            // } else {
+            //     classCode += `    }\n\n`;
+            // }
         });
         classCode += `}\n`;
         fs.mkdirSync(`./gen/src/main/java/com/example/demo/service/impl`, { recursive: true });
