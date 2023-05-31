@@ -609,13 +609,13 @@ export async function main() {
     obj.initPrompt();
     return obj.run();
   }).then(() => {
-    obj = new Step0040_domainModelEntitysJson();
+    obj = new Step0040_domainModelEntityAndDomainServiceJson();
     obj.initPrompt();
     return obj.run();
     // }).then(() => {
     //   Step0040_domainModelEntitysJson.genSteps().forEach((step) => step.postProcess(step.result));
   }).then(() => {
-    obj = new Step0050_CreateEntity();
+    obj = new Step0050_CreateAPI();
     obj.initPrompt();
     return obj.run();
     // obj.childStepList.forEach((step) => step.postProcess(step.result));
