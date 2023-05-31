@@ -164,6 +164,7 @@ public class DemoApplication {
 
         Object.keys(apiObj[apiName]).forEach((methodName: string) => {
             const api = apiObj[apiName][methodName];
+            ['request', 'response'].forEach((key: string) => { const apiAny = api as any; apiAny[key] = typeof (apiAny[key] || '') === 'object' ? JSON.stringify(apiAny[key]) : apiAny[key]; });
             const requestType = `${Utils.toPascalCase(methodName)}Request`;
             let controllerParamAry: string[] = [];
             let serviceParamAry: string[] = [];
@@ -216,6 +217,7 @@ public class DemoApplication {
 
         Object.keys(apiObj[apiName]).forEach((methodName: string) => {
             const api = apiObj[apiName][methodName];
+            ['request', 'response'].forEach((key: string) => { const apiAny = api as any; apiAny[key] = typeof (apiAny[key] || '') === 'object' ? JSON.stringify(apiAny[key]) : apiAny[key]; });
             const requestType = `${Utils.toPascalCase(methodName)}Request`;
             let controllerParamAry: string[] = [];
             let serviceParamAry: string[] = [];
@@ -276,6 +278,7 @@ public class DemoApplication {
 
         Object.keys(apiObj[apiName]).forEach((methodName: string) => {
             const api = apiObj[apiName][methodName];
+            ['request', 'response'].forEach((key: string) => { const apiAny = api as any; apiAny[key] = typeof (apiAny[key] || '') === 'object' ? JSON.stringify(apiAny[key]) : apiAny[key]; });
             const requestType = `${Utils.toPascalCase(methodName)}Request`;
             let controllerParamAry: string[] = [];
             let serviceParamAry: string[] = [];
@@ -370,6 +373,7 @@ export function serviceImpl() {
 
         Object.keys(apiObj[apiName]).forEach((methodName: string) => {
             const api = apiObj[apiName][methodName];
+            ['request', 'response'].forEach((key: string) => { const apiAny = api as any; apiAny[key] = typeof (apiAny[key] || '') === 'object' ? JSON.stringify(apiAny[key]) : apiAny[key]; });
             const requestType = `${Utils.toPascalCase(methodName)}Request`;
             let controllerParamAry: string[] = [];
             let serviceParamAry: string[] = [];

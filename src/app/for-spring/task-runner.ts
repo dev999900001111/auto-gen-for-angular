@@ -217,20 +217,34 @@ class Step0030_domainModelsJson extends MultiStep {
         this.chapters = [
           // { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
           // { title: 'Domain Models', content: new Step0000_RequirementsToDomainModels().result },
+          // {
+          //   title: 'System Requirements', content: Utils.trimLines(`
+          //     - Server Side Framework: Spring Boot (JPA, Web, Batch, Security, Actuator, Lombok, MapStruct, etc.)
+          //     - Frontend Framework: React (Chakra-UI, etc.)
+          //     - Database: PostgreSQL
+          //     - Infrastructure: AWS
+          //   `)
+          // },
           { title: 'Domain Models', content: domainModelString },
           {
-            title: 'prompt',
+            title: 'Instructions',
             contentJp: Utils.trimLines(`
-              リテラルはJavaの表現を利用してください。
-              ドメインモデルから${pattern}を抽出して以下のJSON形式に変換してください。
+              ドメインモデルから${pattern}を抽出して下さい。
+            `),
+            content: Utils.trimLines(`
+              Please extract ${pattern} from the domain model.
+            `)
+          }, {
+            title: 'Output rules',
+            contentJp: Utils.trimLines(`
+              JSON形式で出力してください。
               ${formatMap[pattern]}
             `),
             content: Utils.trimLines(`
-              Literals should use Java expressions.
-              Please extract the ${pattern} from the domain model and convert them to the following JSON format.
+              Please write the type in Java notation.
               ${formatMap[pattern]}
             `)
-          },
+          }
         ];
 
         ////////////////// 
@@ -258,11 +272,11 @@ class Step0030_domainModelsJson extends MultiStep {
   }
 }
 
-class Step0040_domainModelEntitysJson extends MultiStep {
+class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
   constructor() {
     super();
 
-    class Step0040_domainModelEntitysJsonChil extends BaseStep {
+    class Step0040_domainModelEntityAndDomainServiceJsonChil extends BaseStep {
       // model = 'gpt-4';
       dire: string;
       constructor(private pattern: string = 'Entities', private boundedContext: string = '') {
@@ -339,14 +353,14 @@ class Step0040_domainModelEntitysJson extends MultiStep {
     const boundedContexts: { [key: string]: { Entities: string[] } } = Utils.jsonParse(fs.readFileSync(`./gen/domain-models/${DomainModelPattern.BoundedContexts}.json`, 'utf-8'));
     this.childStepList = Object.keys(boundedContexts).map((boundedContextName) =>
       [DomainModelPattern.Entities, DomainModelPattern.DomainServices].map(pattern =>
-        new Step0040_domainModelEntitysJsonChil(pattern, boundedContextName)
+        new Step0040_domainModelEntityAndDomainServiceJsonChil(pattern, boundedContextName)
       )
     ).reduce((a, b) => a.concat(b), []);
   }
 }
 
 
-class Step0050_CreateEntity extends MultiStep {
+class Step0050_CreateAPI extends MultiStep {
   // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
   // model = 'gpt-4';
   // dire: string = `./gen/domain-models/`;
@@ -355,7 +369,7 @@ class Step0050_CreateEntity extends MultiStep {
     const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().result);
     const domainModel = DomainModel.loadModels();
 
-    class Step0050_CreateEntityChil extends BaseStep {
+    class Step0050_CreateAPIChil extends BaseStep {
       // model = 'gpt-4';
       dire: string = `./gen/domain-models/`;
       constructor(public boundedContext: BoundedContext) {
@@ -392,20 +406,20 @@ class Step0050_CreateEntity extends MultiStep {
           {
             title: `Instructions`,
             contentJp: Utils.trimLines(`
-              Domain Modelsに基づいて、API仕様書を作成してください。
+              Domain Modelsに基づいて、${Object.keys(boundedContext.DomainServices).join(', ')} のAPI仕様書を作成してください。
               指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
               - Request / Response の型を詳細に正確に定義してください。必ずしもモデルと一緒ではないはずです。
-              - Domain Models に定義されていないオブジェクト型を利用する場合は、オブジェクト型の内容を明示してください。
+              - Domain Models に定義されていないオブジェクトを使用しないでください。
               - 以下の項目について設計して下さい。
                 Endpoint, Method, Request, Validation, Response, Service.Method, Description
               イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成したドメインモデルのみを出力してください。
               出力形式は Output Example を参考にしてください。
             `),
             content: Utils.trimLines(`
-              Based on the Domain Models, create an API specification.
+              Based on the Domain Models, create API specifications for ${Object.keys(boundedContext.DomainServices).join(', ')}.
               The instructions are just guidelines. Please proceed while self-completing the know-how that is recalled based on the instructions.
               - Define the types of Request / Response in detail and accurately. It shouldn't always be the same as the model.
-              - If you use an object type that is not defined in Domain Models, please specify the contents of the object type.
+              - Do not use objects that are not defined in Domain Models.
               - Design the following items.
                 Endpoint, Method, Request, Validation, Response, Service.Method, Description
               Repeat the iteration several times, perform appropriate refactoring, and output only the completed domain model.
@@ -437,7 +451,7 @@ class Step0050_CreateEntity extends MultiStep {
       }
     }
     this.childStepList = Object.keys(domainModel.BoundedContexts).map(boundedContextName => {
-      return new Step0050_CreateEntityChil(domainModel.BoundedContexts[boundedContextName]);
+      return new Step0050_CreateAPIChil(domainModel.BoundedContexts[boundedContextName]);
     });
   }
   postProcess(result: string[]): string[] {
