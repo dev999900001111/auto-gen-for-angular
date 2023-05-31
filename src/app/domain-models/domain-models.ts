@@ -211,7 +211,9 @@ export class DomainModel {
             const key = `DomainServices-${boundedContextName}`;
             domainModelsRawMap[key] = Utils.jsonParse(fs.readFileSync(`${domainModelsDire}${key}.json`, 'utf-8'));
             Object.keys(domainModelsRawMap[key] || []).forEach(domainServiceName => {
-                const domainServiceRaw = domainModelsRawMap[key][domainServiceName];
+                const domainServiceRaw = domainModelsRawMap[key][domainServiceName]
+                    || domainModelsRawMap[key][domainServiceName.replace(/Service$/g, '')]
+                    || domainModelsRawMap[key][`${domainServiceName}Service`];
                 const domainService: DomainService = {
                     name: domainServiceName,
                     Methods: loadMethod(domainServiceRaw),
@@ -263,15 +265,16 @@ export class DomainModel {
                 }, {} as { [key: string]: ValueObject }),
                 Aggregates: (boundedContextRaw.Aggregates || []).reduce((aggregates: { [key: string]: Aggrigate }, name: string) => {
                     // Aggregateは名前にAggregateがついたりつかなかったりするので両方受けられるようにしておく。
-                    if (name.includes('Aggregate')) {
-                        aggregates[name] = domainModel.Aggregates[name] || domainModel.Aggregates[name.replace(/Aggregate/g, '')];
-                    } else {
-                        aggregates[name] = domainModel.Aggregates[name] || domainModel.Aggregates[name + 'Aggregate'];
-                    }
+                    aggregates[name] = domainModel.Aggregates[name]
+                        || domainModel.Aggregates[name.replace(/Aggregate/g, '')]
+                        || domainModel.Aggregates[name + 'Aggregate'];
                     return aggregates;
                 }, {} as { [key: string]: Aggrigate }),
                 DomainServices: (boundedContextRaw.DomainServices || []).reduce((domainServices: { [key: string]: DomainService }, name: string) => {
-                    domainServices[name] = domainModel.DomainServices[name]; return domainServices;
+                    domainServices[name] = domainModel.DomainServices[name]
+                        || domainModel.DomainServices[name.replace(/Service$/g, '')]
+                        || domainModel.DomainServices[`${name}Service`];
+                    return domainServices;
                 }, {} as { [key: string]: DomainService }),
                 DomainEvents: (boundedContextRaw.DomainEvents || []).reduce((domainEvents: { [key: string]: DomainEvents }, name: string) => {
                     domainEvents[name] = domainModel.DomainEvents[name]; return domainEvents;

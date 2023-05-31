@@ -50,7 +50,17 @@ class Step0000_RequirementsToDomainModels extends BaseStep {
              10. **Refactoring**: As you learn more about the domain and the system, you'll likely need to refactor your models and design. This is a normal part of DDD and should be embraced.
           Please repeat the steps so far and output only the completed domain model.
         `),
-      },
+      }, {
+        title: 'Output rules',
+        contentJp: Utils.trimLines(`
+          トークン数をなるべく節約するため、以下の点に注意してください。
+          - 項目の区切り文字はパイプ区切り、パイプ区切りの中で更に分ける場合はカンマ区切りとすること。
+        `),
+        content: Utils.trimLines(`
+          Please pay attention to the following points to save as many tokens as possible.
+          - The delimiter of the item should be a pipe delimiter, and if it is further divided within the pipe delimiter, it should be a comma delimiter.
+        `)
+      }
     ];
   }
 }
@@ -91,7 +101,7 @@ class Step0010_DomainModelsInitialize extends BaseStep {
         contentJp: Utils.trimLines(`
           Requirements と Domain Modelsに基づいて、以下のように情報を展開してください。
           指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
-          - Entities => Attributes, Methods
+          - Entities => Attributes
           - Value Objects => Attributes
           - Enums => Values
           - Aggregates => RootEntity, Entities, Value Objects
@@ -102,7 +112,7 @@ class Step0010_DomainModelsInitialize extends BaseStep {
         content: Utils.trimLines(`
           Based on the Requirements and Domain Models, expand the information as follows.
           The instructions are just guidelines. Please proceed while self-completing the know-how recalled based on the instructions.
-          - Entities => Attributes, Methods
+          - Entities => Attributes
           - Value Objects => Attributes
           - Enums => Values
           - Aggregates => RootEntity, Entities, Value Objects
@@ -401,6 +411,7 @@ class Step0050_CreateAPI extends MultiStep {
               {
                 title: `Services`, content: Object.keys(boundedContext.DomainServices).map((serviceName: string) => {
                   // serviceName: methodName,,,
+                  // console.log(boundedContext.DomainServices);
                   return `- ${serviceName}: ${boundedContext.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}`;
                 }).join('\n'),
               },

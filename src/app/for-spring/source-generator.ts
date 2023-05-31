@@ -506,7 +506,8 @@ function typeToInterface(className: string, obj: { [key: string]: any }, api: { 
 }
 
 function convertStringToJson(input: string): { [key: string]: any } {
-    const sourceFile = ts.createSourceFile('test.ts', `const dat:${input};`, ts.ScriptTarget.Latest);
+    //TODO {a:int},{b:int}←こんな感じになってしまうことがあるのを無理やり対処しているが、本当は綺麗に対処したい。
+    const sourceFile = ts.createSourceFile('test.ts', `const dat:${(input || '').replace(/},{/g, ',')};`, ts.ScriptTarget.Latest);
     return (sourceFile.statements[0] as any).declarationList.declarations.map((state: any) => {
         const typeStringToObject = function (type: ts.MappedTypeNode): { [key: string]: any } {
             return type.members?.reduce((obj: { [key: string]: any }, member: any) => {
