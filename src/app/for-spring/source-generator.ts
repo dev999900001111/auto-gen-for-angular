@@ -34,6 +34,7 @@ public class DemoApplication {
         classCode = `package ${packageName}.entity;\n`;
         classCode += `\n`;
         classCode += `import jakarta.persistence.*;\n`;
+        classCode += `import lombok.Builder;\n`;
         classCode += `import lombok.Data;\n`;
         classCode += `import java.util.Date;\n`;
         classCode += `import java.sql.Time;\n`;
@@ -41,6 +42,7 @@ public class DemoApplication {
         classCode += `import java.util.List;\n`;
         classCode += `\n`;
         classCode += `@Data\n`;
+        classCode += `@Builder\n`;
         classCode += `@Entity\n`;
         classCode += `@Table(name = "${Utils.toSnakeCase(entityName)}")\n`;
         classCode += `public class ${entityName} {\n\n`;
@@ -115,8 +117,10 @@ public class DemoApplication {
         classCode += `import java.util.Date;\n`;
         classCode += `import java.sql.Time;\n`;
         classCode += `import java.time.*;\n`;
+        classCode += `import lombok.Builder;\n`;
         classCode += `import lombok.Data;\n`;
         classCode += `\n`;
+        classCode += `@Builder\n`;
         classCode += `@Data\n`;
         classCode += `@Embeddable\n`;
         classCode += `public class ${valueObjectName} {\n\n`;
