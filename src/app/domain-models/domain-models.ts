@@ -6,6 +6,7 @@ export const domainModelsDire = `./gen/domain-models/`;
 export enum DomainModelPattern {
     Entities = 'Entities',
     ValueObjects = 'ValueObjects',
+    Enums = 'Enums',
     Aggregates = 'Aggregates',
 
     DomainEvents = 'DomainEvents',
@@ -41,6 +42,8 @@ export interface Method { name: string; args: Attribute[]; returnType: string; }
 
 export interface Entity { name: string; Attributes: Attribute[]; Methods: Method[]; }
 export interface ValueObject { name: string; Attributes: Attribute[]; }
+export interface Enum { name: string; Values: string[] }
+
 export interface Aggrigate { name: string; RootEntity: Entity; Entities: Entity[]; ValueObjects: ValueObject[]; }
 
 export interface DomainEvents { name: string; description: string; Attributes: Attribute[]; Methods: Method[]; }
@@ -57,6 +60,7 @@ export interface Relationship { type: string; source: Entity | ValueObject; targ
 export class DomainModel {
     Entities: { [key: string]: Entity } = {};
     ValueObjects: { [key: string]: ValueObject } = {};
+    Enums: { [key: string]: Enum } = {};
     Aggregates: { [key: string]: Aggrigate } = {};
 
     Repositories: { [key: string]: Repository } = {};
@@ -107,10 +111,19 @@ export class DomainModel {
             rawObj = rawObj || {};
             const attributes = rawObj['Attributes'] || rawObj['attributes'] || {};
             return Object.keys(attributes).map(attributeName => {
-                return {
-                    name: attributeName,
-                    type: attributes[attributeName].replace('list[', 'List<').replace(']', '>'),
-                };
+                if (attributeName.toLowerCase() === 'id' || attributeName.endsWith('ID') || attributeName.endsWith('Id')) {
+                    // ID系はIntegerにする
+                    if (attributeName.length === 2) {
+                        return { name: 'id', type: 'Integer', };
+                    } else {
+                        return { name: attributeName.substring(0, attributeName.length - 2) + 'Id', type: 'Integer', };
+                    }
+                } else {
+                    return {
+                        name: attributeName,
+                        type: attributes[attributeName].replace('list[', 'List<').replace(']', '>'),
+                    };
+                }
             });
         };
         const loadArgs = (rawObj: any): Attribute[] => {
@@ -129,8 +142,21 @@ export class DomainModel {
         });
         domainModelsRawMap.BoundedContexts = boundedContexts;
 
+        // Enums
+        Object.keys(domainModelsRawMap.Enums).forEach(enumName => {
+            const enumRaw = domainModelsRawMap.Enums[enumName] as string[];
+            const enumObj: Enum = {
+                name: enumName,
+                Values: enumRaw,
+            };
+            domainModel.Enums[enumName] = enumObj;
+        });
+
         // ValueObjects
-        Object.keys(domainModelsRawMap.ValueObjects).forEach(valueObjectName => {
+        Object.keys(domainModelsRawMap.ValueObjects).filter(valueObjectName => {
+            // Enumに登録済みの場合は重複定義になってしまうので除外
+            return !domainModel.Enums[valueObjectName];
+        }).forEach(valueObjectName => {
             const valueObjectRaw = domainModelsRawMap.ValueObjects[valueObjectName];
             const valueObject: ValueObject = {
                 name: valueObjectName,
@@ -150,8 +176,8 @@ export class DomainModel {
             const key = `Entities-${boundedContextName}`;
             domainModelsRawMap[key] = Utils.jsonParse(fs.readFileSync(`${domainModelsDire}${key}.json`, 'utf-8'));
             Object.keys(domainModelsRawMap[key] || []).filter(entityName => {
-                // ValueObjectに登録済みの場合は重複定義になってしまうので除外
-                return !domainModel.ValueObjects[entityName];
+                // Enums, ValueObjectに登録済みの場合は重複定義になってしまうので除外
+                return !domainModel.Enums[entityName] && !domainModel.ValueObjects[entityName];
             }).forEach(entityName => {
                 const entityRaw = domainModelsRawMap[key][entityName];
                 const entity: Entity = {
@@ -339,7 +365,7 @@ export class DomainModel {
         let table = '';
         const domainModel: { [key: string]: any } = domainModelParam;
         if (DomainModelPattern.Aggregates === pattern) {
-            table = Object.keys(domainModel.Aggregates).map((aggregateName: string) => {
+            table = (Object.keys(domainModel.Aggregates || {}) || []).map((aggregateName: string) => {
                 const aggrigate = domainModel.Aggregates[aggregateName];
                 let buffer = `- ${aggrigate.name}\n`;
                 buffer += `   - RootEntity: ${aggrigate.RootEntity.name}\n`;
@@ -347,8 +373,14 @@ export class DomainModel {
                 buffer += `   - ValueObjects: ${aggrigate.ValueObjects.map((valueObject: ValueObject) => valueObject.name).join(', ')}\n`;
                 return buffer;
             }).join('\n');
+        } else if (DomainModelPattern.Enums === pattern) {
+            table = (Object.keys(domainModel.Enums || {}) || []).map((enumName: string) => {
+                const enumObj = domainModel.Enums[enumName];
+                let buffer = `- ${enumObj.name} : ${enumObj.Values.join(', ')}`;
+                return buffer;
+            }).join('\n');
         } else {
-            table = Object.keys(domainModel[pattern]).map(objectName => {
+            table = (Object.keys(domainModel[pattern] || {}) || []).map(objectName => {
                 const object = domainModel[pattern][objectName];
                 // 数字から始まるものは、objectNameには名前が入っていないので、objectから取得する
                 // if (`${objectName}`.match(/^[0-9]+/)) { objectName = object.name; } else { }

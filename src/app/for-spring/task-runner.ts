@@ -93,6 +93,7 @@ class Step0010_DomainModelsInitialize extends BaseStep {
           指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
           - Entities => Attributes, Methods
           - Value Objects => Attributes
+          - Enums => Values
           - Aggregates => RootEntity, Entities, Value Objects
           - Domain Services => Methods
           Requirements、Domain Models に含まれる情報を抜け漏れなく反映してください。
@@ -103,6 +104,7 @@ class Step0010_DomainModelsInitialize extends BaseStep {
           The instructions are just guidelines. Please proceed while self-completing the know-how recalled based on the instructions.
           - Entities => Attributes, Methods
           - Value Objects => Attributes
+          - Enums => Values
           - Aggregates => RootEntity, Entities, Value Objects
           - Domain Services => Methods
           Please reflect all the information included in the Requirements and Domain Models without omissions.
@@ -196,6 +198,7 @@ class Step0030_domainModelsJson extends MultiStep {
         const formatMap: { [key: string]: string } = {
           Entities: '{"${EntityName}": {"Attributes": {"${name}": "${type}"},"Methods": {"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"},"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
           ValueObjects: '{"${ValueObjectName}": {"${name}": "${type}","${name}": "${type}"}}',
+          Enums: '{"${EnumName}": ["${value}"]}',
           Aggregates: '{"${AggregateName}": {"RootEntity": "${EntityName}","Entities": ["${EntityName}"],"ValueObjects": ["${ValueObjectName}"]}}',
 
           DomainEvents: '{"${EventyName}": {"description":"${EventTrigger and behavior}","Attributes": {"${name}": "${type}"},"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
@@ -287,6 +290,7 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
         const formatMap: { [key: string]: string } = {
           Entities: '{"${EntityName}": {"Attributes": {"${name}": "${type}"},"Methods": {"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"},"${MethodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
           ValueObjects: '{"${ValueObjectName}": {"${name}": "${type}","${name}": "${type}"}}',
+          Enums: '{"${EnumName}": ["${value}"]}',
           Aggregates: '{"${AggregateName}": {"RootEntity": "${EntityName}","Entities": ["${EntityName}"],"ValueObjects": ["${ValueObjectName}"]}}',
 
           DomainEvents: '{"${EventyName}": {"description":"${EventTrigger and behavior}","Attributes": {"${name}": "${type}"},"Methods": {"${methodName}": {"args": {"${name}": "${type}","${name}": "${type}"},"returnType": "${type}"}}}}',
@@ -390,9 +394,10 @@ class Step0050_CreateAPI extends MultiStep {
             title: 'Domain Models',
             // content: new Step0000_RequirementsToDomainModels().result,
             children: [
-              { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities, boundedContext), },
-              { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects, boundedContext), },
-              { title: `${DomainModelPattern.Aggregates}`, content: domainModel.getAttributeTable(DomainModelPattern.Aggregates, boundedContext), },
+              { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities), },
+              { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects), },
+              // { title: `${DomainModelPattern.Aggregates}`, content: domainModel.getAttributeTable(DomainModelPattern.Aggregates, boundedContext), },
+              { title: `${DomainModelPattern.Enums}`, content: domainModel.getAttributeTable(DomainModelPattern.Enums), },
               {
                 title: `Services`, content: Object.keys(boundedContext.DomainServices).map((serviceName: string) => {
                   // serviceName: methodName,,,
@@ -412,7 +417,7 @@ class Step0050_CreateAPI extends MultiStep {
               - 以下の項目について設計して下さい。
                 Endpoint, Method, Request, Validation, Response, Service.Method, Description
               イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成したドメインモデルのみを出力してください。
-              出力形式は Output Example を参考にしてください。
+              出力形式は Output Example に則って、JSONのみ出力してください。不要な項目は出力しないでください。
             `),
             content: Utils.trimLines(`
               Based on the Domain Models, create API specifications for ${Object.keys(boundedContext.DomainServices).join(', ')}.
@@ -422,7 +427,7 @@ class Step0050_CreateAPI extends MultiStep {
               - Design the following items.
                 Endpoint, Method, Request, Validation, Response, Service.Method, Description
               Repeat the iteration several times, perform appropriate refactoring, and output only the completed domain model.
-              Please refer to Output Example for the output format.
+              The output format should be JSON only in accordance with the Output Example. Do not output unnecessary items.
             `),
           },
           {
@@ -457,9 +462,9 @@ class Step0050_CreateAPI extends MultiStep {
         return result;
       }
     }
-    this.childStepList = Object.keys(domainModel.BoundedContexts).map(boundedContextName => {
-      return new Step0050_CreateAPIChil(domainModel.BoundedContexts[boundedContextName]);
-    });
+    this.childStepList = Object.keys(domainModel.BoundedContexts)
+      .filter((boundedContextName) => (Object.keys(domainModel.BoundedContexts[boundedContextName].DomainServices)).length > 0)
+      .map(boundedContextName => new Step0050_CreateAPIChil(domainModel.BoundedContexts[boundedContextName]));
   }
   postProcess(result: string[]): string[] {
     return result;
@@ -502,9 +507,10 @@ class Step0060_CreateService extends MultiStep {
           {
             title: 'Domain Models',
             children: [
-              { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities, boundedContext), },
-              { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects, boundedContext), },
-              { title: `${DomainModelPattern.Aggregates}`, content: domainModel.getAttributeTable(DomainModelPattern.Aggregates, boundedContext), },
+              { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities), },
+              { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects), },
+              // { title: `${DomainModelPattern.Aggregates}`, content: domainModel.getAttributeTable(DomainModelPattern.Aggregates), },
+              { title: `${DomainModelPattern.Enums}`, content: domainModel.getAttributeTable(DomainModelPattern.Enums), },
             ]
           },
           { title: `Base Code`, content: '```java\n' + fs.readFileSync(`./gen/src/main/java/com/example/demo/service/${serviceName}.java.md`, 'utf-8') + '\n```' },
@@ -515,10 +521,10 @@ class Step0060_CreateService extends MultiStep {
               対象は以下の通りです。
               - ${boundedContext.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}
               指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
-              - 項目名に一貫性に注意してください。
+              - 項目名に一貫性に注意してください。特にIDとIdとidの違いには注意してください。
               - メソッドのシグネチャを変更せず、あくまでメソッドの中身だけを考えてください。
               - "TODO implementation"をメソッドの中身に置き換えるソースコードを書いてください。
-              - lombokを使用してください。Entityは全て@Builder, @Dataが付与されています。
+              - Entityは全て@Builder, @Dataが付与されています。コンストラクタは使わず、builder()を使ってください。
               - エラーは全てRuntimeExceptionでthrowしてください。
               - テストをシミュレートしてバグを取り除いてください。
               - イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成した実装のみを出力してください。
@@ -529,10 +535,10 @@ class Step0060_CreateService extends MultiStep {
               The target is as follows.
               - ${boundedContext.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}
               The instructions are just guidelines. Please proceed while self-completing the know-how recalled based on the instructions.
-              - Pay attention to consistency in item names.
+              - Pay attention to consistency in item names. Pay particular attention to the difference between ID, Id, and id.
               - Do not change the signature of the method, but consider only the contents of the method.
               - Write the source code that replaces "TODO implementation" in the contents of the method.
-              - Use lombok. All entities are annotated with @Builder, @Data.
+              - All entities are annotated with @Builder and @Data. Do not use the constructor, use builder().
               - Throw all errors with RuntimeException.
               - Simulate the test and remove the bug.
               - Repeat the iteration several times, perform appropriate refactoring, and output only the completed implementation.
@@ -540,7 +546,15 @@ class Step0060_CreateService extends MultiStep {
             `),
           },
           {
-            title: `Output Format`, content: Utils.trimLines(`
+            title: `Output Format`,
+            contentJp: Utils.trimLines(`
+              出力は以下のJSON形式で出力してください。読み取り可能なJSON形式である必要があります。改行やダブルクオーテーションを含む文字列は改行コードをエスケープしたうえで含めて出力してください。
+              \`\`\`json
+              {"additionalImports": ["\${import}"], "additionalJPAMethods": ["\${repository method}"], "methods": {"\${methodName}": {"annotations":["\${method annotation}"],"body":"\${body source code of methods, which replaces \\"TODO implementation\\" without method signature}"} }}
+              \`\`\`
+            `),
+            content: Utils.trimLines(`
+              Please output in the following JSON format. It must be a readable JSON format. Strings containing line breaks and double quotes should be output including the line break code after escaping.
               \`\`\`json
               {"additionalImports": ["\${import}"], "additionalJPAMethods": ["\${repository method}"], "methods": {"\${methodName}": {"annotations":["\${method annotation}"],"body":"\${body source code of methods, which replaces \\"TODO implementation\\" without method signature}"} }}
               \`\`\`

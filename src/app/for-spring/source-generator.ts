@@ -35,16 +35,19 @@ public class DemoApplication {
         classCode += `\n`;
         classCode += `import jakarta.persistence.*;\n`;
         classCode += `import lombok.Builder;\n`;
+        classCode += `import lombok.NoArgsConstructor;\n`;
         classCode += `import lombok.Data;\n`;
         classCode += `import java.util.Date;\n`;
+        classCode += `import java.math.BigDecimal;\n`;
         classCode += `import java.sql.Time;\n`;
         classCode += `import java.time.*;\n`;
         classCode += `import java.util.List;\n`;
         classCode += `\n`;
         classCode += `@Data\n`;
+        // classCode += `@NoArgsConstructor\n`;
         classCode += `@Builder\n`;
         classCode += `@Entity\n`;
-        classCode += `@Table(name = "${Utils.toSnakeCase(entityName)}")\n`;
+        classCode += `@Table(name = "t_${Utils.toSnakeCase(entityName)}")\n`;
         classCode += `public class ${entityName} {\n\n`;
 
         const cardinalityMap: { [key: string]: RelationshipType } = {};
@@ -59,6 +62,7 @@ public class DemoApplication {
                 cardinalityMap[relationship.source.name] = relationshipTypeReverse(cardinality);
             } else { }
         });
+
         model.Entities[entityName].Attributes.forEach((attribute: Attribute) => {
 
             // attributeの型を取得
@@ -108,6 +112,19 @@ public class DemoApplication {
         return classCode;
     }).join('\n\n');
 
+    // Enum実装作成
+    const enums = Object.keys(model.Enums).map((enumName: string) => {
+        let classCode = ``;
+        classCode += `package ${packageName}.entity;\n`;
+        classCode += `\n`;
+        classCode += `public enum ${enumName} {\n`;
+        classCode += model.Enums[enumName].Values.map(value => `    ${value}`).join(',\n');
+        classCode += `\n}\n`;
+        fs.mkdirSync(`./gen/src/main/java/com/example/demo/entity`, { recursive: true });
+        fs.writeFileSync(`./gen/src/main/java/com/example/demo/entity/${enumName}.java`, classCode);
+        return classCode;
+    }).join('\n\n');
+
     // ValueObject実装作成
     const valueObjects = Object.keys(model.ValueObjects).map((valueObjectName: string) => {
         let classCode = ``;
@@ -115,12 +132,16 @@ public class DemoApplication {
         classCode += `\n`;
         classCode += `import jakarta.persistence.*;\n`;
         classCode += `import java.util.Date;\n`;
+        classCode += `import java.util.List;\n`;
         classCode += `import java.sql.Time;\n`;
+        classCode += `import java.math.BigDecimal;\n`;
         classCode += `import java.time.*;\n`;
         classCode += `import lombok.Builder;\n`;
+        classCode += `import lombok.NoArgsConstructor;\n`;
         classCode += `import lombok.Data;\n`;
         classCode += `\n`;
         classCode += `@Builder\n`;
+        // classCode += `@NoArgsConstructor\n`;
         classCode += `@Data\n`;
         classCode += `@Embeddable\n`;
         classCode += `public class ${valueObjectName} {\n\n`;
@@ -136,7 +157,9 @@ public class DemoApplication {
 
     // API用json定義読み込み
     interface API { endpoint: string, method: string, pathVariable: string, request: string, validation: string, response: string, description: string, }
-    const apiObj = Object.keys(model.BoundedContexts).reduce(
+    const apiObj = Object.keys(model.BoundedContexts).filter(
+        (boundedContextName: string) => Object.keys(model.BoundedContexts[boundedContextName].DomainServices || {}).length > 0
+    ).reduce(
         (apiObj: { [key: string]: { [key: string]: API } }, boundedContextName: string) => {
             boundedContextName = Utils.toPascalCase(boundedContextName);
             apiObj = { ...Utils.jsonParse(fs.readFileSync(`${domainModelsDire}API-${boundedContextName}.json`, 'utf-8')), ...apiObj };
@@ -144,6 +167,8 @@ public class DemoApplication {
         }, {}
     ) as { [key: string]: { [key: string]: API } };
     // console.log(JSON.stringify(apiObj, null, 4));
+
+    console.log(apiObj);
 
     // Controller実装作成
     Object.keys(apiObj).map((apiName: string) => {
@@ -213,6 +238,7 @@ public class DemoApplication {
         classCode += `\n`;
         classCode += `import org.springframework.web.bind.annotation.*;\n`;
         classCode += `import ${packageName}.entity.*;\n`;
+        classCode += `import jakarta.validation.Valid;\n`;
         classCode += `import jakarta.validation.constraints.*;\n`;
         classCode += `import java.util.*;\n`;
         classCode += `import lombok.Data;\n`;
@@ -320,7 +346,9 @@ export function serviceImpl() {
 
     // API用json定義読み込み
     interface API { endpoint: string, method: string, pathVariable: string, request: string, validation: string, response: string, description: string, }
-    const apiObj = Object.keys(model.BoundedContexts).reduce(
+    const apiObj = Object.keys(model.BoundedContexts).filter(
+        (boundedContextName: string) => Object.keys(model.BoundedContexts[boundedContextName].DomainServices || {}).length > 0
+    ).reduce(
         (apiObj: { [key: string]: { [key: string]: API } }, boundedContextName: string) => {
             boundedContextName = Utils.toPascalCase(boundedContextName);
             apiObj = { ...Utils.jsonParse(fs.readFileSync(`${domainModelsDire}API-${boundedContextName}.json`, 'utf-8')), ...apiObj };
@@ -424,6 +452,11 @@ export function serviceImpl() {
     }).join('\n\n');
 
     // repository
+    const jpaMethodsDistinct: { [key: string]: Set<string> } = {};
+    Object.keys(jpaMethods).forEach((repositoryName: string) => {
+        jpaMethodsDistinct[repositoryName] = new Set();
+        jpaMethods[repositoryName].forEach((methodSignature: string) => jpaMethodsDistinct[repositoryName].add(methodSignature));
+    });
     const repository = Object.keys(model.Entities).map((entityName: string) => {
         let classCode = '';
         classCode = ``;
@@ -438,7 +471,7 @@ export function serviceImpl() {
         classCode += `\n`;
         classCode += `@Repository\n`;
         classCode += `public interface ${entityName}Repository extends JpaRepository<${entityName}, Integer> {\n`;
-        classCode += (jpaMethods[`${entityName}Repository`] || []).map((methodSignature: string) => `    public ${methodSignature};`).join('\n');
+        classCode += (Array.from(jpaMethodsDistinct[`${entityName}Repository`] || [])).map((methodSignature: string) => `    public ${methodSignature};`).join('\n');
         classCode += `\n`;
         classCode += `}\n`;
         fs.mkdirSync(`./gen/src/main/java/com/example/demo/repository`, { recursive: true });
@@ -461,7 +494,7 @@ function typeToInterface(className: string, obj: { [key: string]: any }, api: { 
             classCode += `${indent.repeat(layer + 2)}private ${Utils.toPascalCase(key)} ${key};\n`;
         } else {
             // constraint
-            JSON.parse((api[key] || '[]').replace(/'/g, '"')).forEach((validation: string) => {
+            Utils.jsonParse<[]>((api[key] || '[]').replace(/'/g, '\\"')).forEach((validation: string) => {
                 classCode += `${indent.repeat(layer + 2)}${validation}\n`;
             });
             // classCode += `${indent.repeat(layer + 2)}private ${Utils.toPascalCase(toJavaClass(obj[key]))} ${key};\n`;
@@ -491,9 +524,11 @@ function toJavaClass(type: string): string {
     type = type || 'void';
     if (type.startsWith('list[')) {
         type = type.replace('list[', 'List<').replace(']', '>')
+        return type;
     } else { }
-    if (type.endsWith('[]') || type.endsWith('<>')) {
-        type = `List<${type.substring(0, type.length - 2)}>`;
+    if (type.endsWith('[]') || type.endsWith('<>') || type.endsWith('[>')) {
+        type = `List<${toJavaClass(type.substring(0, type.length - 2))}>`;
+        return type;
     } else { }
     return type
         .replace('list[', 'List<').replace(']', '>')
