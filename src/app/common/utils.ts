@@ -274,6 +274,10 @@ export class Utils {
         } else { }
         return sb;
     }
+
+    static fillTemplate(data: { [key: string]: string }, template: string): string {
+        return template.replace(/{{(\w+)}}/g, (match, key) => data[key] || "");
+    }
 }
 
 
