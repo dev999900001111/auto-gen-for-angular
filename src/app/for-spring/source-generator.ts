@@ -2,10 +2,11 @@ import * as fs from 'fs';
 import * as ts from "typescript";
 import { Attribute, DomainModel, Relationship, RelationshipType, domainModelsDire } from '../domain-models/domain-models';
 import { Utils } from '../common/utils';
+import DemoApplicationJava from './template/DemoApplication.java';
+import BaseEntityJava from './template/BaseEntity.java';
 
 const packageName = 'com.example.demo';
-
-
+const outDire = `./gen/src/main/java/com/example/demo/`;
 const ID_TYPE = 'Integer';
 
 // Date, Time, DateTimeの場合は、@Column(columnDefinition)を付与
@@ -24,50 +25,42 @@ const TIME_TYPE_COLUMN_DEFINITION: { [key: string]: string } = {
     LocalDateTime: 'TIMESTAMP',
 };
 
-
 export function genEntityAndRepository() {
     const model = DomainModel.loadModels();
 
-    const mainSrc = `
-package ${packageName};
+    fs.mkdirSync(`${outDire}`, { recursive: true });
+    fs.writeFileSync(`${outDire}DemoApplication.java`, Utils.fillTemplate({ packageName }, DemoApplicationJava));
+    fs.writeFileSync(`${outDire}base/entity/BaseEntity.java`, Utils.fillTemplate({ packageName }, BaseEntityJava));
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
-public class DemoApplication {
-
-	public static void main(String[] args) {
-		SpringApplication.run(DemoApplication.class, args);
-	}
-
-}
-`;
-    fs.mkdirSync(`./gen/src/main/java/com/example/demo/`, { recursive: true });
-    fs.writeFileSync(`./gen/src/main/java/com/example/demo/DemoApplication.java`, mainSrc);
-
-
-    // Entity
+    // Entitys
     const entities = Object.keys(model.Entities).map((entityName: string) => {
 
         let classCode = ``;
         classCode = `package ${packageName}.entity;\n`;
         classCode += `\n`;
+        classCode += `import ${packageName}.base.entity.BaseEntity;\n`;
         classCode += `import jakarta.persistence.*;\n`;
-        classCode += `import lombok.Builder;\n`;
-        classCode += `import lombok.Data;\n`;
         // classCode += `import lombok.NoArgsConstructor;\n`;
         classCode += `import java.math.BigDecimal;\n`;
         classCode += `import java.time.*;\n`;
         classCode += `import java.util.*;\n`;
         classCode += `import com.fasterxml.jackson.annotation.JsonUnwrapped;\n`;
+        classCode += `import lombok.AllArgsConstructor;\n`;
+        classCode += `import lombok.Builder;\n`;
+        classCode += `import lombok.Data;\n`;
+        classCode += `import lombok.EqualsAndHashCode;\n`;
+        classCode += `import lombok.NoArgsConstructor;\n`;
         classCode += `\n`;
+        classCode += `@Builder\n`;
         classCode += `@Data\n`;
-        // classCode += `@NoArgsConstructor\n`;
+        classCode += `@AllArgsConstructor\n`;
+        classCode += `@NoArgsConstructor\n`;
+        classCode += `@EqualsAndHashCode(callSuper = false)\n`;
+
         classCode += `@Builder\n`;
         classCode += `@Entity\n`;
         classCode += `@Table(name = "t_${Utils.toSnakeCase(entityName)}")\n`;
-        classCode += `public class ${entityName} {\n\n`;
+        classCode += `public class ${entityName} extends BaseEntity {\n\n`;
 
         // カーディナリティ(ManyToOneとか)を格納するMap
         const cardinalityMap: { [key: string]: RelationshipType } = {};
@@ -118,7 +111,7 @@ public class DemoApplication {
                         classCode += `    @ElementCollection(fetch = FetchType.LAZY)\n`;
                     } else { }
                     classCode += `    @Embedded\n`;
-                    classCode += `    @JsonUnwrapped\n`;
+                    classCode += `    // @JsonUnwrapped\n`; // JsonUnwrappedは任意
                 } else if (cardinalityMap[foreignType]) {
                     classCode += `    @${cardinalityMap[foreignType]}\n`;
                 } else {
@@ -148,8 +141,8 @@ public class DemoApplication {
         });
         classCode += `}\n`;
 
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/entity`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/entity/${entityName}.java`, classCode);
+        fs.mkdirSync(`${outDire}entity`, { recursive: true });
+        fs.writeFileSync(`${outDire}entity/${entityName}.java`, classCode);
 
         return classCode;
     }).join('\n\n');
@@ -160,10 +153,10 @@ public class DemoApplication {
         classCode += `package ${packageName}.entity;\n`;
         classCode += `\n`;
         classCode += `public enum ${enumName} {\n`;
-        classCode += model.Enums[enumName].Values.map(value => `    ${value}`).join(',\n');
+        classCode += model.Enums[enumName].Values.map(value => `    ${value.toUpperCase()}`).join(',\n');
         classCode += `\n}\n`;
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/entity`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/entity/${enumName}.java`, classCode);
+        fs.mkdirSync(`${outDire}entity`, { recursive: true });
+        fs.writeFileSync(`${outDire}entity/${enumName}.java`, classCode);
         return classCode;
     }).join('\n\n');
 
@@ -178,14 +171,17 @@ public class DemoApplication {
         classCode += `import java.math.BigDecimal;\n`;
         classCode += `import java.util.List;\n`;
         classCode += `import java.time.*;\n`;
+        classCode += `import lombok.AllArgsConstructor;\n`;
         classCode += `import lombok.Builder;\n`;
-        classCode += `import lombok.NoArgsConstructor;\n`;
         classCode += `import lombok.Data;\n`;
+        classCode += `import lombok.EqualsAndHashCode;\n`;
+        classCode += `import lombok.NoArgsConstructor;\n`;
         classCode += `\n`;
         classCode += `@Builder\n`;
-        // classCode += `@NoArgsConstructor\n`;
         classCode += `@Data\n`;
-        // classCode += `@JsonUnwrapped\n`;
+        classCode += `@AllArgsConstructor\n`;
+        classCode += `@NoArgsConstructor\n`;
+        classCode += `@EqualsAndHashCode(callSuper = false)\n`;
         classCode += `@Embeddable\n`;
         classCode += `public class ${valueObjectName} {\n\n`;
 
@@ -249,8 +245,8 @@ public class DemoApplication {
             classCode += `    private ${toJavaClass(attribute.type)} ${Utils.toCamelCase(attribute.name)};\n\n`;
         });
         classCode += `}\n`;
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/entity`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/entity/${valueObjectName}.java`, classCode);
+        fs.mkdirSync(`${outDire}entity`, { recursive: true });
+        fs.writeFileSync(`${outDire}entity/${valueObjectName}.java`, classCode);
         return classCode;
     }).join('\n\n');
 
@@ -325,8 +321,8 @@ public class DemoApplication {
             classCode += `    }\n\n`;
         });
         classCode += `}\n`;
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/controller`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/controller/${controllerName}.java`, classCode);
+        fs.mkdirSync(`${outDire}controller`, { recursive: true });
+        fs.writeFileSync(`${outDire}controller/${controllerName}.java`, classCode);
         return classCode;
     }).join('\n\n');
 
@@ -375,8 +371,8 @@ public class DemoApplication {
             // classCode += `    }\n`;
         });
         classCode += `}\n`;
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/service`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/${apiName}.java`, classCode);
+        fs.mkdirSync(`${outDire}service`, { recursive: true });
+        fs.writeFileSync(`${outDire}service/${apiName}.java`, classCode);
         return classCode;
     }).join('\n\n');
 
@@ -439,9 +435,9 @@ public class DemoApplication {
             classCode += `    }\n\n`;
         });
         classCode += `}\n`;
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/service/impl`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/impl/${apiName}.java.md`, classCode);
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/${apiName}.java.md`, classCode);
+        fs.mkdirSync(`${outDire}service/impl`, { recursive: true });
+        fs.writeFileSync(`${outDire}service/impl/${apiName}.java.md`, classCode);
+        fs.writeFileSync(`${outDire}service/${apiName}.java.md`, classCode);
         return classCode;
     }).join('\n\n');
 }
@@ -552,8 +548,8 @@ export function serviceImpl() {
             // }
         });
         classCode += `}\n`;
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/service/impl`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/impl/${apiName}Impl.java`, classCode);
+        fs.mkdirSync(`${outDire}service/impl`, { recursive: true });
+        fs.writeFileSync(`${outDire}service/impl/${apiName}Impl.java`, classCode);
         return classCode;
     }).join('\n\n');
 
@@ -582,8 +578,8 @@ export function serviceImpl() {
         classCode += (jpaMethods[`${entityName}Repository`] || []).map((methodSignature: string) => `    public ${methodSignature};`).join('\n');
         classCode += `\n`;
         classCode += `}\n`;
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/repository`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/repository/${entityName}Repository.java`, classCode);
+        fs.mkdirSync(`${outDire}repository`, { recursive: true });
+        fs.writeFileSync(`${outDire}repository/${entityName}Repository.java`, classCode);
         return classCode;
     }).join('\n\n');
     // console.log(jpaMethods);

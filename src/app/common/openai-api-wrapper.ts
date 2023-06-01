@@ -40,6 +40,7 @@ export class OpenAIApiWrapper {
         // this.options = {};
         // console.log(this.options);
 
+        try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
         // ヘッダー出力
         console.log(`timestamp               step  R time[ms]  prompt comple model    cost   label`);
     }
@@ -52,7 +53,6 @@ export class OpenAIApiWrapper {
      * @returns OpenAIのAPIのレスポンス
      */
     call(label: string, prompt: string, model: TiktokenModel = 'gpt-3.5-turbo', systemMessage: string = 'You are an experienced and talented software engineer.', assistantMessage: string = '', streamHandler: (text: string) => void = () => { }): Promise<string> {
-        try { fs.mkdirSync(HISTORY_DIRE, { recursive: true }); } catch (e) { }
         const promise: Promise<string> = new Promise(async (resolve, reject) => {
             const args: CreateChatCompletionRequest = {
                 // model: ([0, 1, 4, 5].indexOf(stepNo) !== -1) ? "gpt-4" : "gpt-3.5-turbo",

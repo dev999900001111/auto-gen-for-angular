@@ -605,10 +605,8 @@ class Step0060_CreateService extends MultiStep {
   }
 }
 
-const HISTORY_DIRE = `./history`;
 export async function main() {
   try { fs.mkdirSync(`./prompts`, { recursive: true }); } catch (e) { }
-  try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
   return Promise.resolve().then(() => {
