@@ -268,12 +268,23 @@ export class DomainModel {
                     aggregates[name] = domainModel.Aggregates[name]
                         || domainModel.Aggregates[name.replace(/Aggregate/g, '')]
                         || domainModel.Aggregates[name + 'Aggregate'];
+                    if (name !== aggregates[name].name) {
+                        delete domainModel.Aggregates[aggregates[name].name];
+                        domainModel.Aggregates[name] = aggregates[name];
+                        aggregates[name].name = name;
+                    } else { }
                     return aggregates;
                 }, {} as { [key: string]: Aggrigate }),
                 DomainServices: (boundedContextRaw.DomainServices || []).reduce((domainServices: { [key: string]: DomainService }, name: string) => {
                     domainServices[name] = domainModel.DomainServices[name]
                         || domainModel.DomainServices[name.replace(/Service$/g, '')]
                         || domainModel.DomainServices[`${name}Service`];
+                    // DomainServiceは名前にServiceがついたりつかなかったりするので両方受けられるようにしておく。
+                    if (name !== domainServices[name].name) {
+                        delete domainModel.DomainServices[domainServices[name].name];
+                        domainModel.DomainServices[name] = domainServices[name];
+                        domainServices[name].name = name;
+                    } else { }
                     return domainServices;
                 }, {} as { [key: string]: DomainService }),
                 DomainEvents: (boundedContextRaw.DomainEvents || []).reduce((domainEvents: { [key: string]: DomainEvents }, name: string) => {
@@ -314,45 +325,50 @@ export class DomainModel {
 
         // Relationships
         domainModel.Relationships = [];
-        Object.keys(domainModel.Entities).forEach((entityName: string) => {
-            domainModel.Entities[entityName].Attributes.forEach((attribute: Attribute) => {
+        [DomainModelPattern.Entities, DomainModelPattern.ValueObjects].forEach((pattern: DomainModelPattern) => {
+            Object.keys(domainModel[pattern]).forEach((entityName: string) => {
+                const modelEntities: { [key: string]: Entity | ValueObject } = domainModel[pattern] as any as { [key: string]: Entity | ValueObject };
+                modelEntities[entityName].Attributes.forEach((attribute: Attribute) => {
 
-                let propType = '';
-                let isList = false;
-                if (attribute.type.startsWith('List<')) {
-                    propType = attribute.type.substring(5, attribute.type.length - 1);
-                    // console.log(`List   ${propType}`);
-                    isList = true;
-                } else if (
-                    domainModel.Entities[attribute.type] ||
-                    domainModel.ValueObjects[attribute.type]
-                ) {
-                    propType = attribute.type;
-                    // console.log(`       ${propType}`);
-                }
+                    let propType = '';
+                    let isList = false;
+                    if (attribute.type.startsWith('List<')) {
+                        propType = attribute.type.substring(5, attribute.type.length - 1);
+                        // console.log(`List   ${propType}`);
+                        isList = true;
+                    } else if (
+                        // domainModel.Enums[attribute.type] ||
+                        domainModel.Entities[attribute.type] ||
+                        domainModel.ValueObjects[attribute.type]
+                    ) {
+                        propType = attribute.type;
+                        // console.log(`       ${propType}`);
+                    }
 
-                if (domainModel.Entities[propType]) {
-                    const chilAttr = domainModel.Entities[propType].Attributes.find((attr: Attribute) => {
-                        let propTypeChil = '';
-                        if (attr.type.startsWith('List<')) {
-                            propTypeChil = attr.type.substring(5, attr.type.length - 1);
-                        } else if (domainModel.Entities[attr.type]) {
-                            propTypeChil = attr.type;
-                        } else { }
-                        // console.log(`${propTypeChil} ${entityName}`);
-                        return propTypeChil === entityName;
-                    });
-                    const isListChil = chilAttr ? chilAttr.type.startsWith('List<') : false;
-                    // console.log(`${entityName} ${attribute.name} ${attribute.type} ${propType} ${isList} ${isListChil}`)
-                    domainModel.Relationships.push({
-                        type: isList
-                            ? (isListChil ? RelationshipType.ManyToMany : RelationshipType.OneToMany)
-                            : (isListChil ? RelationshipType.ManyToOne : RelationshipType.OneToOne),
-                        source: domainModel.Entities[entityName],
-                        target: domainModel.Entities[propType],
-                    });
-                } else {
-                }
+                    const entity = domainModel.Entities[propType] || domainModel.ValueObjects[propType];
+                    if (entity) {
+                        const chilAttr = entity.Attributes.find((attr: Attribute) => {
+                            let propTypeChil = '';
+                            if (attr.type.startsWith('List<')) {
+                                propTypeChil = attr.type.substring(5, attr.type.length - 1);
+                            } else if (domainModel.Entities[attr.type] || domainModel.ValueObjects[attr.type]) {
+                                propTypeChil = attr.type;
+                            } else { }
+                            // console.log(`${propTypeChil} ${entityName}`);
+                            return propTypeChil === entityName;
+                        });
+                        const isListChil = chilAttr ? chilAttr.type.startsWith('List<') : false;
+                        // console.log(`${entityName} ${attribute.name} ${attribute.type} ${propType} ${isList} ${isListChil}`)
+                        domainModel.Relationships.push({
+                            type: isList
+                                ? (isListChil ? RelationshipType.ManyToMany : RelationshipType.OneToMany)
+                                : (isListChil ? RelationshipType.ManyToOne : RelationshipType.OneToOne),
+                            source: domainModel.Entities[entityName] || domainModel.ValueObjects[entityName],
+                            target: domainModel.Entities[propType] || domainModel.ValueObjects[propType],
+                        });
+                    } else {
+                    }
+                });
             });
         });
         // console.log(JSON.stringify(domainModel.RelationshipSourceMap));

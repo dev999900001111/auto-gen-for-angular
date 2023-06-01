@@ -1,7 +1,7 @@
 import * as  fs from 'fs';
 import { Utils } from '../common/utils';
 import { BaseStep, MultiStep } from "../common/base-step";
-import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, Entity, RelationshipType, TableModel, ValueObject } from '../domain-models/domain-models';
+import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, DomainService, Entity, RelationshipType, TableModel, ValueObject } from '../domain-models/domain-models';
 import { genEntityAndRepository, serviceImpl } from './source-generator';
 
 class Step0000_RequirementsToDomainModels extends BaseStep {
@@ -530,7 +530,7 @@ class Step0060_CreateService extends MultiStep {
             contentJp: Utils.trimLines(`
               Requirements と Domain Modelsの内容を理解してBase Code "${serviceName}"の全てのメソッドの実装を書いて下さい。
               対象は以下の通りです。
-              - ${boundedContext.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}
+              - ${domainModel.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}
               指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
               - 項目名に一貫性に注意してください。特にIDとIdとidの違いには注意してください。
               - メソッドのシグネチャを変更せず、あくまでメソッドの中身だけを考えてください。
@@ -544,7 +544,7 @@ class Step0060_CreateService extends MultiStep {
             content: Utils.trimLines(`
               Please understand the contents of Requirements and Domain Models and write the implementation of all methods of Base Code "${serviceName}".
               The target is as follows.
-              - ${boundedContext.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}
+              - ${domainModel.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}
               The instructions are just guidelines. Please proceed while self-completing the know-how recalled based on the instructions.
               - Pay attention to consistency in item names. Pay particular attention to the difference between ID, Id, and id.
               - Do not change the signature of the method, but consider only the contents of the method.
@@ -598,9 +598,7 @@ class Step0060_CreateService extends MultiStep {
         return result;
       }
     }
-    this.childStepList = Object.keys(domainModel.DomainServices).filter((serviceName: string) =>
-      Object.keys(domainModel.BoundedContexts).find((boundedContextName) => domainModel.BoundedContexts[boundedContextName].DomainServices[serviceName])
-    ).map(serviceName => new Step0060_CreateServiceChil(serviceName));
+    this.childStepList = Object.keys(domainModel.DomainServices).map(serviceName => new Step0060_CreateServiceChil(serviceName));
   }
   postProcess(result: string[]): string[] {
     return result;
