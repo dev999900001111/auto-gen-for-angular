@@ -1,5 +1,5 @@
 import * as  fs from 'fs';
-import fsq from './fsq';
+import fss from './fss';
 import { TiktokenModel } from 'tiktoken';
 import { OpenAIApiWrapper } from "./openai-api-wrapper";
 import { StructuredPrompt, Utils } from "./utils";
@@ -20,7 +20,8 @@ export abstract class BaseStepInterface<T> {
 }
 
 /**
- * 基本クラス
+ * ステップの基本クラス
+ * プロンプトと結果をファイル出力する。
  */
 export abstract class BaseStep extends BaseStepInterface<string> {
 
@@ -41,7 +42,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
 
     initPrompt(): string {
         const prompt = this.chapters.map(chapter => Utils.toMarkdown(chapter)).join('\n');
-        fs.writeFileSync(this.promptPath, prompt);
+        fss.writeFileSync(this.promptPath, prompt);
         return this.preProcess(prompt);
     }
 
@@ -58,7 +59,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
             fs.readFile(this.promptPath, 'utf-8', (err, prompt: string) => {
                 let isInit = false;
                 const streamHandler = ((data: string) => {
-                    (isInit ? fsq.appendFile : fsq.writeFile)(`${this.resultPath}.tmp`, data, (err: any) => { if (err) console.error(err); });
+                    (isInit ? fss.appendFile : fss.writeFile)(`${this.resultPath}.tmp`, data, (err: any) => { if (err) console.error(err); });
                     isInit = true;
                 }).bind(this);
 

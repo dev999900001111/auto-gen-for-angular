@@ -1,8 +1,13 @@
 import * as  fs from 'fs';
+import fss from '../common/fss';
 import { Utils } from '../common/utils';
 import { BaseStep, MultiStep } from "../common/base-step";
 import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, DomainService, Entity, RelationshipType, TableModel, ValueObject } from '../domain-models/domain-models';
 import { genEntityAndRepository, serviceImpl } from './source-generator';
+
+
+const direDomainModels = `./gen/domain-models/`;
+const direSource = `./gen/src/main/java/com/example/demo/`;
 
 class Step0000_RequirementsToDomainModels extends BaseStep {
   model = 'gpt-4';
@@ -124,7 +129,6 @@ class Step0010_DomainModelsInitialize extends BaseStep {
         title: 'Output rules',
         contentJp: Utils.trimLines(`
           トークン数をなるべく節約するため、以下の点に注意してください。
-          - markdown形式で出力すること
           - 項目の区切り文字はパイプ区切り、パイプ区切りの中で更に分ける場合はカンマ区切りとすること。
         `),
         content: Utils.trimLines(`
@@ -199,7 +203,6 @@ class Step0030_domainModelsJson extends MultiStep {
 
     class Step0030_domainModelsJsonChil extends BaseStep {
       // model = 'gpt-4';
-      dire: string;
       constructor(private pattern: string) {
         super();
         this.label = `${this.constructor.name}_${pattern}`;
@@ -260,25 +263,19 @@ class Step0030_domainModelsJson extends MultiStep {
             `)
           }
         ];
+      }
 
-        ////////////////// 
-        this.dire = `./gen/domain-models/`;
-        if (fs.existsSync(this.dire)) {
-        } else {
-          fs.mkdirSync(this.dire, { recursive: true });
-          console.log(`Directory ${this.dire} created.`);
-        }
+      /**
+       * プロンプトと結果を見比べやすいように、結果ファイルと同じ場所にプロンプトファイルを作成する。
+       * @param prompt 
+       * @returns 
+       */
+      preProcess(prompt: string): string {
+        fss.writeFileSync(`${direDomainModels}${this.pattern}.json.prompt.md`, prompt);
+        return prompt;
       }
       postProcess(result: string): string {
-        try {
-          fs.writeFileSync(`${this.dire}${this.pattern}.json`, Utils.mdTrim(result));
-        } catch (e) {
-          if (this.pattern == DomainModelPattern.BatchJobs) {
-            console.log(`BatchJobsは空`);
-          } else {
-            console.log(e);
-          }
-        }
+        fss.writeFileSync(`${direDomainModels}${this.pattern}.json`, Utils.mdTrim(result));
         return result;
       }
     }
@@ -292,7 +289,6 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
 
     class Step0040_domainModelEntityAndDomainServiceJsonChil extends BaseStep {
       // model = 'gpt-4';
-      dire: string = `./gen/domain-models/`;
       constructor(private pattern: string = 'Entities', private boundedContext: string = '') {
         super();
         this.label = `${this.constructor.name}_${pattern}-${Utils.toPascalCase(this.boundedContext)}`;
@@ -348,22 +344,16 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
         ];
       }
       preProcess(prompt: string): string {
-        if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-        fs.writeFileSync(`${this.dire}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json.prompt.md`, this.prompt);
+        fss.writeFileSync(`${direDomainModels}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json.prompt.md`, this.prompt);
         return prompt;
       }
       postProcess(result: string): string {
-        try {
-          ////////////////// 
-          fs.writeFileSync(`${this.dire}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json`, Utils.mdTrim(result));
-        } catch (e) {
-          console.log(e);
-        }
+        fss.writeFileSync(`${direDomainModels}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json`, Utils.mdTrim(result));
         return result;
       }
     }
 
-    const boundedContexts: { [key: string]: { Entities: string[] } } = Utils.jsonParse(fs.readFileSync(`./gen/domain-models/${DomainModelPattern.BoundedContexts}.json`, 'utf-8'));
+    const boundedContexts: { [key: string]: { Entities: string[] } } = Utils.jsonParse(fs.readFileSync(`${direDomainModels}${DomainModelPattern.BoundedContexts}.json`, 'utf-8'));
     this.childStepList = Object.keys(boundedContexts).map((boundedContextName) =>
       [DomainModelPattern.Entities, DomainModelPattern.DomainServices].map(pattern =>
         new Step0040_domainModelEntityAndDomainServiceJsonChil(pattern, boundedContextName)
@@ -376,7 +366,6 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
 class Step0050_CreateAPI extends MultiStep {
   // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
   // model = 'gpt-4';
-  // dire: string = `./gen/domain-models/`;
   constructor() {
     super();
     const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().result);
@@ -384,7 +373,6 @@ class Step0050_CreateAPI extends MultiStep {
 
     class Step0050_CreateAPIChil extends BaseStep {
       // model = 'gpt-4';
-      dire: string = `./gen/domain-models/`;
       constructor(public boundedContext: BoundedContext) {
         super();
         this.label = `${this.constructor.name}_${Utils.toPascalCase(this.boundedContext.name)}`;
@@ -457,19 +445,14 @@ class Step0050_CreateAPI extends MultiStep {
           }
         ];
       }
+
       preProcess(prompt: string): string {
-        // ディレクトリが無ければ掘る
-        if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-        // ファイル書き込み
-        try { fs.writeFileSync(`${this.dire}API-${Utils.toPascalCase(this.boundedContext.name)}.json.prompt.md`, this.prompt); } catch (e) { console.log(e); }
+        fss.writeFileSync(`${direDomainModels}API-${Utils.toPascalCase(this.boundedContext.name)}.json.prompt.md`, this.prompt);
         return prompt;
       }
 
       postProcess(result: string): string {
-        // ディレクトリが無ければ掘る
-        if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-        // ファイル書き込み
-        try { fs.writeFileSync(`${this.dire}API-${Utils.toPascalCase(this.boundedContext.name)}.json`, Utils.mdTrim(result)); } catch (e) { console.log(e); }
+        fss.writeFileSync(`${direDomainModels}API-${Utils.toPascalCase(this.boundedContext.name)}.json`, Utils.mdTrim(result));
         return result;
       }
     }
@@ -486,7 +469,6 @@ class Step0050_CreateAPI extends MultiStep {
 class Step0060_CreateService extends MultiStep {
   // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
   // model = 'gpt-4';
-  // dire: string = `./gen/domain-models/`;
   constructor() {
     super();
     const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().result);
@@ -494,7 +476,6 @@ class Step0060_CreateService extends MultiStep {
 
     class Step0060_CreateServiceChil extends BaseStep {
       // model = 'gpt-4';
-      dire: string = `./gen/domain-models/`;
       constructor(public serviceName: string) {
         super();
         this.label = `${this.constructor.name}_${serviceName}`;
@@ -581,20 +562,14 @@ class Step0060_CreateService extends MultiStep {
         ];
       }
       preProcess(prompt: string): string {
-        fs.mkdirSync(`./gen/src/main/java/com/example/demo/service/impl`, { recursive: true });
-        fs.writeFileSync(`./gen/src/main/java/com/example/demo/service/impl/${this.serviceName}Impl.java.prompt.md`, prompt);
-
-        // ディレクトリが無ければ掘る
-        if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-        // ファイル書き込み
-        try { fs.writeFileSync(`${this.dire}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json.prompt.md`, this.prompt); } catch (e) { console.log(e); }
+        // ドメインモデルjsonに出力しておく
+        fss.writeFileSync(`${direDomainModels}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json.prompt.md`, this.prompt);
+        // ソースコード側にもセットで出力しておく
+        fss.writeFileSync(`${direSource}service/impl/${this.serviceName}Impl.java.prompt.md`, prompt);
         return prompt;
       }
       postProcess(result: string): string {
-        // ディレクトリが無ければ掘る
-        if (fs.existsSync(this.dire)) { } else { fs.mkdirSync(this.dire, { recursive: true }); console.log(`Directory ${this.dire} created.`); }
-        // ファイル書き込み
-        try { fs.writeFileSync(`${this.dire}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json`, Utils.mdTrim(result)); } catch (e) { console.log(e); }
+        fss.writeFileSync(`${direDomainModels}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json`, Utils.mdTrim(result));
         return result;
       }
     }

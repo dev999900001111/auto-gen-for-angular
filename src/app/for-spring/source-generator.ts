@@ -1,9 +1,11 @@
 import * as fs from 'fs';
 import * as ts from "typescript";
+import fss from '../common/fss';
 import { Attribute, DomainModel, Relationship, RelationshipType, domainModelsDire } from '../domain-models/domain-models';
 import { Utils } from '../common/utils';
 import DemoApplicationJava from './template/DemoApplication.java';
 import BaseEntityJava from './template/BaseEntity.java';
+import ResourceNotFoundExceptionJava from './template/ResourceNotFoundException.java';
 
 const packageName = 'com.example.demo';
 const outDire = `./gen/src/main/java/com/example/demo/`;
@@ -28,9 +30,9 @@ const TIME_TYPE_COLUMN_DEFINITION: { [key: string]: string } = {
 export function genEntityAndRepository() {
     const model = DomainModel.loadModels();
 
-    fs.mkdirSync(`${outDire}`, { recursive: true });
-    fs.writeFileSync(`${outDire}DemoApplication.java`, Utils.fillTemplate({ packageName }, DemoApplicationJava));
-    fs.writeFileSync(`${outDire}base/entity/BaseEntity.java`, Utils.fillTemplate({ packageName }, BaseEntityJava));
+    fss.writeFileSync(`${outDire}DemoApplication.java`, Utils.fillTemplate({ packageName }, DemoApplicationJava));
+    fss.writeFileSync(`${outDire}base/entity/BaseEntity.java`, Utils.fillTemplate({ packageName }, BaseEntityJava));
+    fss.writeFileSync(`${outDire}base/exception/ResourceNotFoundException.java`, Utils.fillTemplate({ packageName }, ResourceNotFoundExceptionJava));
 
     // Entitys
     const entities = Object.keys(model.Entities).map((entityName: string) => {
@@ -57,7 +59,6 @@ export function genEntityAndRepository() {
         classCode += `@NoArgsConstructor\n`;
         classCode += `@EqualsAndHashCode(callSuper = false)\n`;
 
-        classCode += `@Builder\n`;
         classCode += `@Entity\n`;
         classCode += `@Table(name = "t_${Utils.toSnakeCase(entityName)}")\n`;
         classCode += `public class ${entityName} extends BaseEntity {\n\n`;
@@ -141,8 +142,7 @@ export function genEntityAndRepository() {
         });
         classCode += `}\n`;
 
-        fs.mkdirSync(`${outDire}entity`, { recursive: true });
-        fs.writeFileSync(`${outDire}entity/${entityName}.java`, classCode);
+        fss.writeFileSync(`${outDire}entity/${entityName}.java`, classCode);
 
         return classCode;
     }).join('\n\n');
@@ -153,10 +153,10 @@ export function genEntityAndRepository() {
         classCode += `package ${packageName}.entity;\n`;
         classCode += `\n`;
         classCode += `public enum ${enumName} {\n`;
+        // valueは全て大文字に変換
         classCode += model.Enums[enumName].Values.map(value => `    ${value.toUpperCase()}`).join(',\n');
         classCode += `\n}\n`;
-        fs.mkdirSync(`${outDire}entity`, { recursive: true });
-        fs.writeFileSync(`${outDire}entity/${enumName}.java`, classCode);
+        fss.writeFileSync(`${outDire}entity/${enumName}.java`, classCode);
         return classCode;
     }).join('\n\n');
 
@@ -245,8 +245,7 @@ export function genEntityAndRepository() {
             classCode += `    private ${toJavaClass(attribute.type)} ${Utils.toCamelCase(attribute.name)};\n\n`;
         });
         classCode += `}\n`;
-        fs.mkdirSync(`${outDire}entity`, { recursive: true });
-        fs.writeFileSync(`${outDire}entity/${valueObjectName}.java`, classCode);
+        fss.writeFileSync(`${outDire}entity/${valueObjectName}.java`, classCode);
         return classCode;
     }).join('\n\n');
 
@@ -321,8 +320,7 @@ export function genEntityAndRepository() {
             classCode += `    }\n\n`;
         });
         classCode += `}\n`;
-        fs.mkdirSync(`${outDire}controller`, { recursive: true });
-        fs.writeFileSync(`${outDire}controller/${controllerName}.java`, classCode);
+        fss.writeFileSync(`${outDire}controller/${controllerName}.java`, classCode);
         return classCode;
     }).join('\n\n');
 
@@ -371,8 +369,7 @@ export function genEntityAndRepository() {
             // classCode += `    }\n`;
         });
         classCode += `}\n`;
-        fs.mkdirSync(`${outDire}service`, { recursive: true });
-        fs.writeFileSync(`${outDire}service/${apiName}.java`, classCode);
+        fss.writeFileSync(`${outDire}service/${apiName}.java`, classCode);
         return classCode;
     }).join('\n\n');
 
@@ -384,6 +381,7 @@ export function genEntityAndRepository() {
         classCode += `\n`;
         classCode += `import org.springframework.beans.factory.annotation.Autowired;\n`;
         classCode += `import org.springframework.web.bind.annotation.*;\n`;
+        classCode += `import ${packageName}.base.exception.ResourceNotFoundException;\n`;
         classCode += `import ${packageName}.entity.*;\n`;
         classCode += `import ${packageName}.repository.*;\n`;
         classCode += `import java.math.BigDecimal;\n`;
@@ -435,9 +433,6 @@ export function genEntityAndRepository() {
             classCode += `    }\n\n`;
         });
         classCode += `}\n`;
-        fs.mkdirSync(`${outDire}service/impl`, { recursive: true });
-        fs.writeFileSync(`${outDire}service/impl/${apiName}.java.md`, classCode);
-        fs.writeFileSync(`${outDire}service/${apiName}.java.md`, classCode);
         return classCode;
     }).join('\n\n');
 }
@@ -548,8 +543,7 @@ export function serviceImpl() {
             // }
         });
         classCode += `}\n`;
-        fs.mkdirSync(`${outDire}service/impl`, { recursive: true });
-        fs.writeFileSync(`${outDire}service/impl/${apiName}Impl.java`, classCode);
+        fss.writeFileSync(`${outDire}service/impl/${apiName}Impl.java`, classCode);
         return classCode;
     }).join('\n\n');
 
@@ -578,8 +572,7 @@ export function serviceImpl() {
         classCode += (jpaMethods[`${entityName}Repository`] || []).map((methodSignature: string) => `    public ${methodSignature};`).join('\n');
         classCode += `\n`;
         classCode += `}\n`;
-        fs.mkdirSync(`${outDire}repository`, { recursive: true });
-        fs.writeFileSync(`${outDire}repository/${entityName}Repository.java`, classCode);
+        fss.writeFileSync(`${outDire}repository/${entityName}Repository.java`, classCode);
         return classCode;
     }).join('\n\n');
     // console.log(jpaMethods);
