@@ -9,7 +9,7 @@ import { Utils } from "./utils";
 const HISTORY_DIRE = `./history`;
 const configuration = new Configuration({
     apiKey: process.env['OPENAI_API_KEY'],
-    // baseOptions: { timeout: 1200000 },
+    // baseOptions: { timeout: 1200000, Configuration: { timeout: 1200000 } },
 });
 const openai = new OpenAIApi(configuration);
 
@@ -35,6 +35,7 @@ export class OpenAIApiWrapper {
             httpsAgent: new HttpsProxyAgent(proxyObj.httpsProxy || proxyObj.httpProxy || ''),
         } : {};
         this.options.responseType = 'stream';
+        // this.options.timeout = 1200000;
 
         // this.options = {};
         // console.log(this.options);
@@ -97,7 +98,7 @@ export class OpenAIApiWrapper {
                     let tokenBuilder: string = '';
                     (completion.data as any).on('data', (data: any) => {
                         fsq.appendFile(`${HISTORY_DIRE}/${timestamp}-${label}.txt`, data.toString(), {}, () => { });
-                        // console.log(data.toString());
+                        // console.log(`${tokenCount.completion_tokens}: ${data.toString()}`);
                         const lines = data.toString().split('\n').filter((line: string) => line.trim() !== '');
                         for (const line of lines) {
                             const message: string = line.replace(/^data: /, '');
