@@ -581,8 +581,6 @@ class Step0060_CreateService extends MultiStep {
 }
 
 export async function main() {
-  try { fs.mkdirSync(`./prompts`, { recursive: true }); } catch (e) { }
-
   let obj;
   return Promise.resolve().then(() => {
     obj = new Step0000_RequirementsToDomainModels();
