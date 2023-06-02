@@ -353,7 +353,7 @@ export function genEntityAndRepository() {
                 serviceParamAry = Object.keys(type).map((key: string) => key);
             } { }
             if (api.request) {
-                classCode += typeToInterface(requestType, convertStringToJson(api.request), convertStringToJson(api.validation));
+                classCode += typeToInterface(requestType, convertStringToJson(api.request), convertStringToJson(api.validation, true));
                 controllerParamAry.push(`${requestType} requestBody`);
                 serviceParamAry.push(`requestBody`);
             } else { }
@@ -416,7 +416,7 @@ export function genEntityAndRepository() {
                 serviceParamAry = Object.keys(type).map((key: string) => key);
             } { }
             if (api.request) {
-                classCode += typeToInterface(requestType, convertStringToJson(api.request), convertStringToJson(api.validation));
+                classCode += typeToInterface(requestType, convertStringToJson(api.request), convertStringToJson(api.validation, true));
                 controllerParamAry.push(`${requestType} requestBody`);
                 serviceParamAry.push(`requestBody`);
             } else { }
@@ -592,10 +592,16 @@ function typeToInterface(className: string, obj: { [key: string]: any }, api: { 
     return classCode;
 }
 
-function convertStringToJson(input: string): { [key: string]: any } {
+function convertStringToJson(input: string, isValidation = false): { [key: string]: any } {
     //TODO {a:int},{b:int}←こんな感じになってしまうことがあるのを無理やり対処しているが、本当は綺麗に対処したい。
-    input = (JSON.stringify(input) || '').replace(/},{/g, ',');
-    const sourceFile = ts.createSourceFile('test.ts', `const dat:${input};`, ts.ScriptTarget.Latest);
+    if (input && typeof input === 'object') {
+        input = JSON.stringify(input);
+    }
+    if (isValidation) {
+    } else {
+        input = input.replace(/"/g, '');
+    }
+    const sourceFile = ts.createSourceFile('test.ts', `const dat:${(input || '').replace(/},{/g, ',')};`, ts.ScriptTarget.Latest);
     return (sourceFile.statements[0] as any).declarationList.declarations.map((state: any) => {
         const typeStringToObject = function (type: ts.MappedTypeNode): { [key: string]: any } {
             return type.members?.reduce((obj: { [key: string]: any }, member: any) => {
