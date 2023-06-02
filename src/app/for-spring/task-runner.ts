@@ -505,7 +505,7 @@ class Step0060_CreateService extends MultiStep {
               { title: `${DomainModelPattern.Enums}`, content: domainModel.getAttributeTable(DomainModelPattern.Enums), },
             ]
           },
-          { title: `Base Code`, content: '```java\n' + fs.readFileSync(`./gen/src/main/java/com/example/demo/service/${serviceName}.java.md`, 'utf-8') + '\n```' },
+          { title: `Base Code`, content: '```java\n' + fs.readFileSync(`./gen/src/main/java/com/example/demo/service/impl/${serviceName}Impl.java.md`, 'utf-8') + '\n```' },
           {
             title: `Instructions`,
             contentJp: Utils.trimLines(`
