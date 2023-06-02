@@ -526,21 +526,9 @@ export function serviceImpl() {
 
             classCode += `    @Override\n`;
             impl.methods[methodName] = impl.methods[methodName] || { annotations: [], body: '' };
-            // if ((impl.methods[methodName] || '').trim().startsWith('public ') || (impl.methods[methodName] || '').trim().startsWith('@')) {
-            // } else {
-            //     classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
-            // }
             classCode += `    public ${toJavaClass(api.response)} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
-            // classCode += `    private ${api.response || 'void'} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             classCode += `${(impl.methods[methodName].body || '').replace(/^(.*)$/gm, `    $1`)}\n`;
-            // .replace(/([a-z0-9])Id\(/g, '$1ID(').replace(/\.findByID\(/g, '.findById(')
-            // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
-            // classCode += `        // TODO implementation\n`;
             classCode += `    }\n\n`;
-            // if ((impl.methods[methodName].body || '').trim().startsWith('public ') || (impl.methods[methodName].body || '').trim().startsWith('@')) {
-            // } else {
-            //     classCode += `    }\n\n`;
-            // }
         });
         classCode += `}\n`;
         fss.writeFileSync(`${outDire}service/impl/${apiName}Impl.java`, classCode);
@@ -628,6 +616,7 @@ function toJavaClass(type: string): string {
         type = `List<${toJavaClass(type.substring(0, type.length - 2))}>`;
         return type;
     } else { }
+    // TODO ちょっと雑過ぎるのでそのうち見直したい。
     type = type
         .replace('list[', 'List<').replace(']', '>')
         .replace(/^string$/, 'String')

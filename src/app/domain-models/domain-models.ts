@@ -127,8 +127,8 @@ export class DomainModel {
             });
         };
         const loadArgs = (rawObj: any): Attribute[] => {
-            rawObj = rawObj || {};
-            return Object.keys(rawObj['args']).map(argName => {
+            rawObj = rawObj || { args: [] };
+            return Object.keys(rawObj['args'] || []).map(argName => {
                 return {
                     name: argName,
                     type: rawObj['args'][argName].replace('list[', 'List<').replace(']', '>'),
