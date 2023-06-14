@@ -121,7 +121,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
                                     });
                                 } catch (e: any) {
                                     // json整形に失敗する場合は整形用にもう一発。
-                                    let correctPrompt = `Please correct the following JSON that is incorrect as JSON and output the correct one.\nPay particular attention to the number of parentheses and commas.\nIf the JSON is originally accurate, output it as is.\n`;
+                                    let correctPrompt = `Please correct the following JSON that is incorrect as JSON and output the correct one.\nPay particular attention to the number of parentheses and commas.\n`;
                                     correctPrompt += `\`\`\`json\n${content}\n\`\`\``;
                                     aiApi.call(`${this.label}JsonCorrect`, correctPrompt, 'gpt-3.5-turbo', 0, ``, ``, streamHandler).then((content: string) => {
                                         fss.waitQ(`${this.resultPath}.tmp`).then(() => {
