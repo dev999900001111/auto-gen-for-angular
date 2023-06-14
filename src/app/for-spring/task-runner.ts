@@ -1,9 +1,10 @@
 import * as  fs from 'fs';
 import fss from '../common/fss';
 import { Utils } from '../common/utils';
-import { BaseStep, MultiStep } from "../common/base-step";
-import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, DomainService, Entity, RelationshipType, TableModel, ValueObject } from '../domain-models/domain-models';
+import { BaseStep, MultiStep, StepOutputFormat } from "../common/base-step";
+import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, DomainService, Entity, Method, RelationshipType, TableModel, ValueObject } from '../domain-models/domain-models';
 import { genEntityAndRepository, serviceImpl } from './source-generator';
+import { deprecate } from 'util';
 
 
 const direDomainModels = `./gen/domain-models/`;
@@ -72,6 +73,7 @@ class Step0000_RequirementsToDomainModels extends BaseStep {
 
 class Step0005_RequirementsToSystemOverview extends BaseStep {
   model = 'gpt-4';
+  format = StepOutputFormat.json;
   constructor() {
     super();
     this.chapters = [
@@ -203,6 +205,7 @@ class Step0030_domainModelsJson extends MultiStep {
 
     class Step0030_domainModelsJsonChil extends BaseStep {
       // model = 'gpt-4';
+      format = StepOutputFormat.json;
       constructor(private pattern: string) {
         super();
         this.label = `${this.constructor.name}_${pattern}`;
@@ -289,6 +292,7 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
 
     class Step0040_domainModelEntityAndDomainServiceJsonChil extends BaseStep {
       // model = 'gpt-4';
+      format = StepOutputFormat.json;
       constructor(private pattern: string = 'Entities', private boundedContext: string = '') {
         super();
         this.label = `${this.constructor.name}_${pattern}-${Utils.toPascalCase(this.boundedContext)}`;
@@ -466,7 +470,8 @@ class Step0050_CreateAPI extends MultiStep {
 }
 
 
-class Step0060_CreateService extends MultiStep {
+class Step0060_CreateServiceDoc extends MultiStep {
+
   // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
   // model = 'gpt-4';
   constructor() {
@@ -474,8 +479,176 @@ class Step0060_CreateService extends MultiStep {
     const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().result);
     const domainModel = DomainModel.loadModels();
 
-    class Step0060_CreateServiceChil extends BaseStep {
+    class Step0060_CreateServiceDocChil extends BaseStep {
       // model = 'gpt-4';
+      format = StepOutputFormat.json;
+      constructor(public serviceName: string) {
+        super();
+        this.label = `${this.constructor.name}_${serviceName}`;
+
+        const methList = domainModel.DomainServices[serviceName].Methods.map((method: Method) =>
+          `- ${method.returnType} ${method.name}(${method.args.map(arg => (arg.type + ' ' + arg.name)).join(',')})`
+        );
+        // console.log(methList);
+        this.chapters = [
+          { title: 'Requirements', content: fs.readFileSync(`./000-requirements-en.md`, 'utf-8') },
+          {
+            title: 'Domain Models',
+            children: [
+              { title: `${DomainModelPattern.Entities}`, content: domainModel.getAttributeTable(DomainModelPattern.Entities), },
+              { title: `${DomainModelPattern.ValueObjects}`, content: domainModel.getAttributeTable(DomainModelPattern.ValueObjects), },
+              // { title: `${DomainModelPattern.Aggregates}`, content: domainModel.getAttributeTable(DomainModelPattern.Aggregates), },
+              { title: `${DomainModelPattern.Enums}`, content: domainModel.getAttributeTable(DomainModelPattern.Enums), },
+            ]
+          },
+          {
+            title: `Instructions`,
+            contentJp: Utils.trimLines(`
+              ${serviceName}の詳細設計書を作成します。
+              要件定義書とドメインモデルを参照し、各メソッドに実装すべき手順を詳細に記載してください。全ての分岐パターンを網羅するようにしてください。
+              設計書の出力形式は Output Format に則ってください。
+            `),
+            content: Utils.trimLines(`
+              Create a detailed design document for ${serviceName}.
+              Refer to the requirements definition and domain model, and describe in detail the procedures that should be implemented for each method. Please cover all branch patterns.
+              The output format of the design document should be in accordance with the Output Format.
+            `),
+            children: [
+              { title: `Service methods`, content: methList.join('\n') },
+              {
+                title: `Output Format`,
+                contentJp: Utils.trimLines(`
+                  出力は以下のJSON形式で出力してください。読み取り可能なJSON形式である必要があります。改行やダブルクオーテーションを含む文字列は改行コードをエスケープしたうえで含めて出力してください。
+                  \`\`\`md
+                  # \${serviceName}
+                  ## \${methodName}
+                  ### Procedure
+                  \${procedure}
+                  ### Error
+                    - \${error code} \${error message}: \${error description}
+                  \`\`\`
+                `),
+                content: Utils.trimLines(`
+                  Please output in the following JSON format. It must be a readable JSON format. For strings that contain line breaks and double quotes, please output them after escaping the line breaks.
+                  \`\`\`md
+                  # \${serviceName}
+                  ## \${methodName}
+                  ### Procedure
+                  \${procedure}
+                  ### Error
+                    - \${error code} \${error message}: \${error description}
+                  \`\`\`
+                `),
+              },
+              {
+                title: `Output Example`, content: Utils.trimLines(`
+                  \`\`\`md
+                  # UserService
+                  ## updateUserAccount
+                  ### Procedure
+                    1. Retrieve the UserAccount with the specified ID.
+                        - If the UserAccount with the specified ID does not exist, return an error (404 Not Found).
+                    2. Create a UserInformation from the request body.
+                    3. Create an InvestmentProfile from the request body.
+                    4. Update the UserAccount's UserInformation and InvestmentProfile.
+                        - If the update of the UserAccount fails, return an error (500 Internal Server Error).
+                    5. Save the UserAccount.
+                    6. Return the saved UserAccount.
+                  ### Error
+                    - 400 Bad Request: If the request body is invalid.
+                    - 404 Not Found: If the UserAccount with the specified ID does not exist.
+                    - 500 Internal Server Error: If the update of the UserAccount fails.
+                  \`\`\`
+                `),
+              },
+            ]
+          },
+        ];
+      }
+    }
+    this.childStepList = Object.keys(domainModel.DomainServices).map(serviceName => new Step0060_CreateServiceDocChil(serviceName));
+  }
+  postProcess(result: string[]): string[] {
+    return result;
+  }
+}
+
+
+
+class Step0065_CreateServiceDocToJson extends MultiStep {
+  // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
+  // model = 'gpt-4';
+  constructor() {
+    super();
+    const domainModel = DomainModel.loadModels();
+
+    class Step0065_CreateServiceDocToJsonChil extends BaseStep {
+      // model = 'gpt-4';
+      format = StepOutputFormat.json;
+      constructor(public serviceName: string) {
+        super();
+        this.label = `${this.constructor.name}_${serviceName}`;
+        const step0060 = new Step0060_CreateServiceDoc().childStepList.find((step) => (step as any)['serviceName'] === serviceName);
+        this.chapters = [
+          {
+            title: `Instructions`,
+            contentJp: Utils.trimLines(`
+              以下の詳細設計書を Output Format に則ってJSONに変換してください。
+            `),
+            content: Utils.trimLines(`
+              Convert the following detailed design document to JSON in accordance with the Output Format.
+            `),
+            children: [
+              { title: `Service Document`, content: '\`\`\`md\n' + step0060?.result + '\n\`\`\`' },
+              {
+                title: `Output Format`,
+                contentJp: Utils.trimLines(`
+                  出力は以下のJSON形式で出力してください。読み取り可能なJSON形式である必要があります。改行やダブルクオーテーションを含む文字列は改行コードをエスケープしたうえで含めて出力してください。
+                  \`\`\`json
+                  {"\${methodName}": {"procedure": "\${Procedure}", "error": [{"code": "\${Error code}","message":"\${Error body}"}]} }
+                  \`\`\`
+                `),
+                content: Utils.trimLines(`
+                  Please output in the following JSON format. It must be a readable JSON format. Strings containing line breaks and double quotes should be output including the line break code after escaping.
+                  \`\`\`json
+                  {"\${methodName}": {"procedure": "\${Procedure}", "error": [{"code": "\${Error code}","message":"\${Error body}"}]} }
+                  \`\`\`
+                `),
+              },
+              {
+                title: `Output Example`, content: Utils.trimLines(`
+                  \`\`\`json
+                  {"updateUserAccount": {"procedure": "1. Retrieve the UserAccount with the specified ID.\\n   - If the UserAccount with the specified ID does not exist, return an error (404 Not Found).\\n2. Create a UserInformation from the request body.\\n3. Create an InvestmentProfile from the request body.\\n4. Update the UserAccount's UserInformation and InvestmentProfile.\\n   - If the update of the UserAccount fails, return an error (500 Internal Server Error).\\n5. Save the UserAccount.\\n6. Return the saved UserAccount.","error": [{"code": "400 Bad Request","message": "If the request body is invalid."},{"code": "404 Not Found","message": "If the UserAccount with the specified ID does not exist."},{"code": "500 Internal Server Error","message": "If the update of the UserAccount fails."}]}}
+                  \`\`\`
+                `),
+              },
+            ]
+          },
+        ];
+      }
+      postProcess(result: string): string {
+        fss.writeFileSync(`${direDomainModels}ServiceDocJson-${Utils.toPascalCase(this.serviceName)}.json`, Utils.mdTrim(result));
+        return result;
+      }
+    }
+    this.childStepList = Object.keys(domainModel.DomainServices).map(serviceName => new Step0065_CreateServiceDocToJsonChil(serviceName));
+  }
+  postProcess(result: string[]): string[] {
+    return result;
+  }
+}
+
+class Step0080_ImplementService extends MultiStep {
+  // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
+  constructor() {
+    super();
+    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().result);
+    const domainModel = DomainModel.loadModels();
+
+    class Step0080_ImplementServiceChil extends BaseStep {
+      // model = 'gpt-4';
+      model = 'gpt-3.5-turbo-16k';
+      format = StepOutputFormat.json;
       constructor(public serviceName: string) {
         super();
         this.label = `${this.constructor.name}_${serviceName}`;
@@ -487,7 +660,7 @@ class Step0060_CreateService extends MultiStep {
         this.chapters = [
           // { title: 'System Name', content: `${overview.nickname} (${overview.name})` },
           // { title: 'System Overview', content: overview.overview },
-          { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
+          // { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
           {
             title: 'System Requirements', content: Utils.trimLines(`
             - Server Side Framework: Spring Boot (JPA, Web, Batch, Security, Actuator, Lombok, MapStruct, etc.)
@@ -505,7 +678,7 @@ class Step0060_CreateService extends MultiStep {
               { title: `${DomainModelPattern.Enums}`, content: domainModel.getAttributeTable(DomainModelPattern.Enums), },
             ]
           },
-          { title: `Base Code`, content: '```java\n' + fs.readFileSync(`./gen/src/main/java/com/example/demo/service/impl/${serviceName}Impl.java.md`, 'utf-8') + '\n```' },
+          { title: `Base Code`, content: fs.readFileSync(`./gen/src/main/java/com/example/demo/service/impl/${serviceName}Impl.java.md`, 'utf-8') },
           {
             title: `Instructions`,
             contentJp: Utils.trimLines(`
@@ -517,6 +690,7 @@ class Step0060_CreateService extends MultiStep {
               - メソッドのシグネチャを変更せず、あくまでメソッドの中身だけを考えてください。
               - "TODO implementation"をメソッドの中身に置き換えるソースコードを書いてください。
               - Entityは全て@Builder, @Dataが付与されています。コンストラクタは使わず、builder()を使ってください。
+              - builder、setterで項目をセットする際に、項目の型を確認し、オブジェクトなのかID（Integer）なのか、その違いに注意してください。
               - エラーは全てRuntimeExceptionでthrowしてください。
               - テストをシミュレートしてバグを取り除いてください。
               - イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成した実装のみを出力してください。
@@ -531,6 +705,7 @@ class Step0060_CreateService extends MultiStep {
               - Do not change the signature of the method, but consider only the contents of the method.
               - Write the source code that replaces "TODO implementation" in the contents of the method.
               - All entities are annotated with @Builder and @Data. Do not use the constructor, use builder().
+              - When setting items with builder or setter, check the type of the item and be careful whether it is an object or an ID (Integer).
               - Throw all errors with RuntimeException.
               - Simulate the test and remove the bug.
               - Repeat the iteration several times, perform appropriate refactoring, and output only the completed implementation.
@@ -569,11 +744,11 @@ class Step0060_CreateService extends MultiStep {
         return prompt;
       }
       postProcess(result: string): string {
-        fss.writeFileSync(`${direDomainModels}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json`, Utils.mdTrim(result));
+        fs.copyFileSync(this.formedPath, `${direDomainModels}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json`);
         return result;
       }
     }
-    this.childStepList = Object.keys(domainModel.DomainServices).map(serviceName => new Step0060_CreateServiceChil(serviceName));
+    this.childStepList = Object.keys(domainModel.DomainServices).map(serviceName => new Step0080_ImplementServiceChil(serviceName));
   }
   postProcess(result: string[]): string[] {
     return result;
@@ -606,7 +781,6 @@ export async function main() {
     obj = new Step0040_domainModelEntityAndDomainServiceJson();
     obj.initPrompt();
     return obj.run();
-    // }).then(() => {
     //   Step0040_domainModelEntitysJson.genSteps().forEach((step) => step.postProcess(step.result));
   }).then(() => {
     obj = new Step0050_CreateAPI();
@@ -614,11 +788,24 @@ export async function main() {
     return obj.run();
     // obj.childStepList.forEach((step) => step.postProcess(step.result));
   }).then(() => {
-    genEntityAndRepository();
-  }).then(() => {
-    obj = new Step0060_CreateService();
+    obj = new Step0060_CreateServiceDoc();
     obj.initPrompt();
     return obj.run();
+  }).then(() => {
+    obj = new Step0065_CreateServiceDocToJson();
+    obj.initPrompt();
+    return obj.run();
+  }).then(() => {
+    genEntityAndRepository();
+  }).then(() => {
+    //   //   obj = new Step0070_ImplementService();
+    //   //   obj.initPrompt();
+    //   //   return obj.run();
+  }).then(() => {
+    obj = new Step0080_ImplementService();
+    obj.initPrompt();
+    // return obj.run();
+    obj.childStepList.forEach((step) => step.postProcess(step.result));
   }).then(() => {
     serviceImpl();
   }).then(() => {

@@ -404,6 +404,9 @@ export function genEntityAndRepository() {
         } else { }
 
 
+        let doc = Utils.jsonParse(fs.readFileSync(`${domainModelsDire}ServiceDocJson-${apiName}.json`, 'utf-8')) as { [key: string]: { procedure: string, error: [{ code: string, message: string }] } };
+        doc = (doc[apiName] || doc) as any;
+
         Object.keys(apiObj[apiName]).forEach((methodName: string) => {
             const api = apiObj[apiName][methodName];
             ['request', 'response'].forEach((key: string) => { const apiAny = api as any; apiAny[key] = typeof (apiAny[key] || '') === 'object' ? JSON.stringify(apiAny[key]) : apiAny[key]; });
@@ -429,7 +432,9 @@ export function genEntityAndRepository() {
 
             classCode += `    public ${responseType} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
-            classCode += `        // TODO implementation\n`;
+            classCode += `        /** TODO implementation\n`;
+            classCode += `         * ${doc[methodName]?.procedure.split('\n').join('\n         * ')}\n`;
+            classCode += `         */\n`;
             classCode += `    }\n\n`;
         });
         classCode += `}\n`;
@@ -477,6 +482,7 @@ export function serviceImpl() {
         classCode += `import org.springframework.beans.factory.annotation.Autowired;\n`;
         classCode += `import org.springframework.web.bind.annotation.*;\n`;
         classCode += `import org.springframework.stereotype.Service;\n`;
+        classCode += `import ${packageName}.base.exception.ResourceNotFoundException;\n`;
         classCode += `import ${packageName}.entity.*;\n`;
         classCode += `import ${packageName}.repository.*;\n`;
         classCode += `import ${packageName}.service.${apiName};\n`;
