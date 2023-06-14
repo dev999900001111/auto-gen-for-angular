@@ -4,7 +4,6 @@ import { Utils } from '../common/utils';
 import { BaseStep, MultiStep, StepOutputFormat } from "../common/base-step";
 import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, DomainService, Entity, Method, RelationshipType, TableModel, ValueObject } from '../domain-models/domain-models';
 import { genEntityAndRepository, serviceImpl } from './source-generator';
-import { deprecate } from 'util';
 
 
 const direDomainModels = `./gen/domain-models/`;
@@ -278,7 +277,7 @@ class Step0030_domainModelsJson extends MultiStep {
         return prompt;
       }
       postProcess(result: string): string {
-        fss.writeFileSync(`${direDomainModels}${this.pattern}.json`, Utils.mdTrim(result));
+        fs.copyFileSync(this.formedPath, `${direDomainModels}${this.pattern}.json`);
         return result;
       }
     }
@@ -352,7 +351,7 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
         return prompt;
       }
       postProcess(result: string): string {
-        fss.writeFileSync(`${direDomainModels}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json`, Utils.mdTrim(result));
+        fs.copyFileSync(this.formedPath, `${direDomainModels}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json`);
         return result;
       }
     }
@@ -456,7 +455,7 @@ class Step0050_CreateAPI extends MultiStep {
       }
 
       postProcess(result: string): string {
-        fss.writeFileSync(`${direDomainModels}API-${Utils.toPascalCase(this.boundedContext.name)}.json`, Utils.mdTrim(result));
+        fs.copyFileSync(this.formedPath, `${direDomainModels}API-${Utils.toPascalCase(this.boundedContext.name)}.json`);
         return result;
       }
     }
@@ -577,13 +576,13 @@ class Step0060_CreateServiceDoc extends MultiStep {
 
 class Step0065_CreateServiceDocToJson extends MultiStep {
   // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
-  // model = 'gpt-4';
   constructor() {
     super();
     const domainModel = DomainModel.loadModels();
 
     class Step0065_CreateServiceDocToJsonChil extends BaseStep {
       // model = 'gpt-4';
+      // model = 'gpt-3.5-turbo-16k';
       format = StepOutputFormat.json;
       constructor(public serviceName: string) {
         super();
@@ -627,7 +626,7 @@ class Step0065_CreateServiceDocToJson extends MultiStep {
         ];
       }
       postProcess(result: string): string {
-        fss.writeFileSync(`${direDomainModels}ServiceDocJson-${Utils.toPascalCase(this.serviceName)}.json`, Utils.mdTrim(result));
+        fs.copyFileSync(this.formedPath, `${direDomainModels}ServiceDocJson-${Utils.toPascalCase(this.serviceName)}.json`);
         return result;
       }
     }
