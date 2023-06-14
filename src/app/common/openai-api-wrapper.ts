@@ -74,7 +74,8 @@ export class OpenAIApiWrapper {
 
             // ログ出力用オブジェクト
             const text = args.messages.map(message => `role:\n${message.role}\ncontent:\n${message.content}`).join('\n');
-            const tokenCount = new TokenCount(model, encoding_for_model(model).encode(text).length, 0);
+            const tokenCount = new TokenCount(model, 0, 0);
+            tokenCount.prompt_tokens = encoding_for_model(tokenCount.modelTikToken).encode(text).length;
             this.tokenCountList.push(tokenCount);
 
             let bef = Date.now();
@@ -96,9 +97,11 @@ export class OpenAIApiWrapper {
                     completion = await openai.createChatCompletion(args, this.options as any) as AxiosResponse<CreateChatCompletionResponse, any>;
 
                     let tokenBuilder: string = '';
+                    let tokenRemainder: string = '';
                     (completion.data as any).on('data', (data: any) => {
                         fss.appendFile(`${HISTORY_DIRE}/${timestamp}-${label}.txt`, data.toString(), {}, () => { });
                         // console.log(`${tokenCount.completion_tokens}: ${data.toString()}`);
+                        data = tokenRemainder + data.toString();
                         const lines = data.toString().split('\n').filter((line: string) => line.trim() !== '');
                         for (const line of lines) {
                             const message: string = line.replace(/^data: /, '');
@@ -124,9 +127,11 @@ export class OpenAIApiWrapper {
                                         }
                                     }
                                 );
+                                tokenRemainder = '';
                             } catch (error) {
+                                tokenRemainder += line;
                                 console.error('Could not JSON parse stream message', message, error);
-                                reject(error);
+                                // reject(error);
                             }
                         }
                     });
@@ -182,6 +187,9 @@ export class TokenCount {
     // モデル名の短縮形
     public modelShort: string;
 
+    // モデル名トークンカウント用
+    public modelTikToken: TiktokenModel;
+
     /**
      * @param model: 'gpt-3.5-turbo'|'gpt-4' モデル名
      * @param prompt_tokens: number  プロンプトのトークン数
@@ -194,12 +202,13 @@ export class TokenCount {
         public completion_tokens: number = 0,
     ) {
         this.modelShort = 'all     ';
+        this.modelTikToken = 'gpt-3.5-turbo';
         if (model.includes('gpt-4')) {
             this.modelShort = model.includes('32k') ? 'gpt4-32k' : 'gpt4    ';
-        } else if (model.includes('gpt-3.5-16k')) {
-            this.modelShort = 'chat-16k';
+            this.modelTikToken = 'gpt-4';
         } else if (model.includes('gpt-3.5')) {
-            this.modelShort = 'chat    ';
+            this.modelShort = model.includes('16k') ? 'chat-16k' : 'chat    ';
+            this.modelTikToken = 'gpt-3.5-turbo';
         }
     }
 
