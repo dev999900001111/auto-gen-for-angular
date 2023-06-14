@@ -71,6 +71,7 @@ class FsSafeImpl {
             this.callbackFactory(filepath, callback)(null);
         }
     }
+
     writeFile = (file: PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options: WriteFileOptions | NoParamCallback, callback?: NoParamCallback): void => {
         // this.initDirectory(file.toString()); // 非同期の場合はディレクトリ存在チェックすると遅くなるのでやらない。
         this.addQ('writeFile', file, data, options, callback);
@@ -101,6 +102,17 @@ class FsSafeImpl {
         // ディレクトリが無ければ掘る
         if (fs.existsSync(direname)) { } else { fs.mkdirSync(direname, { recursive: true }); console.log(`Directory ${direname} created.`); }
     }
+
+    waitQ = (path: PathOrFileDescriptor): Promise<void> => {
+        return new Promise<void>((resolve, reject) => {
+            if (this.qMap[path.toString()].lock || this.qMap[path.toString()].q.length) {
+                // console.log(`wait ${this.qMap[path.toString()].q.length} : ${path}`);
+                setTimeout(resolve, 10);
+            } else {
+                resolve();
+            }
+        });
+    }
 }
 
 interface FsSafeParam {
@@ -112,6 +124,8 @@ interface FsSafeParam {
 }
 
 interface FsSafe {
+
+    waitQ: (path: PathOrFileDescriptor) => Promise<void>;
 
     /**
      * When `file` is a filename, asynchronously writes data to the file, replacing the

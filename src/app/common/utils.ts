@@ -39,6 +39,13 @@ export class Utils {
         return Utils.toAscii(str, false);
     }
 
+    /**
+     * 文字列を ASCII に変換する関数
+     * @param str - ケース変換する文字列
+     * @param isCamel - CamelCaseに変換するかどうか
+     * @returns ASCII に変換された文字列
+     * @private
+     */
     private static toAscii(str: string, isCamel: boolean = true): string {
         // 空白やアンダースコアを区切り文字として分割します
         const words = str.split(/[-\s_]+/);
@@ -203,7 +210,7 @@ export class Utils {
      * @param {*} str 
      * @returns 
      */
-    static jsonParse<T>(str0: string): T {
+    static jsonParse<T>(str0: string, isSilent: boolean = false): T {
         const str = Utils.mdTrim(str0).replace(/{"":"[^"]*"[,]{0,1}}/g, 'null').replace(/,}/g, '}');
         try {
             return JSON.parse(str);
@@ -221,10 +228,33 @@ export class Utils {
                     });
                     return sum as any;
                 } catch (e2) {
-                    console.log(e0);
-                    console.log(`[${str}]`);
-                    // e0の方をエラー出力する。
-                    throw e0;
+                    const str0 = str.substring(0, str.length - 1);
+                    try {
+                        return JSON.parse(str0);
+                    } catch (e3) {
+                        try {
+                            const mid = str0.replace(/^ *{|} *$/gm, '').split('\n').filter(line => line.trim().length > 0).join(',');
+                            return JSON.parse(`{${mid}}`);
+                        } catch (e4) {
+                            try {
+                                const mid = JSON.parse(`[${str0}]`);
+                                let sum = {};
+                                mid.forEach((obj: any) => {
+                                    // console.log(sum);
+                                    sum = { ...sum, ...obj };
+                                });
+                                return sum as any;
+                            } catch (e5) {
+                                if (isSilent) {
+                                    // silent
+                                } else {
+                                    console.log(e5);
+                                    console.log(`[${str0}]`);
+                                }
+                                throw e5;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -251,41 +281,9 @@ export class Utils {
         }
     }
 
-
-    /**
-     * [{title: 'hoge', content: 'fuga', children: [{title: 'hoge', content: 'fuga'}]}]のようなオブジェクトをMarkdownに変換する
-     * @param {{ title: string, content: string, children: any[] }} chapter
-     * @param {number} layer
-     * @returns {string}
-     */
-    static toMarkdown(chapter: StructuredPrompt, layer: number = 1) {
-        let sb = '';
-        if (chapter.title) {
-            sb += `\n${'#'.repeat(layer)} ${chapter.title}\n\n`;
-        } else { }
-        if (chapter.content) {
-            sb += `${chapter.content}\n\n`;
-        } else { }
-        if (chapter.children) {
-            chapter.children.forEach(child => {
-                // console.log(child);
-                sb += Utils.toMarkdown(child, layer + 1);
-            });
-        } else { }
-        return sb;
-    }
-
     static fillTemplate(data: { [key: string]: string }, template: string): string {
         return template.replace(/{{(\w+)}}/g, (match, key) => data[key] || "");
     }
-}
-
-
-export interface StructuredPrompt {
-    title?: string;
-    content?: string;
-    contentJp?: string;
-    children?: StructuredPrompt[];
 }
 
 // const code = `

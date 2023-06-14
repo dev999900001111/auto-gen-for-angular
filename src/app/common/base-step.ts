@@ -2,6 +2,7 @@ import * as  fs from 'fs';
 import fss from './fss';
 import { TiktokenModel } from 'tiktoken';
 import { OpenAIApiWrapper } from "./openai-api-wrapper";
+import { Utils } from './utils';
 
 export const aiApi = new OpenAIApiWrapper();
 
@@ -52,6 +53,13 @@ export abstract class BaseStepInterface<T> {
     abstract postProcess(result: T): T;
 }
 
+export enum StepOutputFormat {
+    json = 'json',
+    markdown = 'markdown',
+    html = 'html',
+    text = 'text',
+};
+
 /**
  * ステップの基本クラス
  * プロンプトと結果をファイル出力する。
@@ -63,6 +71,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
     systemMessage = 'You are an experienced and talented software engineer.';
     assistantMessage = '';
     temperature = 0.0;
+    format: StepOutputFormat = StepOutputFormat.markdown;
 
     /** create prompt */
     chapters: StructuredPrompt[] = []; // {title: string, content: string, children: chapters[]}
@@ -70,6 +79,8 @@ export abstract class BaseStep extends BaseStepInterface<string> {
     /** io */
     get promptPath() { return `./prompts/${this.label}.prompt.md`; }
     get resultPath() { return `./prompts/${this.label}.result.md`; }
+    // get formedPath() { return `./prompts/${this.label}.result.${this.format}`; }
+    get formedPath() { return `./prompts/${this.label}.result.${{ markdown: 'md', text: 'txt' }[this.format as any as string] || this.format.toString()}`; }
 
     get prompt() { return fs.readFileSync(this.promptPath, 'utf-8'); }
     get result() { return fs.readFileSync(this.resultPath, 'utf-8'); }
@@ -98,7 +109,42 @@ export abstract class BaseStep extends BaseStepInterface<string> {
                 }).bind(this);
 
                 aiApi.call(this.label, prompt, this.model as TiktokenModel, this.temperature, this.systemMessage, this.assistantMessage, streamHandler).then((content: string) => {
-                    fs.rename(`${this.resultPath}.tmp`, this.resultPath, () => resolve(this.postProcess(content)));
+                    fss.waitQ(`${this.resultPath}.tmp`).then(() => {
+                        fs.rename(`${this.resultPath}.tmp`, this.resultPath, () => {
+                            // format
+                            if (StepOutputFormat.json === this.format) {
+                                try {
+                                    content = JSON.stringify(Utils.jsonParse(content, true), null, 2);
+                                    fss.writeFile(this.formedPath, content, (err: any) => {
+                                        if (err) reject(err);
+                                        resolve(this.postProcess(content));
+                                    });
+                                } catch (e: any) {
+                                    // json整形に失敗する場合は整形用にもう一発。
+                                    let correctPrompt = `Please correct the following JSON that is incorrect as JSON and output the correct one.\nPay particular attention to the number of parentheses and commas.\n`;
+                                    correctPrompt += `\`\`\`json\n${content}\n\`\`\``;
+                                    aiApi.call(`${this.label}JsonCorrect`, correctPrompt, 'gpt-3.5-turbo', 0, ``, ``, streamHandler).then((content: string) => {
+                                        fss.waitQ(`${this.resultPath}.tmp`).then(() => {
+                                            try {
+                                                content = JSON.stringify(Utils.jsonParse(content), null, 2);
+                                                fss.writeFile(this.formedPath, content, (err: any) => {
+                                                    if (err) reject(err);
+                                                    fs.unlink(`${this.resultPath}.tmp`, () => { });
+                                                    resolve(this.postProcess(content));
+                                                });
+                                            } catch (e: any) {
+                                                reject(e);
+                                            }
+                                        });
+                                    }).catch((err: any) => {
+                                        reject(err);
+                                    });
+                                }
+                            } else {
+                                resolve(this.postProcess(content));
+                            }
+                        });
+                    });
                 }).catch((err: any) => {
                     reject(err);
                 });

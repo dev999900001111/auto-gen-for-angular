@@ -57,7 +57,7 @@ export class OpenAIApiWrapper {
             const args: CreateChatCompletionRequest = {
                 // model: ([0, 1, 4, 5].indexOf(stepNo) !== -1) ? "gpt-4" : "gpt-3.5-turbo",
                 model,
-                temperature: 0.0,
+                temperature,
                 messages: [
                     { role: 'system', content: systemMessage },
                     { role: 'user', content: prompt },
@@ -130,7 +130,7 @@ export class OpenAIApiWrapper {
                                 tokenRemainder = '';
                             } catch (error) {
                                 tokenRemainder += line;
-                                console.error('Could not JSON parse stream message', message, error);
+                                // console.error('Could not JSON parse stream message', message, error);
                                 // reject(error);
                             }
                         }
