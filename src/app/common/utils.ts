@@ -210,8 +210,29 @@ export class Utils {
      * @param {*} str 
      * @returns 
      */
-    static jsonParse<T>(str0: string, isSilent: boolean = false): T {
-        const str = Utils.mdTrim(str0).replace(/{"":"[^"]*"[,]{0,1}}/g, 'null').replace(/,}/g, '}');
+    static jsonParse<T>(str: string, isSilent: boolean = false): T {
+        let str0 = Utils.mdTrim(str).replace(/{"":"[^"]*"[,]{0,1}}/g, 'null').replace(/,}/g, '}');
+        try {
+            return Utils.jsonParse0(str0, true);
+        } catch (e0) {
+            // 末尾の括弧を外す（よくあるエラーなので）
+            const str1 = str0.substring(0, str0.length - 1);
+            try {
+                return Utils.jsonParse0(str1, true);
+            } catch (e1) {
+                // 先頭に括弧補充
+                const str2 = `{${str0}`;
+                try {
+                    return Utils.jsonParse0(str2, true);
+                } catch (e2) {
+                    // 先頭に括弧補充2
+                    const str3 = Utils.mdTrim(`\`\`\`json\n{${str}`).replace(/{"":"[^"]*"[,]{0,1}}/g, 'null').replace(/,}/g, '}');
+                    return Utils.jsonParse0(str3, isSilent);
+                }
+            }
+        }
+    }
+    static jsonParse0<T>(str: string, isSilent: boolean = false): T {
         try {
             return JSON.parse(str);
         } catch (e0) {
@@ -228,33 +249,13 @@ export class Utils {
                     });
                     return sum as any;
                 } catch (e2) {
-                    const str0 = str.substring(0, str.length - 1);
-                    try {
-                        return JSON.parse(str0);
-                    } catch (e3) {
-                        try {
-                            const mid = str0.replace(/^ *{|} *$/gm, '').split('\n').filter(line => line.trim().length > 0).join(',');
-                            return JSON.parse(`{${mid}}`);
-                        } catch (e4) {
-                            try {
-                                const mid = JSON.parse(`[${str0}]`);
-                                let sum = {};
-                                mid.forEach((obj: any) => {
-                                    // console.log(sum);
-                                    sum = { ...sum, ...obj };
-                                });
-                                return sum as any;
-                            } catch (e5) {
-                                if (isSilent) {
-                                    // silent
-                                } else {
-                                    console.log(e5);
-                                    console.log(`[${str0}]`);
-                                }
-                                throw e5;
-                            }
-                        }
+                    if (isSilent) {
+                        // silent
+                    } else {
+                        console.log(e2);
+                        console.log(`[${str}]`);
                     }
+                    throw e2;
                 }
             }
         }
