@@ -52,7 +52,7 @@ export class OpenAIApiWrapper {
      * @param systemMessage システムメッセージ
      * @returns OpenAIのAPIのレスポンス
      */
-    call(label: string, prompt: string, model: TiktokenModel = 'gpt-3.5-turbo', systemMessage: string = 'You are an experienced and talented software engineer.', assistantMessage: string = '', streamHandler: (text: string) => void = () => { }): Promise<string> {
+    call(label: string, prompt: string, model: TiktokenModel = 'gpt-3.5-turbo', temperature: number = 0, systemMessage: string = 'You are an experienced and talented software engineer.', assistantMessage: string = '', streamHandler: (text: string) => void = () => { }): Promise<string> {
         const promise: Promise<string> = new Promise(async (resolve, reject) => {
             const args: CreateChatCompletionRequest = {
                 // model: ([0, 1, 4, 5].indexOf(stepNo) !== -1) ? "gpt-4" : "gpt-3.5-turbo",
@@ -169,10 +169,11 @@ export class TokenCount {
 
     // モデル名とコストの対応表
     static COST_TABLE: { [key: string]: { prompt: number, completion: number } } = {
-        'all     ': { prompt: 0.000, completion: 0.000, },
-        'gpt3.5  ': { prompt: 0.002, completion: 0.002, },
-        'gpt4    ': { prompt: 0.030, completion: 0.060, },
-        'gpt4-32k': { prompt: 0.060, completion: 0.120, },
+        'all     ': { prompt: 0.0000, completion: 0.0000, },
+        'chat    ': { prompt: 0.0015, completion: 0.0020, },
+        'chat-16k': { prompt: 0.0030, completion: 0.0040, },
+        'gpt4    ': { prompt: 0.0300, completion: 0.0600, },
+        'gpt4-32k': { prompt: 0.0600, completion: 0.1200, },
     };
 
     // コスト
@@ -195,8 +196,10 @@ export class TokenCount {
         this.modelShort = 'all     ';
         if (model.includes('gpt-4')) {
             this.modelShort = model.includes('32k') ? 'gpt4-32k' : 'gpt4    ';
+        } else if (model.includes('gpt-3.5-16k')) {
+            this.modelShort = 'chat-16k';
         } else if (model.includes('gpt-3.5')) {
-            this.modelShort = 'gpt3.5  ';
+            this.modelShort = 'chat    ';
         }
     }
 

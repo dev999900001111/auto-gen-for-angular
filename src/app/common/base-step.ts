@@ -2,9 +2,42 @@ import * as  fs from 'fs';
 import fss from './fss';
 import { TiktokenModel } from 'tiktoken';
 import { OpenAIApiWrapper } from "./openai-api-wrapper";
-import { StructuredPrompt, Utils } from "./utils";
 
 export const aiApi = new OpenAIApiWrapper();
+
+export interface StructuredPrompt {
+    title?: string;
+    content?: string;
+    contentJp?: string;
+    contentEn?: string;
+    children?: StructuredPrompt[];
+}
+
+/**
+ * [{title: 'hoge', content: 'fuga', children: [{title: 'hoge', content: 'fuga'}]}]のようなオブジェクトをMarkdownに変換する
+ * @param {{ title: string, content: string, children: any[] }} chapter
+ * @param {number} layer
+ * @returns {string}
+ */
+function toMarkdown(chapter: StructuredPrompt, layer: number = 1) {
+    let sb = '';
+    if (chapter.title) {
+        sb += `\n${'#'.repeat(layer)} ${chapter.title}\n\n`;
+    } else { }
+    let content;
+    content = chapter.contentJp || chapter.contentEn;
+    content = chapter.content;
+    if (content) {
+        sb += `${content}\n\n`;
+    } else { }
+    if (chapter.children) {
+        chapter.children.forEach(child => {
+            // console.log(child);
+            sb += toMarkdown(child, layer + 1);
+        });
+    } else { }
+    return sb;
+}
 
 export abstract class BaseStepInterface<T> {
     /** label */
@@ -29,6 +62,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
     model = 'gpt-3.5-turbo';
     systemMessage = 'You are an experienced and talented software engineer.';
     assistantMessage = '';
+    temperature = 0.0;
 
     /** create prompt */
     chapters: StructuredPrompt[] = []; // {title: string, content: string, children: chapters[]}
@@ -41,7 +75,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
     get result() { return fs.readFileSync(this.resultPath, 'utf-8'); }
 
     initPrompt(): string {
-        const prompt = this.chapters.map(chapter => Utils.toMarkdown(chapter)).join('\n');
+        const prompt = this.chapters.map(chapter => toMarkdown(chapter)).join('\n');
         fss.writeFileSync(this.promptPath, prompt);
         return this.preProcess(prompt);
     }
@@ -63,7 +97,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
                     isInit = true;
                 }).bind(this);
 
-                aiApi.call(this.label, prompt, this.model as TiktokenModel, this.systemMessage, this.assistantMessage, streamHandler).then((content: string) => {
+                aiApi.call(this.label, prompt, this.model as TiktokenModel, this.temperature, this.systemMessage, this.assistantMessage, streamHandler).then((content: string) => {
                     fs.rename(`${this.resultPath}.tmp`, this.resultPath, () => resolve(this.postProcess(content)));
                 }).catch((err: any) => {
                     reject(err);
