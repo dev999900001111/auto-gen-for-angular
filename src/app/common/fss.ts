@@ -105,12 +105,16 @@ class FsSafeImpl {
 
     waitQ = (path: PathOrFileDescriptor): Promise<void> => {
         return new Promise<void>((resolve, reject) => {
-            if (this.qMap[path.toString()].lock || this.qMap[path.toString()].q.length) {
-                // console.log(`wait ${this.qMap[path.toString()].q.length} : ${path}`);
-                setTimeout(resolve, 10);
-            } else {
-                resolve();
-            }
+            const qMap = this.qMap;
+            const func = (path: string) => {
+                if (!qMap[path] || qMap[path].lock || qMap[path].q.length) {
+                    // console.log(`wait ${this.qMap[path.toString()].q.length} : ${path}`);
+                    setTimeout(func, 100, path.toString());
+                } else {
+                    resolve();
+                }
+            };
+            func(path.toString());
         });
     }
 }
