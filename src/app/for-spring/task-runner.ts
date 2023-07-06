@@ -490,7 +490,7 @@ class Step0060_CreateServiceDoc extends MultiStep {
         );
         // console.log(methList);
         this.chapters = [
-          { title: 'Requirements', content: fs.readFileSync(`./000-requirements-en.md`, 'utf-8') },
+          { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
           {
             title: 'Domain Models',
             children: [
@@ -574,13 +574,13 @@ class Step0060_CreateServiceDoc extends MultiStep {
 
 
 
-class Step0065_CreateServiceDocToJson extends MultiStep {
+class Step0070_CreateServiceDocToJson extends MultiStep {
   // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
   constructor() {
     super();
     const domainModel = DomainModel.loadModels();
 
-    class Step0065_CreateServiceDocToJsonChil extends BaseStep {
+    class Step0070_CreateServiceDocToJsonChil extends BaseStep {
       // model = 'gpt-4';
       // model = 'gpt-3.5-turbo-16k';
       format = StepOutputFormat.json;
@@ -630,7 +630,7 @@ class Step0065_CreateServiceDocToJson extends MultiStep {
         return result;
       }
     }
-    this.childStepList = Object.keys(domainModel.DomainServices).map(serviceName => new Step0065_CreateServiceDocToJsonChil(serviceName));
+    this.childStepList = Object.keys(domainModel.DomainServices).map(serviceName => new Step0070_CreateServiceDocToJsonChil(serviceName));
   }
   postProcess(result: string[]): string[] {
     return result;
@@ -791,20 +791,16 @@ export async function main() {
     obj.initPrompt();
     return obj.run();
   }).then(() => {
-    obj = new Step0065_CreateServiceDocToJson();
+    obj = new Step0070_CreateServiceDocToJson();
     obj.initPrompt();
     return obj.run();
   }).then(() => {
     genEntityAndRepository();
   }).then(() => {
-    //   //   obj = new Step0070_ImplementService();
-    //   //   obj.initPrompt();
-    //   //   return obj.run();
-  }).then(() => {
     obj = new Step0080_ImplementService();
     obj.initPrompt();
-    // return obj.run();
-    obj.childStepList.forEach((step) => step.postProcess(step.result));
+    return obj.run();
+    // obj.childStepList.forEach((step) => step.postProcess(step.result));
   }).then(() => {
     serviceImpl();
   }).then(() => {
