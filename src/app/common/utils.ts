@@ -292,7 +292,7 @@ export class Utils {
      * @returns 
      */
     static safeFileName(fileName: string) {
-        return fileName.replace(/[\/\\:]/g, '_');
+        return fileName.replace(/[\\/:*?"<>|]/g, '_');
     }
 }
 
