@@ -77,13 +77,13 @@ export abstract class BaseStep extends BaseStepInterface<string> {
     chapters: StructuredPrompt[] = []; // {title: string, content: string, children: chapters[]}
 
     /** io */
-    get promptPath() { return `./prompts/${this.label}.prompt.md`; }
-    get resultPath() { return `./prompts/${this.label}.result.md`; }
-    // get formedPath() { return `./prompts/${this.label}.result.${this.format}`; }
-    get formedPath() { return `./prompts/${this.label}.result.${{ markdown: 'md', text: 'txt' }[this.format as any as string] || this.format.toString()}`; }
+    get promptPath() { return `./prompts/${Utils.safeFileName(this.label)}.prompt.md`; }
+    get resultPath() { return `./prompts/${Utils.safeFileName(this.label)}.result.md`; }
+    get formedPath() { return `./prompts/${Utils.safeFileName(this.label)}.result.${{ markdown: 'md', text: 'txt' }[this.format as any as string] || this.format.toString()}`; }
 
     get prompt() { return fs.readFileSync(this.promptPath, 'utf-8'); }
     get result() { return fs.readFileSync(this.resultPath, 'utf-8'); }
+    get formed() { return fs.readFileSync(this.formedPath, 'utf-8'); }
 
     initPrompt(): string {
         const prompt = this.chapters.map(chapter => toMarkdown(chapter)).join('\n');

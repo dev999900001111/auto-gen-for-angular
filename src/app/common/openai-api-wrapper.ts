@@ -99,7 +99,7 @@ export class OpenAIApiWrapper {
                     let tokenBuilder: string = '';
                     let tokenRemainder: string = '';
                     (completion.data as any).on('data', (data: any) => {
-                        fss.appendFile(`${HISTORY_DIRE}/${timestamp}-${label}.txt`, data.toString(), {}, () => { });
+                        fss.appendFile(`${HISTORY_DIRE}/${timestamp}-${Utils.safeFileName(label)}.txt`, data.toString(), {}, () => { });
                         // console.log(`${tokenCount.completion_tokens}: ${data.toString()}`);
                         data = tokenRemainder + data.toString();
                         const lines = data.toString().split('\n').filter((line: string) => line.trim() !== '');
@@ -138,7 +138,7 @@ export class OpenAIApiWrapper {
 
                     // ファイルに書き出す
                     const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
-                    fss.writeFile(`${HISTORY_DIRE}/${timestamp}-${label}.json`, JSON.stringify({ args, completion }, Utils.genJsonSafer()), {}, (err) => { });
+                    fss.writeFile(`${HISTORY_DIRE}/${timestamp}-${Utils.safeFileName(label)}.json`, JSON.stringify({ args, completion }, Utils.genJsonSafer()), {}, (err) => { });
                 } catch (error) {
                     // 30秒間隔でリトライ
                     console.log(logString('error', error));

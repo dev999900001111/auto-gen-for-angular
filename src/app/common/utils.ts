@@ -285,6 +285,15 @@ export class Utils {
     static fillTemplate(data: { [key: string]: string }, template: string): string {
         return template.replace(/{{(\w+)}}/g, (match, key) => data[key] || "");
     }
+
+    /**
+     * ファイル名に使えない文字を置換する
+     * @param fileName
+     * @returns 
+     */
+    static safeFileName(fileName: string) {
+        return fileName.replace(/[\/\\:]/g, '_');
+    }
 }
 
 // const code = `
