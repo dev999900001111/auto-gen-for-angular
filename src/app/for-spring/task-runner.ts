@@ -371,7 +371,7 @@ class Step0050_CreateAPI extends MultiStep {
   // model = 'gpt-4';
   constructor() {
     super();
-    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().result);
+    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().formed);
     const domainModel = DomainModel.loadModels();
 
     class Step0050_CreateAPIChil extends BaseStep {
@@ -475,12 +475,12 @@ class Step0060_CreateServiceDoc extends MultiStep {
   // model = 'gpt-4';
   constructor() {
     super();
-    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().result);
+    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().formed);
     const domainModel = DomainModel.loadModels();
 
     class Step0060_CreateServiceDocChil extends BaseStep {
       // model = 'gpt-4';
-      format = StepOutputFormat.json;
+      // format = StepOutputFormat.md;
       constructor(public serviceName: string) {
         super();
         this.label = `${this.constructor.name}_${serviceName}`;
@@ -641,7 +641,7 @@ class Step0080_ImplementService extends MultiStep {
   // 本来はドメインモデルを作るときに一緒に作ってしまいたいけどトークン長が長すぎるので分割する。
   constructor() {
     super();
-    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().result);
+    const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().formed);
     const domainModel = DomainModel.loadModels();
 
     class Step0080_ImplementServiceChil extends BaseStep {

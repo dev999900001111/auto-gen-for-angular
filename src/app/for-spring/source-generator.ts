@@ -406,6 +406,8 @@ export function genEntityAndRepository() {
 
         let doc = Utils.jsonParse(fs.readFileSync(`${domainModelsDire}ServiceDocJson-${apiName}.json`, 'utf-8')) as { [key: string]: { procedure: string, error: [{ code: string, message: string }] } };
         doc = (doc[apiName] || doc) as any;
+        // docのキーをcamelCaseに変換
+        Object.keys(doc).forEach(key => doc[Utils.toCamelCase(key)] = doc[key]);
 
         Object.keys(apiObj[apiName]).forEach((methodName: string) => {
             const api = apiObj[apiName][methodName];
@@ -432,8 +434,9 @@ export function genEntityAndRepository() {
 
             classCode += `    public ${responseType} ${methodName}(${controllerParamAry.join(', ')}) {\n`;
             // classCode += `        return ${Utils.toCamelCase(apiName)}.${methodName}(${serviceParamAry.join(', ')});\n`;
-            classCode += `        /** TODO implementation\n`;
-            classCode += `         * ${doc[methodName]?.procedure.split('\n').join('\n         * ')}\n`;
+            classCode += `        /** \n`;
+            classCode += `         * TODO implementation\n`;
+            classCode += `         * ${doc[Utils.toCamelCase(methodName)]?.procedure.split('\n').join('\n         * ')}\n`;
             classCode += `         */\n`;
             classCode += `    }\n\n`;
         });
@@ -491,7 +494,7 @@ export function serviceImpl() {
         classCode += `import java.util.*;\n`;
         classCode += `import lombok.Data;\n`;
         classCode += `\n`;
-        classCode += impl.additionalImports.map((importName: string) => `import ${importName};\n`).join('');
+        classCode += impl.additionalImports.map((importName: string) => `import ${importName.replace(/^import /g, '')};\n`).join('');
         classCode += Object.keys(apiObj[apiName]).filter((methodName: string) => apiObj[apiName][methodName].request).map((methodName: string) => `import ${packageName}.service.${apiName}.${Utils.toPascalCase(methodName)}Request;\n`).join('');
         classCode += `\n`;
         classCode += `@Service\n`;
