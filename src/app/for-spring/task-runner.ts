@@ -376,6 +376,7 @@ class Step0050_CreateAPI extends MultiStep {
 
     class Step0050_CreateAPIChil extends BaseStep {
       // model = 'gpt-4';
+      format = StepOutputFormat.json;
       constructor(public boundedContext: BoundedContext) {
         super();
         this.label = `${this.constructor.name}_${Utils.toPascalCase(this.boundedContext.name)}`;
@@ -437,14 +438,21 @@ class Step0050_CreateAPI extends MultiStep {
             content: Utils.trimLines(`
               \`\`\`json
               {"UserService": {
-                "findAll":{"endpoint":"/api/v1/users","pathVariable":null,"method":"GET","request":null,"validation":null,"response":"User[]","description":"Getallusers"},
-                "findById":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"GET","request":null,"validation":null,"response":"User","description":"Getauserbyid"},
-                "create":{"endpoint":"/api/v1/users","pathVariable":null,"method":"POST","request":"{name:string,email:string,passowrd:string}","validation":"{name:[\\"@NotBlank\\"],email:[\\"@Email\\"],passowrd:[\\"@NotBlank\\"]}","response":"User","description":"Createauser"},
-                "update":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"PUT","request":"{name:string,email:string,passowrd:string}","validation":"{name:[\\"@NotBlank\\"],email:[\\"@Email\\"],passowrd:[\\"@NotBlank\\"]}","response":"User","description":"Updateauser"},
-                "delete":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"DELETE","request":null,"validation":null,"response":null,"description":"Deleteauser"}
+                "findAll":{"endpoint":"/api/v1/users","pathVariable":null,"method":"GET","request":null,"response":"User[]","description":"Getallusers"},
+                "findById":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"GET","request":null,"response":"User","description":"Getauserbyid"},
+                "create":{"endpoint":"/api/v1/users","pathVariable":null,"method":"POST","request":{"name":"string","email":"string","passowrd":"string"},"validation":{"name":["@NotBlank"],"email":["@Email","@NotBlank"],"passowrd":["@NotBlank"]},"response":"User","description":"Createauser"},
+                "update":{"endpoint":"/api/v1/users/{id}","pathVariable":{"id":"int"},"method":"PUT","request":{"name":"string","email":"string","passowrd":"string"},"validation":{"id":["@NotBlank"],"name":["@NotBlank"],"email":["@Email","@NotBlank"],"passowrd":["@NotBlank"]},"response":"User","description":"Updateauser"},
+                "delete":{"endpoint":"/api/v1/users/{id}","pathVariable":{"id":"int"},"method":"DELETE","request":null,"response":null,"description":"Deleteauser"}
               }}
               \`\`\`
             `),
+            // {"UserService": {
+            //   "findAll":{"endpoint":"/api/v1/users","pathVariable":null,"method":"GET","request":null,"response":"User[]","description":"Getallusers"},
+            //   "findById":{"endpoint":"/api/v1/users/{id}","pathVariable":"{id:int}","method":"GET","request":null,"response":"User","description":"Getauserbyid"},
+            //   "create":{"endpoint":"/api/v1/users","pathVariable":null,"method":"POST","request":[{"name":"name","type":"string","validation":["@NotBlank"]},{"name":"email","type":"string","validation":["@Email","@NotBlank"]},{"name":"passowrd","type":"string","validation":["@NotBlank"]}],"response":"User","description":"Createauser"},
+            //   "update":{"endpoint":"/api/v1/users/{id}","pathVariable":{"id":"int"},"method":"PUT","request":[{"name":"name","type":"string","validation":["@NotBlank"]},{"name":"email","type":"string","validation":["@Email","@NotBlank"]},{"name":"passowrd","type":"string","validation":["@NotBlank"]}],"response":"User","description":"Updateauser"},
+            //   "delete":{"endpoint":"/api/v1/users/{id}","pathVariable":{"id":"int"},"method":"DELETE","request":null,"response":null,"description":"Deleteauser"}
+            // }}
           }
         ];
       }
