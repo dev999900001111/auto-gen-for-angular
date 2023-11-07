@@ -1,17 +1,17 @@
-import { AxiosRequestConfig, AxiosResponse } from 'axios';
-import * as fs from 'fs';
 import fss from './fss';
 import { TiktokenModel, encoding_for_model } from 'tiktoken';
 import { HttpsProxyAgent } from 'https-proxy-agent';
-import { Configuration, CreateChatCompletionRequest, CreateChatCompletionResponse, OpenAIApi } from "openai";
+import OpenAI from 'openai';
 import { Utils } from "./utils";
+import { ChatCompletionChunk, ChatCompletionCreateParamsBase } from 'openai/resources/chat/completions';
+import { Stream } from 'openai/streaming';
+import { RequestOptions } from 'openai/core';
 
 const HISTORY_DIRE = `./history`;
-const configuration = new Configuration({
+const openai = new OpenAI({
     apiKey: process.env['OPENAI_API_KEY'],
     // baseOptions: { timeout: 1200000, Configuration: { timeout: 1200000 } },
 });
-const openai = new OpenAIApi(configuration);
 
 
 /**
@@ -19,7 +19,7 @@ const openai = new OpenAIApi(configuration);
  */
 export class OpenAIApiWrapper {
 
-    options: AxiosRequestConfig;
+    options: RequestOptions;
     tokenCountList: TokenCount[] = [];
 
     constructor() {
@@ -30,11 +30,9 @@ export class OpenAIApiWrapper {
         };
         Object.keys(proxyObj).filter(key => !proxyObj[key]).forEach(key => delete proxyObj[key]);
         this.options = Object.keys(proxyObj).filter(key => proxyObj[key]).length > 0 ? {
-            proxy: false,
-            httpAgent: new HttpsProxyAgent(proxyObj.httpProxy || proxyObj.httpsProxy || ''),
-            httpsAgent: new HttpsProxyAgent(proxyObj.httpsProxy || proxyObj.httpProxy || ''),
+            httpAgent: new HttpsProxyAgent(proxyObj.httpsProxy || proxyObj.httpProxy || ''),
         } : {};
-        this.options.responseType = 'stream';
+        this.options.stream = true;
         // this.options.timeout = 1200000;
 
         // this.options = {};
@@ -52,30 +50,50 @@ export class OpenAIApiWrapper {
      * @param systemMessage システムメッセージ
      * @returns OpenAIのAPIのレスポンス
      */
-    call(label: string, prompt: string, model: TiktokenModel = 'gpt-3.5-turbo', temperature: number = 0, systemMessage: string = 'You are an experienced and talented software engineer.', assistantMessage: string = '', streamHandler: (text: string) => void = () => { }): Promise<string> {
+    call(
+        label: string,
+        prompt: string,
+        model: GPTModels = 'gpt-3.5-turbo',
+        temperature: number = 0,
+        systemMessage: string = 'You are an experienced and talented software engineer.',
+        assistantMessage: string = '',
+        responseFormat: 'text' | 'json_object' = 'text',
+        streamHandler: (text: string) => void = () => { }
+    ): Promise<string> {
         const promise: Promise<string> = new Promise(async (resolve, reject) => {
-            const args: CreateChatCompletionRequest = {
+            const args: ChatCompletionCreateParamsBase = {
                 // model: ([0, 1, 4, 5].indexOf(stepNo) !== -1) ? "gpt-4" : "gpt-3.5-turbo",
                 model,
                 temperature,
-                messages: [
-                    { role: 'system', content: systemMessage },
-                    { role: 'user', content: prompt },
-                ],
+                messages: [],
+                response_format: { type: responseFormat },
                 stream: true,
             };
+            // フォーマットがjson指定なのにjsonという文字列が入ってない場合は追加する。
+            if (responseFormat === 'json_object' && !prompt.includes('json')) {
+                prompt += '\n\n# Output format\njson';
+            } else { }
 
-            if (assistantMessage) {
+            if (systemMessage) { // systemMessageがある場合は、システムメッセージを追加
+                args.messages.push({ role: 'system', content: systemMessage });
+            } else {
+            }
+            if (prompt) { // promptがある場合は、promptを追加
+                args.messages.push({ role: 'user', content: prompt });
+            } else {
+            }
+            if (assistantMessage) { // assistantMessageがある場合は、assistantMessageを追加
                 args.messages.push({ role: 'assistant', content: assistantMessage });
             } else { }
 
-            let completion: AxiosResponse<CreateChatCompletionResponse, any> | null = null;
+            let completion: Stream<ChatCompletionChunk> | null = null;
             let retry = 0;
 
             // ログ出力用オブジェクト
             const text = args.messages.map(message => `role:\n${message.role}\ncontent:\n${message.content}`).join('\n');
             const tokenCount = new TokenCount(model, 0, 0);
-            tokenCount.prompt_tokens = encoding_for_model(tokenCount.modelTikToken).encode(text).length;
+            // gpt-4-1106-preview に未対応のため、gpt-4に置き換え。プロンプトのトークンを数えるだけなのでモデルはどれにしてもしても同じだと思われるが。。。
+            tokenCount.prompt_tokens = encoding_for_model((tokenCount.modelTikToken as any) === 'gpt-4-1106-preview' ? 'gpt-4' : tokenCount.modelTikToken).encode(text).length;
             this.tokenCountList.push(tokenCount);
 
             let bef = Date.now();
@@ -94,50 +112,30 @@ export class OpenAIApiWrapper {
             // 30秒間隔でリトライ
             while (!completion) {
                 try {
-                    completion = await openai.createChatCompletion(args, this.options as any) as AxiosResponse<CreateChatCompletionResponse, any>;
+                    console.log(logString('call'));
+                    completion = await openai.chat.completions.create(args, this.options) as Stream<ChatCompletionChunk>;
 
                     let tokenBuilder: string = '';
-                    let tokenRemainder: string = '';
-                    (completion.data as any).on('data', (data: any) => {
-                        fss.appendFile(`${HISTORY_DIRE}/${timestamp}-${Utils.safeFileName(label)}.txt`, data.toString(), {}, () => { });
-                        // console.log(`${tokenCount.completion_tokens}: ${data.toString()}`);
-                        data = tokenRemainder + data.toString();
-                        const lines = data.toString().split('\n').filter((line: string) => line.trim() !== '');
-                        for (const line of lines) {
-                            const message: string = line.replace(/^data: /, '');
-                            if (message === '[DONE]') {
-                                // tokenCount.prompt_tokens = completion.data.usage?.prompt_tokens || 0;
-                                // tokenCount.completion_tokens = completion.data.usage?.completion_tokens || 0;
-                                tokenCount.cost = tokenCount.calcCost();
-                                console.log(logString('fine'));
-                                resolve(tokenBuilder);
-                                return tokenBuilder; // Stream finished
-                            }
-                            try {
-                                const parsed = JSON.parse(message);
-                                // console.log(parsed);
-                                Object.keys(parsed.choices[0].delta).forEach(
-                                    key => {
-                                        tokenCount.completion_tokens++;
-                                        if (key === 'content') {
-                                            streamHandler(parsed.choices[0].delta[key]);
-                                            tokenBuilder += parsed.choices[0].delta[key];
-                                        } else {
-                                            // content以外は無視
-                                        }
-                                    }
-                                );
-                                tokenRemainder = '';
-                            } catch (error) {
-                                tokenRemainder += line;
-                                // console.error('Could not JSON parse stream message', message, error);
-                                // reject(error);
-                            }
-                        }
-                    });
 
                     // ファイルに書き出す
                     const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
+
+                    for await (const chunk of completion) {
+                        // 中身を取り出す
+                        let content = chunk.choices[0]?.delta?.content;
+                        // 中身がない場合はスキップ
+                        if (!content) { continue; }
+                        // ファイルに書き出す
+                        fss.appendFile(`${HISTORY_DIRE}/${timestamp}-${Utils.safeFileName(label)}.txt`, content || '', {}, () => { });
+                        // console.log(`${tokenCount.completion_tokens}: ${data.toString()}`);
+                        // トークン数をカウント
+                        tokenCount.completion_tokens++;
+                        tokenBuilder += content;
+                        streamHandler(content);
+                    }
+                    tokenCount.cost = tokenCount.calcCost();
+                    console.log(logString('fine'));
+                    resolve(tokenBuilder);
                     fss.writeFile(`${HISTORY_DIRE}/${timestamp}-${Utils.safeFileName(label)}.json`, JSON.stringify({ args, completion }, Utils.genJsonSafer()), {}, (err) => { });
                 } catch (error) {
                     // 30秒間隔でリトライ
@@ -162,9 +160,11 @@ export class OpenAIApiWrapper {
             prev.all.add(current);
             prev[current.modelShort] = tokenCount;
             return prev;
-        }, { 'all': new TokenCount('all', 0, 0) });
+        }, { 'gpt-4': new TokenCount('gpt-4', 0, 0) });
     }
 }
+
+export type GPTModels = 'gpt-4' | 'gpt-4-0314' | 'gpt-4-0613' | 'gpt-4-32k' | 'gpt-4-32k-0314' | 'gpt-4-32k-0613' | 'gpt-4-1106-preview' | 'gpt-3.5-turbo' | 'gpt-3.5-turbo-0301' | 'gpt-3.5-turbo-0613' | 'gpt-3.5-turbo-16k' | 'gpt-3.5-turbo-16k-0613';
 
 
 /**
@@ -176,9 +176,56 @@ export class TokenCount {
     static COST_TABLE: { [key: string]: { prompt: number, completion: number } } = {
         'all     ': { prompt: 0.0000, completion: 0.0000, },
         'chat    ': { prompt: 0.0015, completion: 0.0020, },
-        'chat-16k': { prompt: 0.0030, completion: 0.0040, },
+        'chat-16k': { prompt: 0.0010, completion: 0.0020, },
         'gpt4    ': { prompt: 0.0300, completion: 0.0600, },
         'gpt4-32k': { prompt: 0.0600, completion: 0.1200, },
+        // 'gpt4-vis': { prompt: 0.0600, completion: 0.1200, },
+        'gpt4-128': { prompt: 0.0100, completion: 0.0300, },
+    };
+
+    static SHORT_NAME = {
+        // 'text-davinci-003': 'unused',
+        // 'text-davinci-002': 'unused',
+        // 'text-davinci-001': 'unused',
+        // 'text-curie-001': 'unused',
+        // 'text-babbage-001': 'unused',
+        // 'text-ada-001': 'unused',
+        // 'davinci': 'unused',
+        // 'curie': 'unused',
+        // 'babbage': 'unused',
+        // 'ada': 'unused',
+        // 'code-davinci-002': 'unused',
+        // 'code-davinci-001': 'unused',
+        // 'code-cushman-002': 'unused',
+        // 'code-cushman-001': 'unused',
+        // 'davinci-codex': 'unused',
+        // 'cushman-codex': 'unused',
+        // 'text-davinci-edit-001': 'unused',
+        // 'code-davinci-edit-001': 'unused',
+        // 'text-embedding-ada-002': 'unused',
+        // 'text-similarity-davinci-001': 'unused',
+        // 'text-similarity-curie-001': 'unused',
+        // 'text-similarity-babbage-001': 'unused',
+        // 'text-similarity-ada-001': 'unused',
+        // 'text-search-davinci-doc-001': 'unused',
+        // 'text-search-curie-doc-001': 'unused',
+        // 'text-search-babbage-doc-001': 'unused',
+        // 'text-search-ada-doc-001': 'unused',
+        // 'code-search-babbage-code-001': 'unused',
+        // 'code-search-ada-code-001': 'unused',
+        // 'gpt2': 'unused',
+        'gpt-4': 'gpt4    ',
+        'gpt-4-0314': 'gpt4    ',
+        'gpt-4-0613': 'gpt4    ',
+        'gpt-4-32k': 'gpt4-32k',
+        'gpt-4-32k-0314': 'gpt4-32k',
+        'gpt-4-32k-0613': 'gpt4-32k',
+        'gpt-4-1106-preview': 'gpt4-128',
+        'gpt-3.5-turbo': 'gpt3    ',
+        'gpt-3.5-turbo-0301': 'gpt3    ',
+        'gpt-3.5-turbo-0613': 'gpt3    ',
+        'gpt-3.5-turbo-16k': 'gpt3-16k',
+        'gpt-3.5-turbo-16k-0613': 'gpt3-16k',
     };
 
     // コスト
@@ -197,19 +244,14 @@ export class TokenCount {
      * @returns TokenCount インスタンス
      */
     constructor(
-        public model: string,
+        public model: GPTModels,
         public prompt_tokens: number = 0,
         public completion_tokens: number = 0,
     ) {
         this.modelShort = 'all     ';
         this.modelTikToken = 'gpt-3.5-turbo';
-        if (model.includes('gpt-4')) {
-            this.modelShort = model.includes('32k') ? 'gpt4-32k' : 'gpt4    ';
-            this.modelTikToken = 'gpt-4';
-        } else if (model.includes('gpt-3.5')) {
-            this.modelShort = model.includes('16k') ? 'chat-16k' : 'chat    ';
-            this.modelTikToken = 'gpt-3.5-turbo';
-        }
+        this.modelShort = TokenCount.SHORT_NAME[model] || model;
+        this.modelTikToken = model as TiktokenModel;
     }
 
     calcCost(): number {

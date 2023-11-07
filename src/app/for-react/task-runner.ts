@@ -6,8 +6,9 @@ import { RepoSyncer } from '../common/repo-syncer';
 import { genIndex } from './react-service';
 import { ReactCodeGenerator } from './react-service';
 import { ModelControlClass, ServiceClass, ServiceClassMethod, ModelClass, ClassProp } from '../model-repo/to-use';
+import { GPTModels } from '../common/openai-api-wrapper';
 class Step0000_RequirementsToComponentList extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
     this.chapters = [
@@ -49,7 +50,7 @@ class Step0000_RequirementsToComponentList extends BaseStep {
 }
 
 class Step0010_ComponentList_to_ReactComponentList extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
     this.chapters = [
@@ -107,7 +108,7 @@ class Step0030_requirements_to_systemOverview extends BaseStep {
 }
 
 class Step0040_makeReactService extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
     this.chapters = [
@@ -143,7 +144,7 @@ class Step0040_makeReactService extends BaseStep {
 }
 
 class Step0050_makeReactModel extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
     this.chapters = [
@@ -382,7 +383,7 @@ class Step0105_componentList_to_Json extends BaseStep {
 }
 
 class Step0120_makeScreenSpec extends BaseStep {
-  // model = 'gpt-4';
+  // model: GPTModels = 'gpt-4-1106-preview';;
   constructor(index: number, componentName: string, ngUiJSON: any) {
     super();
     this.label = `Step0120_${index}-makeScreenSpec-${componentName}`;
@@ -476,7 +477,7 @@ function filterByComponentName(ngUiJSON: any) {
 }
 
 class Step0140_makeScreen extends BaseStep {
-  // model = 'gpt-4';
+  // model: GPTModels = 'gpt-4-1106-preview';;
   override systemMessage = 'You are an experienced and talented react programmer.';
   // 
   override assistantMessage = '```tsx';

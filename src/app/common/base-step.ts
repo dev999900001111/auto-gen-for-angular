@@ -1,7 +1,7 @@
 import * as  fs from 'fs';
 import fss from './fss';
 import { TiktokenModel } from 'tiktoken';
-import { OpenAIApiWrapper } from "./openai-api-wrapper";
+import { GPTModels, OpenAIApiWrapper } from "./openai-api-wrapper";
 import { Utils } from './utils';
 
 export const aiApi = new OpenAIApiWrapper();
@@ -67,7 +67,7 @@ export enum StepOutputFormat {
 export abstract class BaseStep extends BaseStepInterface<string> {
 
     /** default parameters */
-    model = 'gpt-3.5-turbo';
+    model: GPTModels = 'gpt-3.5-turbo';
     systemMessage = 'You are an experienced and talented software engineer.';
     assistantMessage = '';
     temperature = 0.0;
@@ -108,7 +108,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
                     isInit = true;
                 }).bind(this);
 
-                aiApi.call(this.label, prompt, this.model as TiktokenModel, this.temperature, this.systemMessage, this.assistantMessage, streamHandler).then((content: string) => {
+                aiApi.call(this.label, prompt, this.model, this.temperature, this.systemMessage, this.assistantMessage, this.format === StepOutputFormat.json ? 'json_object' : 'text', streamHandler).then((content: string) => {
                     fss.waitQ(`${this.resultPath}.tmp`).then(() => {
                         fs.rename(`${this.resultPath}.tmp`, this.resultPath, () => {
                             // format
@@ -123,7 +123,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
                                     // json整形に失敗する場合は整形用にもう一発。
                                     let correctPrompt = `Please correct the following JSON that is incorrect as JSON and output the correct one.\nPay particular attention to the number of parentheses and commas.\n`;
                                     correctPrompt += `\`\`\`json\n${content}\n\`\`\``;
-                                    aiApi.call(`${this.label}JsonCorrect`, correctPrompt, 'gpt-3.5-turbo', 0, `All output is done in JSON.`, `\`\`\`json\n{`, streamHandler).then((content: string) => {
+                                    aiApi.call(`${this.label}JsonCorrect`, correctPrompt, 'gpt-3.5-turbo', 0, `All output is done in JSON.`, `\`\`\`json\n{`, this.format === StepOutputFormat.json ? 'json_object' : 'text', streamHandler).then((content: string) => {
                                         fss.waitQ(`${this.resultPath}.tmp`).then(() => {
                                             try {
                                                 content = JSON.stringify(Utils.jsonParse(content), null, 2);

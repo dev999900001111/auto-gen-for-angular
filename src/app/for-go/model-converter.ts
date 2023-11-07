@@ -38,6 +38,12 @@ export function toServiceProto(apiObj: { [key: string]: { [key: string]: API } }
             });
         });
         let cls = '';
+        // aがObjectの場合は、Stringに変換
+        if ((api.response as any) instanceof Object) {
+            api.response = JSON.stringify(api.response);
+        } else {
+        }
+
         if (!api.response || api.response === 'void') {
         } else if (api.response.startsWith('List<') || api.response.endsWith(']')) {
             cls = api.response.replace(/List</g, '').replace(/>/g, '').replace(/\[\]/g, '');
@@ -282,7 +288,7 @@ export function toUsecaseCode(apiObj: { [key: string]: { [key: string]: API } },
 }
 
 
-export function toRepositoryCode(modName: string, model: DomainModel, entityName: string) {
+export function toDbRepositoryCode(modName: string, model: DomainModel, entityName: string) {
     const camelEntityName = Utils.toCamelCase(entityName);
     let classCode = ``;
 
@@ -294,15 +300,8 @@ export function toRepositoryCode(modName: string, model: DomainModel, entityName
     classCode += `    "log"\n`;
     classCode += `\n`;
     classCode += `    entity "${modName}/internal/app/entity"\n`;
+    classCode += `    repository "${modName}/internal/app/repository"\n`;
     classCode += `)\n`;
-    classCode += `\n`;
-    classCode += `type ${entityName}Repository interface {\n`;
-    classCode += `    Get${entityName}(ctx context.Context, id int32                     ) (*entity.${entityName}, error)\n`;
-    classCode += `    Create${entityName}(ctx context.Context, inDto entity.${entityName}) (*entity.${entityName}, error)\n`;
-    classCode += `    Update${entityName}(ctx context.Context, inDto entity.${entityName}) (*entity.${entityName}, error)\n`;
-    classCode += `    List${entityName}(ctx context.Context                              ) (*entity.${entityName}, error)\n`;
-    classCode += `    Delete${entityName}(ctx context.Context, id int32                  ) (*entity.${entityName}, error)\n`;
-    classCode += `}\n`;
     classCode += `\n`;
     classCode += `type ${camelEntityName}Repository struct {\n`;
     classCode += `    db *sql.DB\n`;
@@ -365,6 +364,30 @@ export function toRepositoryCode(modName: string, model: DomainModel, entityName
     classCode += `        return nil, err\n`;
     classCode += `    }\n`;
     classCode += `    return &obj, nil\n`;
+    classCode += `}\n`;
+    return classCode;
+}
+
+export function toRepositoryCode(modName: string, model: DomainModel, entityName: string) {
+    const camelEntityName = Utils.toCamelCase(entityName);
+    let classCode = ``;
+
+    classCode += `package repository\n`;
+    classCode += `\n`;
+    classCode += `import (\n`;
+    classCode += `    "context"\n`;
+    classCode += `    "database/sql"\n`;
+    classCode += `    "log"\n`;
+    classCode += `\n`;
+    classCode += `    entity "${modName}/internal/app/entity"\n`;
+    classCode += `)\n`;
+    classCode += `\n`;
+    classCode += `type ${entityName}Repository interface {\n`;
+    classCode += `    Get${entityName}(ctx context.Context, id int32                     ) (*entity.${entityName}, error)\n`;
+    classCode += `    Create${entityName}(ctx context.Context, inDto entity.${entityName}) (*entity.${entityName}, error)\n`;
+    classCode += `    Update${entityName}(ctx context.Context, inDto entity.${entityName}) (*entity.${entityName}, error)\n`;
+    classCode += `    List${entityName}(ctx context.Context                              ) (*entity.${entityName}, error)\n`;
+    classCode += `    Delete${entityName}(ctx context.Context, id int32                  ) (*entity.${entityName}, error)\n`;
     classCode += `}\n`;
     return classCode;
 }

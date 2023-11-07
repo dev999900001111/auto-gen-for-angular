@@ -268,6 +268,10 @@ export class DomainModel {
                     aggregates[name] = domainModel.Aggregates[name]
                         || domainModel.Aggregates[name.replace(/Aggregate/g, '')]
                         || domainModel.Aggregates[name + 'Aggregate'];
+                    if (aggregates[name]) {
+                    } else {
+                        console.log(`Aggregates: ${name} is not found.`);
+                    }
                     if (name !== aggregates[name].name) {
                         delete domainModel.Aggregates[aggregates[name].name];
                         domainModel.Aggregates[name] = aggregates[name];
@@ -296,6 +300,7 @@ export class DomainModel {
         // console.log(JSON.stringify(domainModel.BoundedContexts));
 
         // ContextMappings
+        console.dir(domainModelsRawMap.ContextMappings);
         domainModelsRawMap.ContextMappings.forEach((contextMappingRaw: any) => {
             const contextMapping: ContextMapping = {
                 type: contextMappingRaw.type,

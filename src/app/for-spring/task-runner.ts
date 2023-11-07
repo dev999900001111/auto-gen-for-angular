@@ -4,13 +4,14 @@ import { Utils } from '../common/utils';
 import { BaseStep, MultiStep, StepOutputFormat } from "../common/base-step";
 import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, DomainService, Entity, Method, RelationshipType, TableModel, ValueObject } from '../domain-models/domain-models';
 import { genEntityAndRepository, serviceImpl } from './source-generator';
+import { GPTModels } from '../common/openai-api-wrapper';
 
 
 const direDomainModels = `./gen/domain-models/`;
 const direSource = `./gen/src/main/java/com/example/demo/`;
 
 class Step0000_RequirementsToDomainModels extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';
   systemMessageJa = '経験豊富で優秀なソフトウェアエンジニア。専門はドメイン駆動設計。';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
   constructor() {
@@ -71,7 +72,7 @@ class Step0000_RequirementsToDomainModels extends BaseStep {
 }
 
 class Step0005_RequirementsToSystemOverview extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';
   format = StepOutputFormat.json;
   constructor() {
     super();
@@ -80,11 +81,11 @@ class Step0005_RequirementsToSystemOverview extends BaseStep {
       {
         title: 'prompt',
         contentJp: Utils.trimLines(`
-          Requirements をよく理解して、システム概要を簡潔に表現してください。
+          Requirements をよく理解して、システム概要を簡潔に表現してください。出力形式はJSONでお願います。
           {"name": "\${システムの実態を反映した適切な名前を付けてください。}","nickname":"\${利用者に親しまれる、呼びやすい愛称を付けてください。}", "overview": "\${System Overview}", "rules": ["\${ビジネスルールや制約条件}"]}
         `),
         content: Utils.trimLines(`
-          Please understand the requirements well and express the system overview concisely.
+          Please understand the requirements well and express the system overview concisely. The output format is JSON.
           {"name": "\${Please give an appropriate name that reflects the reality of the system.}","nickname":"\${Please give a familiar and easy-to-call nickname to the user.}", "overview": "\${System Overview}", "rules": ["\${Business rules and constraints}"]}
         `)
       },
@@ -94,7 +95,7 @@ class Step0005_RequirementsToSystemOverview extends BaseStep {
 
 
 class Step0010_DomainModelsInitialize extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';
   // model = 'gpt-3.5-turbo';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
   constructor() {
@@ -141,7 +142,7 @@ class Step0010_DomainModelsInitialize extends BaseStep {
   }
 }
 class Step0020_DomainModelsClassify extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';
   // model = 'gpt-3.5-turbo';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
   constructor() {
@@ -203,7 +204,7 @@ class Step0030_domainModelsJson extends MultiStep {
     super();
 
     class Step0030_domainModelsJsonChil extends BaseStep {
-      // model = 'gpt-4';
+      model: GPTModels = 'gpt-4-1106-preview';
       format = StepOutputFormat.json;
       constructor(private pattern: string) {
         super();
@@ -291,6 +292,7 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
 
     class Step0040_domainModelEntityAndDomainServiceJsonChil extends BaseStep {
       // model = 'gpt-4';
+      model: GPTModels = 'gpt-4-1106-preview';
       format = StepOutputFormat.json;
       constructor(private pattern: string = 'Entities', private boundedContext: string = '') {
         super();
@@ -375,7 +377,7 @@ class Step0050_CreateAPI extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0050_CreateAPIChil extends BaseStep {
-      // model = 'gpt-4';
+      model: GPTModels = 'gpt-4-1106-preview';
       format = StepOutputFormat.json;
       constructor(public boundedContext: BoundedContext) {
         super();
@@ -487,7 +489,7 @@ class Step0060_CreateServiceDoc extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0060_CreateServiceDocChil extends BaseStep {
-      // model = 'gpt-4';
+      model: GPTModels = 'gpt-4-1106-preview';
       // format = StepOutputFormat.md;
       constructor(public serviceName: string) {
         super();
@@ -589,7 +591,7 @@ class Step0070_CreateServiceDocToJson extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0070_CreateServiceDocToJsonChil extends BaseStep {
-      // model = 'gpt-4';
+      model: GPTModels = 'gpt-4-1106-preview';
       // model = 'gpt-3.5-turbo-16k';
       format = StepOutputFormat.json;
       constructor(public serviceName: string) {
@@ -653,8 +655,8 @@ class Step0080_ImplementService extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0080_ImplementServiceChil extends BaseStep {
-      // model = 'gpt-4';
-      model = 'gpt-3.5-turbo-16k';
+      model: GPTModels = 'gpt-4-1106-preview';
+      // model = 'gpt-3.5-turbo-16k';
       format = StepOutputFormat.json;
       constructor(public serviceName: string) {
         super();
@@ -765,25 +767,25 @@ class Step0080_ImplementService extends MultiStep {
 export async function main() {
   let obj;
   return Promise.resolve().then(() => {
-    obj = new Step0000_RequirementsToDomainModels();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new Step0005_RequirementsToSystemOverview();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new Step0010_DomainModelsInitialize();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new Step0020_DomainModelsClassify();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new Step0030_domainModelsJson();
-    obj.initPrompt();
-    return obj.run();
+  //   obj = new Step0000_RequirementsToDomainModels();
+  //   obj.initPrompt();
+  //   return obj.run();
+  // }).then(() => {
+  //   obj = new Step0005_RequirementsToSystemOverview();
+  //   obj.initPrompt();
+  //   return obj.run();
+  // }).then(() => {
+  //   obj = new Step0010_DomainModelsInitialize();
+  //   obj.initPrompt();
+  //   return obj.run();
+  // }).then(() => {
+  //   obj = new Step0020_DomainModelsClassify();
+  //   obj.initPrompt();
+  //   return obj.run();
+  // }).then(() => {
+  //   obj = new Step0030_domainModelsJson();
+  //   obj.initPrompt();
+  //   return obj.run();
   }).then(() => {
     obj = new Step0040_domainModelEntityAndDomainServiceJson();
     obj.initPrompt();

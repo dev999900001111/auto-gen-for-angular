@@ -4,8 +4,7 @@ import fss from '../common/fss';
 import { Attribute, DomainModel, Relationship, RelationshipType, domainModelsDire } from '../domain-models/domain-models';
 import { Utils } from '../common/utils';
 import main from './template/main.go';
-import BaseEntityJava from './template/BaseEntity.java';
-import ResourceNotFoundExceptionJava from './template/ResourceNotFoundException.java';
+import BaseEntityJava from './template/base_entity.go';
 import { toGoClass } from './classname-converter';
 import { toEntityCode, toEntityProto, toEnumCode, toEnumProto, toRepositoryCode, toServiceCode, toServiceEntity, toServiceProto, toUsecaseCode, toValueObjectCode, toValueObjectProto } from './model-converter';
 
@@ -16,9 +15,8 @@ const ID_TYPE = 'int64';
 export function genEntityAndRepository() {
     const model = DomainModel.loadModels();
 
-    fss.writeFileSync(`${outDire}DemoApplication.java`, Utils.fillTemplate({ modName }, main));
+    fss.writeFileSync(`${outDire}base/main.go`, Utils.fillTemplate({ modName }, main));
     fss.writeFileSync(`${outDire}base/entity/base_entity.go`, Utils.fillTemplate({ modName }, BaseEntityJava));
-    fss.writeFileSync(`${outDire}base/exception/ResourceNotFoundException.java`, Utils.fillTemplate({ modName }, ResourceNotFoundExceptionJava));
     fs.mkdirSync(`${outDire}app/`, { recursive: true });
     fs.mkdirSync(`${outDire}app/repository`, { recursive: true });
     fs.mkdirSync(`${outDire}app/service`, { recursive: true });

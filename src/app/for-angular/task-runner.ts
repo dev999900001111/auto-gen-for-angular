@@ -3,9 +3,10 @@ import { Utils } from '../common/utils';
 import { BaseStep, MultiStep } from "../common/base-step";
 import { RepoSyncer } from '../common/repo-syncer';
 import { GenModuleFiles, genIndex } from './gen-angular-modules';
+import { GPTModels } from '../common/openai-api-wrapper';
 
 class Step000_RequirementsToComponentList extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
     this.chapters = [
@@ -26,7 +27,7 @@ class Step000_RequirementsToComponentList extends BaseStep {
 }
 
 class Step001_componentList_to_angularComponentList extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4';
   constructor() {
     super();
     this.chapters = [
@@ -80,7 +81,7 @@ class Step003_requirements_to_systemOverview extends BaseStep {
 }
 
 class Step004_makeAngularService extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
     this.chapters = [
@@ -100,7 +101,7 @@ class Step004_makeAngularService extends BaseStep {
   }
 }
 class Step005_makeAngularModel extends BaseStep {
-  model = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
     this.chapters = [
@@ -384,7 +385,7 @@ class Step011_AngularModelList_to_Json extends BaseStep {
 }
 
 class Step012_makeScreenSpec extends BaseStep {
-  // model = 'gpt-4';
+  // model: GPTModels = 'gpt-4-1106-preview';;
   constructor(index: number, componentName: string, ngUiJSON: any) {
     super();
     this.label = `Step012-${index}-makeScreenSpec-${componentName}`;
@@ -479,7 +480,7 @@ class Step013_makeScreenSpecJSON extends BaseStep {
 }
 
 class Step014_makeScreenHtml extends BaseStep {
-  // model = 'gpt-4';
+  // model: GPTModels = 'gpt-4-1106-preview';;
   private dire: string;
   private nameKebab0: string;
   constructor(
@@ -647,7 +648,7 @@ class Step015_ScreenPropJSON extends BaseStep {
 
 
 class Step016_AngularTypescript extends BaseStep {
-  // model = 'gpt-4';
+  // model: GPTModels = 'gpt-4-1106-preview';;
   dire;
   nameKebab0;
   constructor(index: number, componentName: string, ngUiJSON: any, g: any,) {
