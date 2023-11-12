@@ -300,7 +300,7 @@ export class DomainModel {
         // console.log(JSON.stringify(domainModel.BoundedContexts));
 
         // ContextMappings
-        console.dir(domainModelsRawMap.ContextMappings);
+        // console.dir(domainModelsRawMap.ContextMappings);
         domainModelsRawMap.ContextMappings.forEach((contextMappingRaw: any) => {
             const contextMapping: ContextMapping = {
                 type: contextMappingRaw.type,

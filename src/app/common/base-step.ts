@@ -1,9 +1,9 @@
 import * as  fs from 'fs';
 import fss from './fss';
-import { TiktokenModel } from 'tiktoken';
 import { GPTModels, OpenAIApiWrapper } from "./openai-api-wrapper";
 import { Utils } from './utils';
 
+// aiApi as singleton (for queing requests)
 export const aiApi = new OpenAIApiWrapper();
 
 export interface StructuredPrompt {
@@ -67,7 +67,9 @@ export enum StepOutputFormat {
 export abstract class BaseStep extends BaseStepInterface<string> {
 
     /** default parameters */
-    model: GPTModels = 'gpt-3.5-turbo';
+    // model: GPTModels = 'gpt-3.5-turbo';
+    // model: GPTModels = 'gpt-4';
+    model: GPTModels = 'gpt-4-1106-preview';
     systemMessage = 'You are an experienced and talented software engineer.';
     assistantMessage = '';
     temperature = 0.0;

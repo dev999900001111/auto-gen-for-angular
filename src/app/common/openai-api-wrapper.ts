@@ -5,7 +5,7 @@ import OpenAI from 'openai';
 import { Utils } from "./utils";
 import { ChatCompletionChunk, ChatCompletionCreateParamsBase } from 'openai/resources/chat/completions';
 import { Stream } from 'openai/streaming';
-import { RequestOptions } from 'openai/core';
+import { APIPromise, RequestOptions } from 'openai/core';
 
 const HISTORY_DIRE = `./history`;
 const openai = new OpenAI({
@@ -13,14 +13,157 @@ const openai = new OpenAI({
     // baseOptions: { timeout: 1200000, Configuration: { timeout: 1200000 } },
 });
 
+// Uint8Arrayを文字列に変換
+const decoder = new TextDecoder();
 
+interface Ratelimit {
+    limitRequests: number;
+    limitTokens: number;
+    remainingRequests: number;
+    remainingTokens: number;
+    resetRequests: string;
+    resetTokens: string;
+}
+
+class RunBit {
+    attempts: number = 0;
+    constructor(
+        public logString: (stepName: string, error: any) => string,
+        public tokenCount: TokenCount,
+        public streamHandler: (text: string) => void,
+        public args: ChatCompletionCreateParamsBase,
+        public label: string,
+        public openApiWrapper: OpenAIApiWrapper,
+        public promiseObj: { resolve: (value: string) => void, reject: (reason?: any) => void },
+    ) {
+    }
+
+    async executeCall(): Promise<void> {
+        const { resolve: resolve0, reject: reject0 } = this.promiseObj;
+        const args = this.args;
+        const label = this.label;
+        const tokenCount = this.tokenCount;
+        const logString = this.logString;
+        const streamHandler = this.streamHandler;
+        let attempts = this.attempts;
+        const maxAttempts = 5;
+
+        const ratelimitObj = this.openApiWrapper.currentRatelimit[this.tokenCount.modelShort];
+        // 使用例: callAPI関数を最大5回までリトライする
+        console.log(this.logString('call', ''));
+        (openai.chat.completions.create(args, this.openApiWrapper.options) as APIPromise<Stream<ChatCompletionChunk>>)
+            .withResponse().then((response) => {
+                response.response.headers.get('x-ratelimit-limit-requests') && (ratelimitObj.limitRequests = Number(response.response.headers.get('x-ratelimit-limit-requests')));
+                response.response.headers.get('x-ratelimit-limit-tokens') && (ratelimitObj.limitTokens = Number(response.response.headers.get('x-ratelimit-limit-tokens')));
+                response.response.headers.get('x-ratelimit-remaining-requests') && (ratelimitObj.remainingRequests = Number(response.response.headers.get('x-ratelimit-remaining-requests')));
+                response.response.headers.get('x-ratelimit-remaining-tokens') && (ratelimitObj.remainingTokens = Number(response.response.headers.get('x-ratelimit-remaining-tokens')));
+                response.response.headers.get('x-ratelimit-reset-requests') && (ratelimitObj.resetRequests = response.response.headers.get('x-ratelimit-reset-requests') || '');
+                response.response.headers.get('x-ratelimit-reset-tokens') && (ratelimitObj.resetTokens = response.response.headers.get('x-ratelimit-reset-tokens') || '');
+
+                const headers: { [key: string]: string } = {};
+                response.response.headers.forEach((value, key) => {
+                    // console.log(`${key}: ${value}`);
+                    headers[key] = value;
+                });
+
+                // ファイルに書き出す
+                const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
+
+                fss.writeFile(`${HISTORY_DIRE}/${timestamp}-${Utils.safeFileName(label)}.json`, JSON.stringify({ args, response: { status: response.response.status, headers } }, Utils.genJsonSafer()), {}, (err) => { });
+
+                // ストリームからデータを読み取るためのリーダーを取得
+                const reader = response.data.toReadableStream().getReader();
+
+                let tokenBuilder: string = '';
+
+                // ストリームからデータを読み取る非同期関数
+                async function readStream() {
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) {
+                            // ストリームが終了したらループを抜ける
+                            tokenCount.cost = tokenCount.calcCost();
+                            console.log(logString('fine', ''));
+                            // console.log(tokenBuilder);
+                            resolve0(tokenBuilder);
+                            break;
+                        }
+                        // 中身を取り出す
+                        const content = decoder.decode(value);
+                        // console.log(content);
+
+                        // 中身がない場合はスキップ
+                        if (!content) { continue; }
+                        // ファイルに書き出す
+                        fss.appendFile(`${HISTORY_DIRE}/${timestamp}-${Utils.safeFileName(label)}.txt`, content || '', {}, () => { });
+                        // console.log(`${tokenCount.completion_tokens}: ${data.toString()}`);
+                        // トークン数をカウント
+                        tokenCount.completion_tokens++;
+                        const text = JSON.parse(content).choices[0].delta.content || '';
+                        tokenBuilder += text;
+                        streamHandler(text);
+                    }
+                }
+                // ストリームの読み取りを開始
+                readStream();
+                this.openApiWrapper.fire();
+            })
+            .catch(error => {
+                attempts++;
+
+                // エラーを出力
+                console.log(logString('error', error));
+
+                // 400エラーの場合は、リトライしない
+                if (error.startsWith('Error: 400')) {
+                    reject0(error);
+                } else { }
+
+                // 最大試行回数に達したかチェック
+                if (attempts >= maxAttempts) {
+                    // throw new Error(`API call failed after ${maxAttempts} attempts: ${error}`);
+                    console.log(logString('error', 'retry over'));
+                    reject0('retry over');
+                } else { }
+
+                // レートリミットに引っかかった場合は、レートリミットに書かれている時間分待機する。
+                if (error.startsWith('Error: 429')) {
+                    const waitMs = Number(ratelimitObj.resetRequests.replace('ms', ''));
+                    const waitS = Number(ratelimitObj.resetTokens.replace('s', ''));
+                    console.log(logString('wait', `wait ${waitMs}ms ${waitS}s`));
+                    setTimeout(() => { this.executeCall(); }, waitMs);
+                } else { }
+            });
+    };
+
+}
 /**
  * OpenAIのAPIを呼び出すラッパークラス
  */
 export class OpenAIApiWrapper {
 
+    // proxy設定用オブジェクト
     options: RequestOptions;
+
+    // トークン数をカウントするためのリスト
     tokenCountList: TokenCount[] = [];
+
+    // 実行待ちリスト
+    queue: { [key: string]: RunBit[] } = {
+        'gpt3.5  ': [],
+        'gpt3-16k': [],
+        'gpt4    ': [],
+        'gpt4-32k': [],
+        'gpt4-128': [],
+    };
+    // レートリミット情報
+    currentRatelimit: { [key: string]: Ratelimit } = {
+        'gpt3.5  ': { limitRequests: 3500, limitTokens: 160000, remainingRequests: 1, remainingTokens: 4000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt3-16k': { limitRequests: 3500, limitTokens: 160000, remainingRequests: 1, remainingTokens: 16000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt4    ': { limitRequests: 5000, limitTokens: 80000, remainingRequests: 1, remainingTokens: 8000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt4-32k': { limitRequests: 5000, limitTokens: 80000, remainingRequests: 1, remainingTokens: 32000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt4-128': { limitRequests: 500, limitTokens: 300000, remainingRequests: 1, remainingTokens: 128000, resetRequests: '0ms', resetTokens: '0s', },
+    };
 
     constructor() {
         // proxy設定判定用オブジェクト
@@ -60,97 +203,78 @@ export class OpenAIApiWrapper {
         responseFormat: 'text' | 'json_object' = 'text',
         streamHandler: (text: string) => void = () => { }
     ): Promise<string> {
-        const promise: Promise<string> = new Promise(async (resolve, reject) => {
-            const args: ChatCompletionCreateParamsBase = {
-                // model: ([0, 1, 4, 5].indexOf(stepNo) !== -1) ? "gpt-4" : "gpt-3.5-turbo",
-                model,
-                temperature,
-                messages: [],
-                response_format: { type: responseFormat },
-                stream: true,
-            };
-            // フォーマットがjson指定なのにjsonという文字列が入ってない場合は追加する。
-            if (responseFormat === 'json_object' && !prompt.includes('json')) {
-                prompt += '\n\n# Output format\njson';
-            } else { }
 
-            if (systemMessage) { // systemMessageがある場合は、システムメッセージを追加
-                args.messages.push({ role: 'system', content: systemMessage });
-            } else {
-            }
-            if (prompt) { // promptがある場合は、promptを追加
-                args.messages.push({ role: 'user', content: prompt });
-            } else {
-            }
-            if (assistantMessage) { // assistantMessageがある場合は、assistantMessageを追加
-                args.messages.push({ role: 'assistant', content: assistantMessage });
-            } else { }
+        const args: ChatCompletionCreateParamsBase = {
+            // model: ([0, 1, 4, 5].indexOf(stepNo) !== -1) ? "gpt-4" : "gpt-3.5-turbo",
+            model,
+            temperature,
+            messages: [],
+            stream: true,
+        };
+        // フォーマットがjson指定なのにjsonという文字列が入ってない場合は追加する。
+        if (responseFormat === 'json_object' && !prompt.includes('json') && model === 'gpt-4-1106-preview') {
+            prompt += '\n\n# Output format\njson';
+            args.response_format = { type: responseFormat };
+        } else { }
 
-            let completion: Stream<ChatCompletionChunk> | null = null;
-            let retry = 0;
+        if (systemMessage) { // systemMessageがある場合は、システムメッセージを追加
+            args.messages.push({ role: 'system', content: systemMessage });
+        } else {
+        }
+        if (prompt) { // promptがある場合は、promptを追加
+            args.messages.push({ role: 'user', content: prompt });
+        } else {
+        }
+        if (assistantMessage) { // assistantMessageがある場合は、assistantMessageを追加
+            args.messages.push({ role: 'assistant', content: assistantMessage });
+        } else { }
 
-            // ログ出力用オブジェクト
-            const text = args.messages.map(message => `role:\n${message.role}\ncontent:\n${message.content}`).join('\n');
-            const tokenCount = new TokenCount(model, 0, 0);
-            // gpt-4-1106-preview に未対応のため、gpt-4に置き換え。プロンプトのトークンを数えるだけなのでモデルはどれにしてもしても同じだと思われるが。。。
-            tokenCount.prompt_tokens = encoding_for_model((tokenCount.modelTikToken as any) === 'gpt-4-1106-preview' ? 'gpt-4' : tokenCount.modelTikToken).encode(text).length;
-            this.tokenCountList.push(tokenCount);
+        let attempts = 0;
 
-            let bef = Date.now();
-            const logString = (stepName: string, error: any = ''): string => {
-                const take = numForm(Date.now() - bef, 9);
-                const prompt_tokens = numForm(tokenCount.prompt_tokens, 6);
-                const completion_tokens = numForm(tokenCount.completion_tokens, 6);
+        // ログ出力用オブジェクト
+        const text = args.messages.map(message => `role:\n${message.role}\ncontent:\n${message.content}`).join('\n');
+        const tokenCount = new TokenCount(model, 0, 0);
+        // gpt-4-1106-preview に未対応のため、gpt-4に置き換え。プロンプトのトークンを数えるだけなのでモデルはどれにしてもしても同じだと思われるが。。。
+        tokenCount.prompt_tokens = encoding_for_model((tokenCount.modelTikToken as any) === 'gpt-4-1106-preview' ? 'gpt-4' : tokenCount.modelTikToken).encode(text).length;
+        this.tokenCountList.push(tokenCount);
 
-                const costStr = (tokenCount.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
-                const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${retry} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
-                fss.appendFile(`history.log`, `${logString}\n`, {}, () => { });
-                return logString;
-            };
+        let bef = Date.now();
+        const logString = (stepName: string, error: any = ''): string => {
+            const take = numForm(Date.now() - bef, 9);
+            const prompt_tokens = numForm(tokenCount.prompt_tokens, 6);
+            const completion_tokens = numForm(tokenCount.completion_tokens, 6);
 
-            console.log(logString('start'));
-            // 30秒間隔でリトライ
-            while (!completion) {
-                try {
-                    console.log(logString('call'));
-                    completion = await openai.chat.completions.create(args, this.options) as Stream<ChatCompletionChunk>;
+            const costStr = (tokenCount.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
+            const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${attempts} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
+            fss.appendFile(`history.log`, `${logString}\n`, {}, () => { });
+            return logString;
+        };
 
-                    let tokenBuilder: string = '';
+        console.log(logString('start'));
 
-                    // ファイルに書き出す
-                    const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
+        // プロミスを作成
+        let promiseObj: { resolve: (value: string) => void, reject: (reason?: any) => void } = { resolve: () => { }, reject: () => { } };
+        const promise = new Promise<string>(async (resolve, reject) => {
+            promiseObj.resolve = resolve;
+            promiseObj.reject = reject;
+        });
+        const runBit = new RunBit(logString, tokenCount, streamHandler, args, label, this, promiseObj);
+        this.queue[tokenCount.modelShort].push(runBit);
+        this.fire();
+        return promise;
+    }
 
-                    for await (const chunk of completion) {
-                        // 中身を取り出す
-                        let content = chunk.choices[0]?.delta?.content;
-                        // 中身がない場合はスキップ
-                        if (!content) { continue; }
-                        // ファイルに書き出す
-                        fss.appendFile(`${HISTORY_DIRE}/${timestamp}-${Utils.safeFileName(label)}.txt`, content || '', {}, () => { });
-                        // console.log(`${tokenCount.completion_tokens}: ${data.toString()}`);
-                        // トークン数をカウント
-                        tokenCount.completion_tokens++;
-                        tokenBuilder += content;
-                        streamHandler(content);
-                    }
-                    tokenCount.cost = tokenCount.calcCost();
-                    console.log(logString('fine'));
-                    resolve(tokenBuilder);
-                    fss.writeFile(`${HISTORY_DIRE}/${timestamp}-${Utils.safeFileName(label)}.json`, JSON.stringify({ args, completion }, Utils.genJsonSafer()), {}, (err) => { });
-                } catch (error) {
-                    // 30秒間隔でリトライ
-                    console.log(logString('error', error));
-                    retry++;
-                    completion = null;
-                    await wait(30000);
-                }
-                if (retry > 10) {
-                    console.log(logString('error', 'retry over'));
-                    reject('retry over');
-                }
+    public fire(): void {
+        const queue = this.queue;
+        Object.keys(queue).forEach(key => {
+            const ratelimitObj = this.currentRatelimit[key];
+            for (let i = 0; i < Math.min(queue[key].length, ratelimitObj.remainingRequests); i++) {
+                const runBit = queue[key].shift();
+                if (!runBit) { break; }
+                runBit.executeCall();
+                ratelimitObj.remainingRequests--;
             }
         });
-        return promise;
     }
 
     public total(): { [key: string]: TokenCount } {
@@ -160,7 +284,7 @@ export class OpenAIApiWrapper {
             prev.all.add(current);
             prev[current.modelShort] = tokenCount;
             return prev;
-        }, { 'gpt-4': new TokenCount('gpt-4', 0, 0) });
+        }, { 'all': new TokenCount('all' as any, 0, 0) });
     }
 }
 
@@ -175,8 +299,8 @@ export class TokenCount {
     // モデル名とコストの対応表
     static COST_TABLE: { [key: string]: { prompt: number, completion: number } } = {
         'all     ': { prompt: 0.0000, completion: 0.0000, },
-        'chat    ': { prompt: 0.0015, completion: 0.0020, },
-        'chat-16k': { prompt: 0.0010, completion: 0.0020, },
+        'gpt3.5  ': { prompt: 0.0015, completion: 0.0020, },
+        'gpt3-16k': { prompt: 0.0010, completion: 0.0020, },
         'gpt4    ': { prompt: 0.0300, completion: 0.0600, },
         'gpt4-32k': { prompt: 0.0600, completion: 0.1200, },
         // 'gpt4-vis': { prompt: 0.0600, completion: 0.1200, },
@@ -221,9 +345,9 @@ export class TokenCount {
         'gpt-4-32k-0314': 'gpt4-32k',
         'gpt-4-32k-0613': 'gpt4-32k',
         'gpt-4-1106-preview': 'gpt4-128',
-        'gpt-3.5-turbo': 'gpt3    ',
-        'gpt-3.5-turbo-0301': 'gpt3    ',
-        'gpt-3.5-turbo-0613': 'gpt3    ',
+        'gpt-3.5-turbo': 'gpt3.5  ',
+        'gpt-3.5-turbo-0301': 'gpt3.5  ',
+        'gpt-3.5-turbo-0613': 'gpt3.5  ',
         'gpt-3.5-turbo-16k': 'gpt3-16k',
         'gpt-3.5-turbo-16k-0613': 'gpt3-16k',
     };
