@@ -68,7 +68,7 @@ class RunBit {
                     headers[key] = value;
                 });
 
-                fss.writeFile(`${HISTORY_DIRE}/${idempotencyKey}-${attempts}.json`, JSON.stringify({ args, response: { status: response.response.status, headers } }, Utils.genJsonSafer()), {}, (err) => { });
+                fss.writeFile(`${HISTORY_DIRE}/${idempotencyKey}-${attempts}.json`, JSON.stringify({ args, options, response: { status: response.response.status, headers } }, Utils.genJsonSafer()), {}, (err) => { });
 
                 // ストリームからデータを読み取るためのリーダーを取得
                 const reader = response.data.toReadableStream().getReader();
