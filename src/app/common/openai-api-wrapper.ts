@@ -1,11 +1,15 @@
-import fss from './fss';
-import { TiktokenModel, encoding_for_model } from 'tiktoken';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import { Observable, Subscriber } from 'rxjs';
+import * as crypto from 'crypto';
+
 import OpenAI from 'openai';
-import { Utils } from "./utils";
+import { APIPromise, RequestOptions } from 'openai/core';
 import { ChatCompletionChunk, ChatCompletionCreateParamsBase } from 'openai/resources/chat/completions';
 import { Stream } from 'openai/streaming';
-import { APIPromise, RequestOptions } from 'openai/core';
+import { TiktokenModel, encoding_for_model } from 'tiktoken';
+
+import fss from './fss';
+import { Utils } from "./utils";
 
 const HISTORY_DIRE = `./history`;
 const openai = new OpenAI({
@@ -25,7 +29,9 @@ interface Ratelimit {
     resetTokens: string;
 }
 
-class RunBit {
+type RunBit = PromiseRunBit | ObservableRunBit;
+
+class PromiseRunBit {
     attempts: number = 0;
     constructor(
         public logString: (stepName: string, error: any) => string,
@@ -50,7 +56,7 @@ class RunBit {
 
         const ratelimitObj = this.openApiWrapper.currentRatelimit[this.tokenCount.modelShort];
         // 使用例: callAPI関数を最大5回までリトライする
-        console.log(this.logString('call', ''));
+        // console.log(this.logString('call', ''));
         (openai.chat.completions.create(args, this.openApiWrapper.options) as APIPromise<Stream<ChatCompletionChunk>>)
             .withResponse().then((response) => {
                 response.response.headers.get('x-ratelimit-limit-requests') && (ratelimitObj.limitRequests = Number(response.response.headers.get('x-ratelimit-limit-requests')));
@@ -86,6 +92,9 @@ class RunBit {
                             console.log(logString('fine', ''));
                             // console.log(tokenBuilder);
                             resolve0(tokenBuilder);
+
+                            const trg = args.response_format?.type === 'json_object' ? 'json' : 'md';
+                            fss.writeFile(`${HISTORY_DIRE}/${timestamp}-${Utils.safeFileName(label)}.result.${trg}`, tokenBuilder || '', {}, () => { });
                             break;
                         }
                         // 中身を取り出す
@@ -135,8 +144,119 @@ class RunBit {
                 } else { }
             });
     };
-
 }
+class ObservableRunBit {
+    attempts: number = 0;
+    constructor(
+        public logString: (stepName: string, error: any) => string,
+        public tokenCount: TokenCount,
+        public args: ChatCompletionCreateParamsBase,
+        public options: RequestOptions,
+        public openApiWrapper: OpenAIApiWrapper,
+        public observer: Subscriber<string>,
+    ) { }
+
+    async executeCall(): Promise<void> {
+        const args = this.args;
+        const options = this.options;
+        const idempotencyKey = this.options.idempotencyKey as string;
+        const tokenCount = this.tokenCount;
+        const logString = this.logString;
+        let attempts = this.attempts;
+        const maxAttempts = 5;
+        const observer = this.observer;
+
+        const ratelimitObj = this.openApiWrapper.currentRatelimit[this.tokenCount.modelShort];
+        // 使用例: callAPI関数を最大5回までリトライする
+        // console.log(this.logString('call', ''));
+        (openai.chat.completions.create(args, options) as APIPromise<Stream<ChatCompletionChunk>>)
+            .withResponse().then((response) => {
+                response.response.headers.get('x-ratelimit-limit-requests') && (ratelimitObj.limitRequests = Number(response.response.headers.get('x-ratelimit-limit-requests')));
+                response.response.headers.get('x-ratelimit-limit-tokens') && (ratelimitObj.limitTokens = Number(response.response.headers.get('x-ratelimit-limit-tokens')));
+                response.response.headers.get('x-ratelimit-remaining-requests') && (ratelimitObj.remainingRequests = Number(response.response.headers.get('x-ratelimit-remaining-requests')));
+                response.response.headers.get('x-ratelimit-remaining-tokens') && (ratelimitObj.remainingTokens = Number(response.response.headers.get('x-ratelimit-remaining-tokens')));
+                response.response.headers.get('x-ratelimit-reset-requests') && (ratelimitObj.resetRequests = response.response.headers.get('x-ratelimit-reset-requests') || '');
+                response.response.headers.get('x-ratelimit-reset-tokens') && (ratelimitObj.resetTokens = response.response.headers.get('x-ratelimit-reset-tokens') || '');
+
+                const headers: { [key: string]: string } = {};
+                response.response.headers.forEach((value, key) => {
+                    // console.log(`${key}: ${value}`);
+                    headers[key] = value;
+                });
+
+                fss.writeFile(`${HISTORY_DIRE}/${idempotencyKey}-${attempts}.json`, JSON.stringify({ args, response: { status: response.response.status, headers } }, Utils.genJsonSafer()), {}, (err) => { });
+
+                // ストリームからデータを読み取るためのリーダーを取得
+                const reader = response.data.toReadableStream().getReader();
+
+                let tokenBuilder: string = '';
+
+                // ストリームからデータを読み取る非同期関数
+                async function readStream() {
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) {
+                            // ストリームが終了したらループを抜ける
+                            tokenCount.cost = tokenCount.calcCost();
+                            console.log(logString('fine', ''));
+                            observer.complete();
+
+                            // ファイルに書き出す
+                            const trg = args.response_format?.type === 'json_object' ? 'json' : 'md';
+                            fss.writeFile(`${HISTORY_DIRE}/${idempotencyKey}-${attempts}.result.${trg}`, tokenBuilder || '', {}, () => { });
+                            break;
+                        }
+                        // 中身を取り出す
+                        const content = decoder.decode(value);
+                        // console.log(content);
+
+                        // 中身がない場合はスキップ
+                        if (!content) { continue; }
+                        // ファイルに書き出す
+                        fss.appendFile(`${HISTORY_DIRE}/${idempotencyKey}-${attempts}.txt`, content || '', {}, () => { });
+                        // console.log(`${tokenCount.completion_tokens}: ${data.toString()}`);
+                        // トークン数をカウント
+                        tokenCount.completion_tokens++;
+                        const text = JSON.parse(content).choices[0].delta.content || '';
+                        tokenBuilder += text;
+
+                        // streamHandlerを呼び出す
+                        observer.next(text);
+                    }
+                }
+                // ストリームの読み取りを開始
+                readStream();
+                this.openApiWrapper.fire();
+            })
+            .catch(error => {
+                attempts++;
+
+                // エラーを出力
+                console.log(logString('error', error));
+
+                // 400エラーの場合は、リトライしない
+                if (error.startsWith('Error: 400')) {
+                    observer.error(error);
+                } else { }
+
+                // 最大試行回数に達したかチェック
+                if (attempts >= maxAttempts) {
+                    // throw new Error(`API call failed after ${maxAttempts} attempts: ${error}`);
+                    console.log(logString('error', 'retry over'));
+                    observer.error('retry over');
+                } else { }
+
+                // レートリミットに引っかかった場合は、レートリミットに書かれている時間分待機する。
+                if (error.startsWith('Error: 429')) {
+                    const waitMs = Number(ratelimitObj.resetRequests.replace('ms', ''));
+                    const waitS = Number(ratelimitObj.resetTokens.replace('s', ''));
+                    console.log(logString('wait', `wait ${waitMs}ms ${waitS}s`));
+                    setTimeout(() => { this.executeCall(); }, waitMs);
+                } else { }
+            });
+    };
+}
+
 /**
  * OpenAIのAPIを呼び出すラッパークラス
  */
@@ -156,6 +276,7 @@ export class OpenAIApiWrapper {
         'gpt4-32k': [],
         'gpt4-128': [],
     };
+
     // レートリミット情報
     currentRatelimit: { [key: string]: Ratelimit } = {
         'gpt3.5  ': { limitRequests: 3500, limitTokens: 160000, remainingRequests: 1, remainingTokens: 4000, resetRequests: '0ms', resetTokens: '0s', },
@@ -187,6 +308,76 @@ export class OpenAIApiWrapper {
     }
     /**
      * OpenAIのAPIを呼び出す関数
+     * @param args:ChatCompletionCreateParamsBase Streamモード固定で動かすのでstreamオプションは指定しても無駄。
+     * @param options:{idempotencyKey: string} RequestOptionsのidempotencyKeyのみ指定可能とする。他はコンストラクタで指定した値。
+     * 
+     * @returns Observable<string>でOpenAIのレスポンスの中身のテキストだけをストリーミングする。
+     */
+    chatCompletionObservableStream(
+        args: ChatCompletionCreateParamsBase,
+        options?: { label?: string }, // idempotencyKeyの元ネタにするラベル。指定しない場合は、argsのhashを使う。
+    ): Observable<string> {
+
+        // 強制的にストリームモードにする。
+        args.stream = true;
+
+        // フォーマットがjson指定なのにjsonという文字列が入ってない場合は追加する。
+        if (args.response_format?.type == 'json_object' && args.model === 'gpt-4-1106-preview') {
+            const userMessage = args.messages.filter(message => message.role === 'user');
+            const lastUserMessage = args.messages[args.messages.indexOf(userMessage[userMessage.length - 1])];
+            if (!(lastUserMessage.content as string).includes('json')) {
+                lastUserMessage.content += '\n\n# Output format\njson';
+            } else { }
+        } else { }
+
+        // idempotencyKey の先頭にタイムスタンプをつける。（idempotencyKeyで履歴ファイルを作るので、時系列で履歴ファイルが並ぶようにと、あと単純に）
+        const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
+
+        let label = ''; // タイムスタンプをつける前のidempotencyKey。
+        // idempotencyKeyが設定されてい無い場合は入力のhashを使う。
+        const reqOptions: RequestOptions = {};
+        const argsHash = crypto.createHash('sha256').update(JSON.stringify(args)).digest('hex');
+        if (options && options.label) {
+            // idempotencyKeyが設定されている場合。
+            label = options.label;
+            reqOptions.idempotencyKey = `${timestamp}-${argsHash}-${Utils.safeFileName(options.label)}`;
+        } else {
+            label = argsHash;
+            reqOptions.idempotencyKey = `${timestamp}-${argsHash}`;
+        }
+
+        let attempts = 0;
+
+        // ログ出力用オブジェクト
+        const prompt = args.messages.map(message => `role:\n${message.role}\ncontent:\n${message.content}`).join('\n');
+        const tokenCount = new TokenCount(args.model as GPTModels, 0, 0);
+        // gpt-4-1106-preview に未対応のため、gpt-4に置き換え。プロンプトのトークンを数えるだけなのでモデルはどれにしてもしても同じだと思われるが。。。
+        tokenCount.prompt_tokens = encoding_for_model((tokenCount.modelTikToken as any) === 'gpt-4-1106-preview' ? 'gpt-4' : tokenCount.modelTikToken).encode(prompt).length;
+        this.tokenCountList.push(tokenCount);
+
+        let bef = Date.now();
+        const logString = (stepName: string, error: any = ''): string => {
+            const take = numForm(Date.now() - bef, 9);
+            const prompt_tokens = numForm(tokenCount.prompt_tokens, 6);
+            const completion_tokens = numForm(tokenCount.completion_tokens, 6);
+
+            const costStr = (tokenCount.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
+            const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${attempts} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
+            fss.appendFile(`history.log`, `${logString}\n`, {}, () => { });
+            return logString;
+        };
+
+        console.log(logString('start'));
+
+        return new Observable<string>((observer) => {
+            const runBit = new ObservableRunBit(logString, tokenCount, args, { ...reqOptions, ...this.options }, this, observer);
+            this.queue[tokenCount.modelShort].push(runBit);
+            this.fire();
+        });
+    }
+
+    /**
+     * OpenAIのAPIを呼び出す関数
      * @param label ラベル
      * @param prompt プロンプト 
      * @param model モデル
@@ -212,8 +403,10 @@ export class OpenAIApiWrapper {
             stream: true,
         };
         // フォーマットがjson指定なのにjsonという文字列が入ってない場合は追加する。
-        if (responseFormat === 'json_object' && !prompt.includes('json') && model === 'gpt-4-1106-preview') {
-            prompt += '\n\n# Output format\njson';
+        if (responseFormat === 'json_object' && model === 'gpt-4-1106-preview') {
+            if (!prompt.includes('json')) {
+                prompt += '\n\n# Output format\njson';
+            } else { }
             args.response_format = { type: responseFormat };
         } else { }
 
@@ -258,23 +451,23 @@ export class OpenAIApiWrapper {
             promiseObj.resolve = resolve;
             promiseObj.reject = reject;
         });
-        const runBit = new RunBit(logString, tokenCount, streamHandler, args, label, this, promiseObj);
+        const runBit = new PromiseRunBit(logString, tokenCount, streamHandler, args, label, this, promiseObj);
         this.queue[tokenCount.modelShort].push(runBit);
         this.fire();
         return promise;
     }
 
-    public fire(): void {
+    public async fire(): Promise<void> {
         const queue = this.queue;
-        Object.keys(queue).forEach(key => {
+        for (const key of Object.keys(queue)) {
             const ratelimitObj = this.currentRatelimit[key];
             for (let i = 0; i < Math.min(queue[key].length, ratelimitObj.remainingRequests); i++) {
                 const runBit = queue[key].shift();
                 if (!runBit) { break; }
-                runBit.executeCall();
+                await runBit.executeCall();
                 ratelimitObj.remainingRequests--;
             }
-        });
+        }
     }
 
     public total(): { [key: string]: TokenCount } {
@@ -408,4 +601,3 @@ export class TokenCount {
 
 function numForm(dec: number, len: number) { return (dec || '').toLocaleString().padStart(len, ' '); };
 async function wait(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)); }
-

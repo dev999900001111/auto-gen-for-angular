@@ -73,7 +73,7 @@ class Step0000_RequirementsToDomainModels extends BaseStep {
 
 class Step0005_RequirementsToSystemOverview extends BaseStep {
   model: GPTModels = 'gpt-4-1106-preview';;
-  format = StepOutputFormat.json;
+  format = StepOutputFormat.JSON;
   constructor() {
     super();
     this.chapters = [
@@ -205,7 +205,7 @@ class Step0030_domainModelsJson extends MultiStep {
 
     class Step0030_domainModelsJsonChil extends BaseStep {
       // model: GPTModels = 'gpt-4-1106-preview';;
-      format = StepOutputFormat.json;
+      format = StepOutputFormat.JSON;
       constructor(private pattern: string) {
         super();
         this.label = `${this.constructor.name}_${pattern}`;
@@ -292,7 +292,7 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
 
     class Step0040_domainModelEntityAndDomainServiceJsonChil extends BaseStep {
       // model: GPTModels = 'gpt-4-1106-preview';;
-      format = StepOutputFormat.json;
+      format = StepOutputFormat.JSON;
       constructor(private pattern: string = 'Entities', private boundedContext: string = '') {
         super();
         this.label = `${this.constructor.name}_${pattern}-${Utils.toPascalCase(this.boundedContext)}`;
@@ -481,7 +481,7 @@ class Step0060_CreateServiceDoc extends MultiStep {
 
     class Step0060_CreateServiceDocChil extends BaseStep {
       // model: GPTModels = 'gpt-4-1106-preview';;
-      format = StepOutputFormat.json;
+      format = StepOutputFormat.JSON;
       constructor(public serviceName: string) {
         super();
         this.label = `${this.constructor.name}_${serviceName}`;
@@ -584,7 +584,7 @@ class Step0070_CreateServiceDocToJson extends MultiStep {
     class Step0070_CreateServiceDocToJsonChil extends BaseStep {
       // model: GPTModels = 'gpt-4-1106-preview';;
       // model = 'gpt-3.5-turbo-16k';
-      format = StepOutputFormat.json;
+      format = StepOutputFormat.JSON;
       constructor(public serviceName: string) {
         super();
         this.label = `${this.constructor.name}_${serviceName}`;
@@ -648,7 +648,7 @@ class Step0080_ImplementService extends MultiStep {
     class Step0080_ImplementServiceChil extends BaseStep {
       // model: GPTModels = 'gpt-4-1106-preview';;
       model: GPTModels = 'gpt-3.5-turbo-16k';
-      format = StepOutputFormat.json;
+      format = StepOutputFormat.JSON;
       constructor(public serviceName: string) {
         super();
         this.label = `${this.constructor.name}_${serviceName}`;

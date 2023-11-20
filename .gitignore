@@ -4,3 +4,8 @@ dist/
 history/
 prompts/
 gen/
+bk/
+tmp/
+log/
+dump/
+memo/

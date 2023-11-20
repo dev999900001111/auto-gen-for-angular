@@ -11,7 +11,7 @@ const direDomainModels = `./gen/domain-models/`;
 const direSource = `./gen/src/main/java/com/example/demo/`;
 
 class Step0000_RequirementsToDomainModels extends BaseStep {
-  model: GPTModels = 'gpt-4-1106-preview';
+  // model: GPTModels = 'gpt-4-1106-preview';
   systemMessageJa = '経験豊富で優秀なソフトウェアエンジニア。専門はドメイン駆動設計。';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
   constructor() {
@@ -56,24 +56,15 @@ class Step0000_RequirementsToDomainModels extends BaseStep {
              10. **Refactoring**: As you learn more about the domain and the system, you'll likely need to refactor your models and design. This is a normal part of DDD and should be embraced.
           Please repeat the steps so far and output only the completed domain model.
         `),
-      }, {
-        title: 'Output rules',
-        contentJp: Utils.trimLines(`
-          トークン数をなるべく節約するため、以下の点に注意してください。
-          - 項目の区切り文字はパイプ区切り、パイプ区切りの中で更に分ける場合はカンマ区切りとすること。
-        `),
-        content: Utils.trimLines(`
-          Please pay attention to the following points to save as many tokens as possible.
-          - The delimiter of the item should be a pipe delimiter, and if it is further divided within the pipe delimiter, it should be a comma delimiter.
-        `)
       }
     ];
   }
 }
 
 class Step0005_RequirementsToSystemOverview extends BaseStep {
-  model: GPTModels = 'gpt-4-1106-preview';
-  format = StepOutputFormat.json;
+  // model: GPTModels = 'gpt-4-1106-preview';
+  // model: GPTModels = 'gpt-3.5-turbo';
+  format = StepOutputFormat.JSON;
   constructor() {
     super();
     this.chapters = [
@@ -95,7 +86,7 @@ class Step0005_RequirementsToSystemOverview extends BaseStep {
 
 
 class Step0010_DomainModelsInitialize extends BaseStep {
-  model: GPTModels = 'gpt-4-1106-preview';
+  // model: GPTModels = 'gpt-4-1106-preview';
   // model = 'gpt-3.5-turbo';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
   constructor() {
@@ -113,6 +104,10 @@ class Step0010_DomainModelsInitialize extends BaseStep {
           - Enums => Values
           - Aggregates => RootEntity, Entities, Value Objects
           - Domain Services => Methods
+          - Domain Events => Attributes, Description
+          - Batch Jobs => Methods, Attributes, Description
+          - Bounded Contexts => Bounded Context, Entities/Value Objects/Aggregates/Domain Services/Domain Events
+          - Context Mapping => Relationship Type(${Object.values(ContextMapRelationshipType).join('/')}), Source, Target
           Requirements、Domain Models に含まれる情報を抜け漏れなく反映してください。
           イテレーションを何度か繰り返し、適切なリファクタリングを行い、完成したドメインモデルのみを出力してください。
         `),
@@ -124,6 +119,10 @@ class Step0010_DomainModelsInitialize extends BaseStep {
           - Enums => Values
           - Aggregates => RootEntity, Entities, Value Objects
           - Domain Services => Methods
+          - Domain Events => Attributes, Description
+          - Batch Jobs => Methods, Attributes, Description
+          - Bounded Contexts => Bounded Context, Entities/Value Objects/Aggregates/Domain Services/Domain Events
+          - Context Mapping => Relationship Type(${Object.values(ContextMapRelationshipType).join('/')}), Source, Target
           Please reflect all the information included in the Requirements and Domain Models without omissions.
           Iterate several times, perform appropriate refactoring, and output only the completed domain model.
         `)
@@ -142,7 +141,7 @@ class Step0010_DomainModelsInitialize extends BaseStep {
   }
 }
 class Step0020_DomainModelsClassify extends BaseStep {
-  model: GPTModels = 'gpt-4-1106-preview';
+  // model: GPTModels = 'gpt-4-1106-preview';
   // model = 'gpt-3.5-turbo';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
   constructor() {
@@ -204,8 +203,8 @@ class Step0030_domainModelsJson extends MultiStep {
     super();
 
     class Step0030_domainModelsJsonChil extends BaseStep {
-      model: GPTModels = 'gpt-4-1106-preview';
-      format = StepOutputFormat.json;
+      // model: GPTModels = 'gpt-4-1106-preview';
+      format = StepOutputFormat.JSON;
       constructor(private pattern: string) {
         super();
         this.label = `${this.constructor.name}_${pattern}`;
@@ -232,7 +231,7 @@ class Step0030_domainModelsJson extends MultiStep {
         const step0010 = ['Entities', 'ValueObjects', 'Aggregates', 'Repositories', 'DomainServices',];
         const step0011 = ['DomainEvents', 'BatchJobs', 'Relationships', 'BoundedContexts', 'ContextMapping',];
         // const domainModelString = step0010.includes(pattern) ? new Step0010_DomainModelsInitialize().result : new Step0020_DomainModelsClassify().result;
-        const domainModelString = new Step0010_DomainModelsInitialize().result + '\n\n' + new Step0020_DomainModelsClassify().result;
+        const domainModelString = new Step0010_DomainModelsInitialize().result;
 
         this.chapters = [
           // { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
@@ -292,8 +291,9 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
 
     class Step0040_domainModelEntityAndDomainServiceJsonChil extends BaseStep {
       // model = 'gpt-4';
-      model: GPTModels = 'gpt-4-1106-preview';
-      format = StepOutputFormat.json;
+      // model: GPTModels = 'gpt-4-1106-preview';
+      // model: GPTModels = 'gpt-3.5-turbo';
+      format = StepOutputFormat.JSON;
       constructor(private pattern: string = 'Entities', private boundedContext: string = '') {
         super();
         this.label = `${this.constructor.name}_${pattern}-${Utils.toPascalCase(this.boundedContext)}`;
@@ -319,7 +319,7 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
         const step0010 = ['Entities', 'ValueObjects', 'Aggregates', 'Repositories', 'DomainServices',];
         const step0011 = ['DomainEvents', 'BatchJobs', 'Relationships', 'BoundedContexts', 'ContextMapping',];
         // const domainModelString = step0010.includes(pattern) ? new Step0010_DomainModelsInitialize().result : new Step0020_DomainModelsClassify().result;
-        const domainModelString = new Step0010_DomainModelsInitialize().result + '\n\n' + new Step0020_DomainModelsClassify().result;
+        const domainModelString = new Step0010_DomainModelsInitialize().result;
 
         this.chapters = [
           { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
@@ -377,8 +377,8 @@ class Step0050_CreateAPI extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0050_CreateAPIChil extends BaseStep {
-      model: GPTModels = 'gpt-4-1106-preview';
-      format = StepOutputFormat.json;
+      // model: GPTModels = 'gpt-4-1106-preview';
+      format = StepOutputFormat.JSON;
       constructor(public boundedContext: BoundedContext) {
         super();
         this.label = `${this.constructor.name}_${Utils.toPascalCase(this.boundedContext.name)}`;
@@ -489,8 +489,8 @@ class Step0060_CreateServiceDoc extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0060_CreateServiceDocChil extends BaseStep {
-      model: GPTModels = 'gpt-4-1106-preview';
-      // format = StepOutputFormat.md;
+      // model: GPTModels = 'gpt-4-1106-preview';
+      // format = StepOutputFormat.MARKDOWN;
       constructor(public serviceName: string) {
         super();
         this.label = `${this.constructor.name}_${serviceName}`;
@@ -591,9 +591,9 @@ class Step0070_CreateServiceDocToJson extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0070_CreateServiceDocToJsonChil extends BaseStep {
-      model: GPTModels = 'gpt-4-1106-preview';
+      // model: GPTModels = 'gpt-4-1106-preview';
       // model = 'gpt-3.5-turbo-16k';
-      format = StepOutputFormat.json;
+      format = StepOutputFormat.JSON;
       constructor(public serviceName: string) {
         super();
         this.label = `${this.constructor.name}_${serviceName}`;
@@ -655,9 +655,9 @@ class Step0080_ImplementService extends MultiStep {
     const domainModel = DomainModel.loadModels();
 
     class Step0080_ImplementServiceChil extends BaseStep {
-      model: GPTModels = 'gpt-4-1106-preview';
+      // model: GPTModels = 'gpt-4-1106-preview';
       // model = 'gpt-3.5-turbo-16k';
-      format = StepOutputFormat.json;
+      format = StepOutputFormat.JSON;
       constructor(public serviceName: string) {
         super();
         this.label = `${this.constructor.name}_${serviceName}`;

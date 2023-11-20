@@ -1,6 +1,6 @@
 import * as  fs from 'fs';
 import { Utils } from '../common/utils';
-import { BaseStep, MultiStep } from "../common/base-step";
+import { BaseStep, MultiStep, StepOutputFormat } from "../common/base-step";
 import { RepoSyncer } from '../common/repo-syncer';
 import { GenModuleFiles, genIndex } from './gen-angular-modules';
 import { GPTModels } from '../common/openai-api-wrapper';
@@ -27,7 +27,7 @@ class Step000_RequirementsToComponentList extends BaseStep {
 }
 
 class Step001_componentList_to_angularComponentList extends BaseStep {
-  model: GPTModels = 'gpt-4';
+  model: GPTModels = 'gpt-4-1106-preview';
   constructor() {
     super();
     this.chapters = [
@@ -50,6 +50,7 @@ class Step001_componentList_to_angularComponentList extends BaseStep {
 }
 
 class Step002_angularComponentList_to_angularComponentJson extends BaseStep {
+  format: StepOutputFormat = StepOutputFormat.JSON;
   constructor() {
     super();
     this.chapters = [
@@ -178,6 +179,7 @@ Only output the Improved APIs List.`;
   }
 }
 class Step008_makeAngularServiceJson extends BaseStep {
+  format: StepOutputFormat = StepOutputFormat.JSON;
   constructor() {
     super();
     this.chapters = [
@@ -266,7 +268,7 @@ class Step009_makeAngularServiceSrouce extends BaseStep {
     // const compListText = fs.readFileSync(`./prompts/001-ComponentListToAngularComponentList.prompt.md.answer.md`, 'utf-8');
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     const g: any = {};
-    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    g.services = Utils.jsonParse(serviceListJSON);
     const apiList = fs.readFileSync(new Step007_makeApiList().resultPath, 'utf-8');
     fs.mkdirSync(`./gen/src/app/services`, { recursive: true });
     // const res = Promise.all(promiseList).then((values) => {
@@ -277,6 +279,8 @@ class Step009_makeAngularServiceSrouce extends BaseStep {
   }
 }
 class Step010_ApiListJson extends BaseStep {
+  // model: GPTModels = 'gpt-3.5-turbo-16k';
+  format: StepOutputFormat = StepOutputFormat.JSON;
   constructor() {
     super();
     this.chapters = [
@@ -284,7 +288,7 @@ class Step010_ApiListJson extends BaseStep {
       {
         title: 'prompt', content: Utils.trimLines(`
           Please convert APIs List table to minified JSON format, like below.
-          [{"method":"POST","path":"/api/auth/login","requestBody":"{ username, password }","responseBody":"{ token, user: User }","description":"Authenticates user and returns a token and user object"},{"method":"POST","path":"/api/auth/login","requestBody":"{ username, password }","responseBody":"{ token, user: User }","description":"Authenticates user and returns a token and user object" },,]
+          {"apiList":[{"method":"POST","path":"/api/auth/login","requestBody":"{ username, password }","responseBody":"{ token, user: User }","description":"Authenticates user and returns a token and user object"},{"method":"POST","path":"/api/auth/login","requestBody":"{ username, password }","responseBody":"{ token, user: User }","description":"Authenticates user and returns a token and user object" },,]}
           Output Json only.
         `)
       },
@@ -292,6 +296,8 @@ class Step010_ApiListJson extends BaseStep {
   }
 }
 class Step010_createJSONdata extends BaseStep {
+  // model: GPTModels = 'gpt-4-1106-preview';;
+  format: StepOutputFormat = StepOutputFormat.JSON;
   constructor(chunkArray: any[], idx: number, modelList: string,) {
     super();
     this.label = `Step010-createJSONdata-${idx}`;
@@ -309,6 +315,7 @@ class Step010_createJSONdata extends BaseStep {
           Based on the above design document, please create a sample data (for Japanese) for the APIs List.
           Only the ResponseBody is required.
           Please use all values of Enum.
+          Please be careful to ensure that tokens and other random strings do not become infinitely long.
           The format is minified JSON as follows.
           {"\${Method}-\${Path}":\${mockdata}}
           Please output only JSON data.
@@ -348,12 +355,13 @@ class Step010_createJSONdata extends BaseStep {
     return result;
   }
   static genSteps() {
-    const modelList = fs.readFileSync(new Step005_makeAngularModel().resultPath, 'utf-8');
-    const apiList = Utils.jsonParse(fs.readFileSync(new Step010_ApiListJson().resultPath, 'utf-8')) as any[];
+    const modelList = new Step005_makeAngularModel().formed;
+    const apiList = (Utils.jsonParse(new Step010_ApiListJson().formed) as { apiList: any[] }).apiList;
     return Utils.toChunkArray(apiList, 3).map((chunkArray: any, idx: number) => new Step010_createJSONdata(chunkArray, idx, modelList));
   }
 }
 class Step010_componentList_to_Json extends BaseStep {
+  format: StepOutputFormat = StepOutputFormat.JSON;
   constructor() {
     super();
     this.chapters = [
@@ -369,6 +377,7 @@ class Step010_componentList_to_Json extends BaseStep {
   }
 }
 class Step011_AngularModelList_to_Json extends BaseStep {
+  format: StepOutputFormat = StepOutputFormat.JSON;
   constructor() {
     super();
     this.chapters = [
@@ -397,11 +406,10 @@ class Step012_makeScreenSpec extends BaseStep {
     const ngUiList = Utils.spaceNormalize(fs.readFileSync(new Step001_componentList_to_angularComponentList().resultPath, 'utf-8'));
     const systemOverview = fs.readFileSync(new Step003_requirements_to_systemOverview().resultPath, 'utf-8');
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
-    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    g.services = Utils.jsonParse(serviceListJSON);
     const serviceString = Object.keys(g.services).map(key => ` - ${key}: ${g.services[key].methods.map((method: any) => method.name + '(' + method.params.map((kv: { name: string, type: string }) => kv.name + ': ' + kv.type).join(', ') + '): ' + method.return).join(', ')}`).join('\n');
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
-    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
-    // console.log(g.models);
+    g.models = Utils.jsonParse(modelJSON);
     const modelString = Object.keys(g.models).filter(key => g.models[key].props).map(key => ` - ${key}(${Object.keys(g.models[key].props).map(propKey => propKey + ': ' + g.models[key].props[propKey]).join(', ')})`).join('\n');
     const enumString = Object.keys(g.models).filter(key => g.models[key].values).map(key => ` - ${key}: ${g.models[key].values.map((value: string) => '"' + value + '"').join(' | ')}`).join('\n');
 
@@ -472,9 +480,9 @@ class Step013_makeScreenSpecJSON extends BaseStep {
     const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
     ['childAngularComponents', 'dialogAngularComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(componentName => { ngUiJSON[componentName][prop] = Object.keys(ngUiJSON).filter(name => ngUiJSON[name][prop] !== 'RouterOutlet' && ngUiJSON[name][prop].find((chilName: string) => Object.keys(ngUiJSON).indexOf(chilName) !== -1)); }); });
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
-    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    g.services = Utils.jsonParse(serviceListJSON);
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
-    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
+    g.models = Utils.jsonParse(modelJSON);
     return Object.keys(ngUiJSON).map((componentName, index) => new Step013_makeScreenSpecJSON(index, componentName, ngUiJSON));
   }
 }
@@ -559,9 +567,9 @@ class Step014_makeScreenHtml extends BaseStep {
     const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
     ['childAngularComponents', 'dialogAngularComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(componentName => { ngUiJSON[componentName][prop] = Object.keys(ngUiJSON).filter(name => ngUiJSON[name][prop] !== 'RouterOutlet' && ngUiJSON[name][prop].find((chilName: string) => Object.keys(ngUiJSON).indexOf(chilName) !== -1)); }); });
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
-    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    g.services = Utils.jsonParse(serviceListJSON);
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
-    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
+    g.models = Utils.jsonParse(modelJSON);
     g.classes = new RepoSyncer().loadDefs();
     return Object.keys(ngUiJSON).map((componentName, index) => new Step014_makeScreenHtml(index, componentName, ngUiJSON, g));
   }
@@ -603,9 +611,9 @@ class Step015_ScreenProp extends BaseStep {
     const ngUiJSON = Utils.jsonParse<any>(fs.readFileSync(new Step002_angularComponentList_to_angularComponentJson().resultPath, 'utf-8'));
     ['childAngularComponents', 'dialogAngularComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(componentName => { ngUiJSON[componentName][prop] = Object.keys(ngUiJSON).filter(name => ngUiJSON[name][prop] !== 'RouterOutlet' && ngUiJSON[name][prop].find((chilName: string) => Object.keys(ngUiJSON).indexOf(chilName) !== -1)); }); });
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
-    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    g.services = Utils.jsonParse(serviceListJSON);
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
-    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
+    g.models = Utils.jsonParse(modelJSON);
     g.classes = new RepoSyncer().loadDefs();
     return Object.keys(ngUiJSON).map((componentName, index) => new Step015_ScreenProp(index, componentName, ngUiJSON));
   }
@@ -614,6 +622,8 @@ class Step015_ScreenProp extends BaseStep {
 class Step015_ScreenPropJSON extends BaseStep {
   dire: string;
   nameKebab0: string;
+  model: GPTModels = 'gpt-3.5-turbo';
+  format: StepOutputFormat = StepOutputFormat.JSON;
   constructor(
     private index: number,
     private componentName: string,
@@ -841,9 +851,9 @@ class Step016_AngularTypescript extends BaseStep {
     ['childAngularComponents', 'dialogAngularComponents'].forEach((prop: string) => { Object.keys(ngUiJSON).forEach(componentName => { ngUiJSON[componentName][prop] = Object.keys(ngUiJSON).filter(name => ngUiJSON[name][prop] !== 'RouterOutlet' && ngUiJSON[name][prop].find((chilName: string) => Object.keys(ngUiJSON).indexOf(chilName) !== -1)); }); });
     const serviceListJSON = fs.readFileSync(new Step008_makeAngularServiceJson().resultPath, 'utf-8');
     const g: any = {};
-    g.services = Utils.jsonParse(serviceListJSON.replace(/```/g, '').trim());
+    g.services = Utils.jsonParse(serviceListJSON);
     const modelJSON = fs.readFileSync(new Step011_AngularModelList_to_Json().resultPath, 'utf-8');
-    g.models = Utils.jsonParse(modelJSON.replace(/```/g, '').trim());
+    g.models = Utils.jsonParse(modelJSON);
     g.classes = new RepoSyncer().loadDefs();
     return Object.keys(ngUiJSON).map((componentName, index) => new Step016_AngularTypescript(index, componentName, ngUiJSON, g));
   }

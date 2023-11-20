@@ -76,7 +76,7 @@ export class GenModuleFiles {
 
         // Angularモジュールファイルを生成する
         fs.writeFileSync(`${this.srcDire}/app/app.module.ts`, this.fillTemplate({
-            templatePath: './src/templates/app.module.ts.html',
+            templatePath: './src/templates/app.module.ts.md',
             data: {
                 // Angularモジュールに必要なコンポーネントのインポート文を格納する配列
                 importsSection: importStatementList.map(obj => obj.importStatement).join('\n'),
@@ -88,7 +88,7 @@ export class GenModuleFiles {
         // Angularルーティングファイルを生成する
         const pages = importStatementList.filter(obj => obj.importStatement.indexOf('/pages/') >= 0);
         fs.writeFileSync(`${this.srcDire}/app/app-routing.module.ts`, this.fillTemplate({
-            templatePath: './src/templates/app-routing.module.ts.html',
+            templatePath: './src/templates/app-routing.module.ts.md',
             data: {
                 // pages系のみをroutingに追加する
                 routeImports: pages.map(obj => obj.importStatement).join('\n'),
@@ -98,7 +98,7 @@ export class GenModuleFiles {
 
         // Angularインターセプターファイルを生成する
         fs.writeFileSync(`${this.srcDire}/app/api.interceptor.ts`, this.fillTemplate({
-            templatePath: './src/templates/api.interceptor.ts.html',
+            templatePath: './src/templates/api.interceptor.ts.md',
             data: {}
         }));
 
