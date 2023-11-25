@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import * as ts from "typescript";
-import fss from '../common/fss';
-import { Attribute, DomainModel, Relationship, RelationshipType, domainModelsDire } from '../domain-models/domain-models';
-import { Utils } from '../common/utils';
-import DemoApplicationJava from './template/DemoApplication.java';
-import BaseEntityJava from './template/BaseEntity.java';
-import ResourceNotFoundExceptionJava from './template/ResourceNotFoundException.java';
+import fss from '../../common/fss.js';
+import { Attribute, DomainModel, Relationship, RelationshipType, domainModelsDire } from '../../domain-models/domain-models.js';
+import { Utils } from '../../common/utils.js';
+import DemoApplicationJava from './template/DemoApplication.java.js';
+import BaseEntityJava from './template/BaseEntity.java.js';
+import ResourceNotFoundExceptionJava from './template/ResourceNotFoundException.java.js';
 
 const packageName = 'com.example.demo';
 const outDire = `./gen/src/main/java/com/example/demo/`;

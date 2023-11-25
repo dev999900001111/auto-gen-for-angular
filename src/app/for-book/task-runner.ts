@@ -1,9 +1,20 @@
 import * as  fs from 'fs';
-import fss from '../common/fss';
-import { Utils } from '../common/utils';
-import { BaseStep, MultiStep, StepOutputFormat } from "../common/base-step";
-import { ObjectModel, TreeModel } from '../for-novel/models';
-import { GPTModels } from '../common/openai-api-wrapper';
+import { Utils } from '../../common/utils.js';
+import { BaseStep, MultiStep, StepOutputFormat } from '../../common/base-step.js';
+import { ObjectModel, TreeModel } from '../for-novel/models.js';
+import { GPTModels } from '../../common/openai-api-wrapper.js';
+
+/**
+ * このエージェント用の共通設定。
+ * エージェントごとに設定したいデフォルト値が異なるのでrunnerの最初に書くことにした。
+ */
+abstract class BaseStepForBook extends BaseStep {
+  agentName: string = Utils.basename(Utils.dirname(import.meta.url));
+  model: GPTModels = 'gpt-4-1106-preview';
+  systemMessageJa = `あなたは個人向けのテクニカルライターです。クライアントから依頼を受けて、依頼人向けにカスタマイズされた参考書を書いてください。`;
+  systemMessage = `You are a technical writer for individuals. Please write a reference book customized for the client.`;
+  format = StepOutputFormat.MARKDOWN;
+}
 
 const direDomainModels = `./gen/domain-models/`;
 const INSTRUCTION = [{
@@ -48,7 +59,7 @@ const INSTRUCTION = [{
 },
 ];
 
-class Step0000_DrillDowner extends BaseStep {
+class Step0000_DrillDowner extends BaseStepForBook {
   model: GPTModels = 'gpt-4-1106-preview';;
   // model = 'gpt-3.5-turbo-16k';
   systemMessageJa = `あなたは個人向けのテクニカルライターです。クライアントから依頼を受けて、依頼人向けにカスタマイズされた参考書を書いてください。`;
@@ -146,7 +157,7 @@ class Step0020_DrillDowner2 extends MultiStep {
         return `## ${section.title}`
       }).join('\n')
     }).join('\n');
-    class Step0020_DrillDowner2Chil extends BaseStep {
+    class Step0020_DrillDowner2Chil extends BaseStepForBook {
       // model: GPTModels = 'gpt-4-1106-preview';;
       systemMessageJa = `あなたは個人向けのテクニカルライターです。クライアントから依頼を受けて、依頼人向けにカスタマイズされた参考書を書いてください。`;
       systemMessage = `You are a technical writer for individuals. Please write a reference book customized for the client.`;

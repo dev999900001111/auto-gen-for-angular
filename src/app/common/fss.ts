@@ -7,7 +7,7 @@ import { PathOrFileDescriptor, WriteFileOptions, NoParamCallback } from 'fs';
  * ファイルシステムの安全な書き込みを行う。
  * ChatGPT APIをstreamモードで動かすとファイル書き込みが前後してしまうことがあるので
  * キューを使って順序がずれないようにする。
- * また、ついでにディレクトリが無ければ掘るようにする。
+ * また、ファイル出力先のディレクトリが無ければ掘るようにする。
  */
 class FsSafeImpl {
     constructor() { }

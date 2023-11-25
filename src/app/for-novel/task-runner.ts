@@ -1,13 +1,25 @@
-import * as  fs from 'fs';
-import fss from '../common/fss';
-import { Utils } from '../common/utils';
-import { BaseStep, MultiStep } from "../common/base-step";
-import { ObjectModel, TreeModel } from './models';
+import fss from '../../common/fss.js';
+import { Utils } from '../../common/utils.js';
+import { BaseStep, MultiStep, StepOutputFormat } from '../../common/base-step.js';
+import { ObjectModel, TreeModel } from './models.js';
+import { GPTModels } from '../../common/openai-api-wrapper.js';
+
+/**
+ * このエージェント用の共通設定。
+ * エージェントごとに設定したいデフォルト値が異なるのでrunnerの最初に書くことにした。
+ */
+abstract class BaseStepForNovel extends BaseStep {
+  agentName: string = Utils.basename(Utils.dirname(import.meta.url));
+  model: GPTModels = 'gpt-4-1106-preview';
+  systemMessageJa = '経験豊富で優秀なソフトウェアエンジニア。専門はドメイン駆動設計。';
+  systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
+  format = StepOutputFormat.MARKDOWN;
+}
 
 const direDomainModels = `./gen/domain-models/`;
 const direSource = `./gen/src/main/java/com/example/demo/`;
 
-class Step0000_DrillDowner extends BaseStep {
+class Step0000_DrillDowner extends BaseStepForNovel {
   // model = 'gpt-4';
   systemMessageJa = '熟練の編集者.';
   systemMessage = 'Skilled editor.';
@@ -53,7 +65,7 @@ class Step0020_DrillDowner2 extends MultiStep {
     super();
 
     const obj: ObjectModel = Utils.jsonParse(new Step0000_DrillDowner().result);
-    class Step0020_DrillDowner2Chil extends BaseStep {
+    class Step0020_DrillDowner2Chil extends BaseStepForNovel {
       // model = 'gpt-4';
       systemMessageJa = 'ロジカルシンキングの達人';
       systemMessage = 'Logical thinking master';
@@ -95,7 +107,7 @@ class Step0020_DrillDowner2 extends MultiStep {
   }
 }
 
-class Step0030_DrillDowner extends BaseStep {
+class Step0030_DrillDowner extends BaseStepForNovel {
   // model = 'gpt-4';
   systemMessageJa = '熟練の小説家.';
   systemMessage = 'Skilled novelist.';
@@ -269,7 +281,7 @@ class Step0040_DrillDowner extends MultiStep {
     const setting: ObjectModel = Utils.jsonParse(new Step0030_DrillDowner().result);
 
 
-    class Step0040_DrillDownerChil extends BaseStep {
+    class Step0040_DrillDownerChil extends BaseStepForNovel {
       systemMessageJa = '熟練の小説家.';
       systemMessage = 'Skilled novelist.';
       constructor(private obj: ObjectModel) {
@@ -440,7 +452,7 @@ class Step0040_DrillDowner extends MultiStep {
   }
 }
 
-class Step0050_DrillDowner extends BaseStep {
+class Step0050_DrillDowner extends BaseStepForNovel {
   // model = 'gpt-4';
   systemMessageJa = '熟練の小説家.';
   systemMessage = 'Skilled novelist.';

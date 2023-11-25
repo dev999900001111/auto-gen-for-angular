@@ -1,58 +1,110 @@
-# auto-gen-for-web-apps
+# openai-api-wrapper
 
-This program generates Angular screens using ChatGPT's API.
+## 概要
 
-This program is mainly intended for business systems. It can automatically generate about 20 to 30 components.
+OpenAIのAPIをラップして使いやすくしたものです。
 
-Currently, the following can be generated.
+## 機能
 
-- Angular screen set
-- React screen set
-- Spring Boot API set
+1. **API生データのロギング**: APIの入出力の生データを`history`に保存します。
+2. **課金履歴**: 課金履歴を`history.log`に書き込みます。
+3. **エージェントとステップ**: 複数ステップからなるエージェントを作成するためのクラスを利用できます。
+4. **バッチ/オンライン**: バッチ機能と、REST-APIのサーバー機能があります。
 
-It is not a stand-alone agent like AutoGPT, but a task runner that only executes predefined tasks.
+## ディレクトリ構造
 
-It does not have an error correction function (cost explosion), so it only generates a batch of sample programs and is not at the level where you can use the generated products as they are.
+```markdown
 
+├── README.md
+├── history (通信ログが溜まるところ。エラー調査とかに使う。)
+│   ├── ...
+│   └── ...
+├── history.log (課金履歴)
+├── package.json
+├── prompts_and_responses (投げつけたプロンプトと結果が溜まるところ)
+│   ├── (agent name)/ (エージェント毎にディレクトリが分かれている)
+│   │   ├── ...
+│   │   └── ...
+│   └── ...
+│       ├── ...
+│       └── ...
+├── results
+├── src （ソースコード）
+│   └── app
+│       ├── agent
+│       │   ├── company-report-from-logos (エージェント定義)
+│       │   │   ├── README.md
+│       │   │   └── runner.ts
+│       │   └── sample (エージェント定義)
+│       │       └── runner.ts
+│       ├── cli.ts
+│       ├── common (共通機能)
+│       │   ├── base-step.ts
+│       │   ├── fss.ts
+│       │   ├── openai-api-wrapper.ts
+│       │   └── utils.ts
+│       └── main (メイン実行系)
+│           ├── main-batch.ts
+│           ├── main-generate.ts
+│           ├── main-server.ts
+│           └── main-vision-plain.ts
+└── tsconfig.json
 
-## How to run
-It is assumed that the environment can use OpenAI's API.
+```
 
-If you write a user scenario of the system you want to create with the file name "000-requirements.md" in the same hierarchy as the source, and then run it, you will get an Angular screen set.
-To run it, simply run src/main.ts.
+## 使用方法
+
+### 事前準備
 
 ```bash
-# Install libraries
+# プロキシの設定（必要に応じて）
+export https_proxy="http://${username}:${password}@${proxyHost}:${proxyPort}"
+
+# OpenAIのAPI鍵設定
+export OPENAI_API_KEY="${YOUR_OPENAI_API_KEY}"
+
+# 必要ライブラリをインストール
 npm install
-# Run
-# Usage: ts-node src/main.ts [angular|react|spring]
-ts-node src/main.ts spring
 ```
 
+### CLI
 
-## cost
-The cost of the sample 000-requirements.md was about 300,000 tokens, or about $0.4.
+CLIの使い方はhelpを参照してください。
 
-If you use GPT-4 for all source generators, it costs about $6.
-
-
-## Usage 
-The bottom of the generator.js file is where the steps are executed,
-
-Create a prompt with `initPrompt` and run it with `run`.
-
-```javascript
-  obj = new Step000_RequirementsToComponentList();
-  obj.initPrompt();
-  await obj.run();
+```bash
+# ヘルプ
+npm run cli --help
 ```
 
-It will generally work in a single step, but I often comment out all the steps except the one I want to run.
-Especially after STEP12, some things will be executed a lot, so I use initPrompt to see how the prompt looks like, then run some of them in Playground, and if the results look good, I run run run.
+コマンドをインストールする場合。
 
-## What can I do?
-This article briefly summarizes it.
-> https://qiita.com/Programmer-cbl/items/7980e9c3085a8ce2aaf9
+```bash
+# oaw ユーザーのみにインストール
+npm link oaw
 
-If you make the modifications manually, it will look something like this It takes roughly 3 hours of labor.
-> https://bank-crm-v1-mock.s3.ap-northeast-1.amazonaws.com/index.html
+# oaw グローバルにインストール
+npm link 
+```
+
+### バッチ利用
+
+```bash
+# <sample>の部分はエージェント名を入れる。
+# src/app/agent配下にあるディレクトリ名がエージェント名なので、そこから選んで使う。
+npm run batch sample
+```
+
+結果は`prompts_and_responses`に溜まるので、中身見ておくと途中経過が見れてよい。.tmpが作成中ファイル。
+
+`history/`には通信の生データが溜まる。エラー解析とかで使う。
+`history.log`は課金履歴が載る。
+
+## エージェントの作り方
+
+```bash
+# agentNameで名前を指定する
+npm run generate <agentName>
+```
+
+`src/app/agent/${agentName}`配下に`runner.ts`という名前でひな型が作成されるので、それを元に作る。
+※細かいことはひな型のコメントに書いてあります。

@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { Utils } from '../common/utils';
+import { Utils } from '../common/utils.js';
 
 export const domainModelsDire = `./gen/domain-models/`;
 

@@ -294,6 +294,25 @@ export class Utils {
     static safeFileName(fileName: string) {
         return fileName.replace(/[\\/:*?"<>|]/g, '_');
     }
+
+    /**
+     * path.basename相当。いちいちpathをインポートするのだるいから作った。
+     * @param filepath 
+     * @returns 
+     */
+    static basename(filepath: string): string {
+        const parts = filepath.split(/\/|\\/);
+        return parts[parts.length - 1];
+    }
+
+    /**
+     * path.dirname相当。いちいちpathをインポートするのだるいから作った。
+     * @param filepath 
+     * @returns 
+     */
+    static dirname(filepath: string): string {
+        return new URL('.', filepath).pathname;
+    }
 }
 
 // const code = `

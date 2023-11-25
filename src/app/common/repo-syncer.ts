@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import typescript, { ClassElement, ConstructorDeclaration, Statement } from 'typescript';
 const ts = typescript;
-import { Utils } from './utils';
+import { Utils } from './utils.js';
 
 export class RepoSyncer {
     loadDefs(files = [

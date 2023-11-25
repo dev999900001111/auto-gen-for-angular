@@ -1,21 +1,28 @@
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { Observable, Subscriber } from 'rxjs';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import sizeOf from 'image-size';
 
 import OpenAI from 'openai';
 import { APIPromise, RequestOptions } from 'openai/core';
-import { ChatCompletionChunk, ChatCompletionCreateParamsBase } from 'openai/resources/chat/completions';
+import { ChatCompletionChunk, ChatCompletionContentPart, ChatCompletionCreateParamsBase, ChatCompletionCreateParamsStreaming } from 'openai/resources/chat/completions';
 import { Stream } from 'openai/streaming';
 import { TiktokenModel, encoding_for_model } from 'tiktoken';
 
-import fss from './fss';
-import { Utils } from "./utils";
+import fss from './fss.js';
+import { Utils } from "./utils.js";
 
 const HISTORY_DIRE = `./history`;
 const openai = new OpenAI({
     apiKey: process.env['OPENAI_API_KEY'],
     // baseOptions: { timeout: 1200000, Configuration: { timeout: 1200000 } },
 });
+
+
+export interface WrapperOptions {
+    allowLocalFiles: boolean;
+}
 
 // Uint8Arrayを文字列に変換
 const decoder = new TextDecoder();
@@ -53,6 +60,8 @@ class RunBit {
         const ratelimitObj = this.openApiWrapper.currentRatelimit[this.tokenCount.modelShort];
         // 使用例: callAPI関数を最大5回までリトライする
         // console.log(this.logString('call', ''));
+        // リクエストをファイルに書き出す
+        fss.writeFile(`${HISTORY_DIRE}/${idempotencyKey}-${attempts}.request.json`, JSON.stringify({ args, options }, Utils.genJsonSafer()), {}, (err) => { });
         (openai.chat.completions.create(args, options) as APIPromise<Stream<ChatCompletionChunk>>)
             .withResponse().then((response) => {
                 response.response.headers.get('x-ratelimit-limit-requests') && (ratelimitObj.limitRequests = Number(response.response.headers.get('x-ratelimit-limit-requests')));
@@ -68,7 +77,7 @@ class RunBit {
                     headers[key] = value;
                 });
 
-                fss.writeFile(`${HISTORY_DIRE}/${idempotencyKey}-${attempts}.json`, JSON.stringify({ args, options, response: { status: response.response.status, headers } }, Utils.genJsonSafer()), {}, (err) => { });
+                fss.writeFile(`${HISTORY_DIRE}/${idempotencyKey}-${attempts}.response.json`, JSON.stringify({ args, options, response: { status: response.response.status, headers } }, Utils.genJsonSafer()), {}, (err) => { });
 
                 // ストリームからデータを読み取るためのリーダーを取得
                 const reader = response.data.toReadableStream().getReader();
@@ -119,8 +128,9 @@ class RunBit {
                 console.log(logString('error', error));
 
                 // 400エラーの場合は、リトライしない
-                if (error.startsWith('Error: 400')) {
+                if (error.toString().startsWith('Error: 400')) {
                     observer.error(error);
+                    throw error;
                 } else { }
 
                 // 最大試行回数に達したかチェック
@@ -128,10 +138,11 @@ class RunBit {
                     // throw new Error(`API call failed after ${maxAttempts} attempts: ${error}`);
                     console.log(logString('error', 'retry over'));
                     observer.error('retry over');
+                    throw error;
                 } else { }
 
                 // レートリミットに引っかかった場合は、レートリミットに書かれている時間分待機する。
-                if (error.startsWith('Error: 429')) {
+                if (error.toString().startsWith('Error: 429')) {
                     const waitMs = Number(ratelimitObj.resetRequests.replace('ms', ''));
                     const waitS = Number(ratelimitObj.resetTokens.replace('s', ''));
                     console.log(logString('wait', `wait ${waitMs}ms ${waitS}s`));
@@ -159,6 +170,7 @@ export class OpenAIApiWrapper {
         'gpt4    ': [],
         'gpt4-32k': [],
         'gpt4-128': [],
+        'gpt4-vis': [],
     };
 
     // レートリミット情報
@@ -168,9 +180,12 @@ export class OpenAIApiWrapper {
         'gpt4    ': { limitRequests: 5000, limitTokens: 80000, remainingRequests: 1, remainingTokens: 8000, resetRequests: '0ms', resetTokens: '0s', },
         'gpt4-32k': { limitRequests: 5000, limitTokens: 80000, remainingRequests: 1, remainingTokens: 32000, resetRequests: '0ms', resetTokens: '0s', },
         'gpt4-128': { limitRequests: 500, limitTokens: 300000, remainingRequests: 1, remainingTokens: 128000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt4-vis': { limitRequests: 500, limitTokens: 300000, remainingRequests: 1, remainingTokens: 128000, resetRequests: '0ms', resetTokens: '0s', },
     };
 
-    constructor() {
+    constructor(
+        public wrapperOptions: WrapperOptions = { allowLocalFiles: false }
+    ) {
         // proxy設定判定用オブジェクト
         const proxyObj: { [key: string]: any } = {
             httpProxy: process.env['http_proxy'] as string || undefined,
@@ -199,63 +214,106 @@ export class OpenAIApiWrapper {
      * @returns Observable<string>でOpenAIのレスポンスの中身のテキストだけをストリーミングする。
      */
     chatCompletionObservableStream(
-        args: ChatCompletionCreateParamsBase,
+        args: ChatCompletionCreateParamsStreaming,
         options?: { label?: string }, // idempotencyKeyの元ネタにするラベル。指定しない場合は、argsのhashを使う。
     ): Observable<string> {
-
-        // 強制的にストリームモードにする。
-        args.stream = true;
-
-        // フォーマットがjson指定なのにjsonという文字列が入ってない場合は追加する。
-        if (args.response_format?.type == 'json_object' && args.model === 'gpt-4-1106-preview') {
-            const userMessage = args.messages.filter(message => message.role === 'user');
-            const lastUserMessage = args.messages[args.messages.indexOf(userMessage[userMessage.length - 1])];
-            if (!(lastUserMessage.content as string).includes('json')) {
-                lastUserMessage.content += '\n\n# Output format\njson';
-            } else { }
-        } else { }
-
-        // idempotencyKey の先頭にタイムスタンプをつける。（idempotencyKeyで履歴ファイルを作るので、時系列で履歴ファイルが並ぶようにと、あと単純に）
-        const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
-
-        let label = ''; // タイムスタンプをつける前のidempotencyKey。
-        // idempotencyKeyが設定されてい無い場合は入力のhashを使う。
-        const reqOptions: RequestOptions = {};
-        const argsHash = crypto.createHash('sha256').update(JSON.stringify(args)).digest('hex');
-        if (options && options.label) {
-            // idempotencyKeyが設定されている場合。
-            label = options.label;
-            reqOptions.idempotencyKey = `${timestamp}-${argsHash}-${Utils.safeFileName(options.label)}`;
-        } else {
-            label = argsHash;
-            reqOptions.idempotencyKey = `${timestamp}-${argsHash}`;
-        }
-
-        let attempts = 0;
-
-        // ログ出力用オブジェクト
-        const prompt = args.messages.map(message => `role:\n${message.role}\ncontent:\n${message.content}`).join('\n');
-        const tokenCount = new TokenCount(args.model as GPTModels, 0, 0);
-        // gpt-4-1106-preview に未対応のため、gpt-4に置き換え。プロンプトのトークンを数えるだけなのでモデルはどれにしてもしても同じだと思われるが。。。
-        tokenCount.prompt_tokens = encoding_for_model((tokenCount.modelTikToken as any) === 'gpt-4-1106-preview' ? 'gpt-4' : tokenCount.modelTikToken).encode(prompt).length;
-        this.tokenCountList.push(tokenCount);
-
-        let bef = Date.now();
-        const logString = (stepName: string, error: any = ''): string => {
-            const take = numForm(Date.now() - bef, 9);
-            const prompt_tokens = numForm(tokenCount.prompt_tokens, 6);
-            const completion_tokens = numForm(tokenCount.completion_tokens, 6);
-
-            const costStr = (tokenCount.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
-            const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${attempts} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
-            fss.appendFile(`history.log`, `${logString}\n`, {}, () => { });
-            return logString;
-        };
-
-        console.log(logString('start'));
-
         return new Observable<string>((observer) => {
+
+            // 強制的にストリームモードにする。
+            args.stream = true;
+
+            // フォーマットがjson指定なのにjsonという文字列が入ってない場合は追加する。
+            if (args.response_format?.type == 'json_object' && ['gpt-4-1106-preview'].indexOf(args.model) !== -1) {
+                const userMessage = args.messages.filter(message => message.role === 'user');
+                const lastUserMessage = args.messages[args.messages.indexOf(userMessage[userMessage.length - 1])];
+                if (!(lastUserMessage.content as string).includes('json')) {
+                    lastUserMessage.content += '\n\n# Output format\njson';
+                } else { /* それ以外は何もしない */ }
+            } else {
+                // それ以外はjson_object使えないのでフォーマットを削除する。
+                delete args.response_format;
+            }
+
+            let imagePrompt = 0;
+            if (['gpt-4-vision-preview'].indexOf(args.model) !== -1) {
+                args.messages.forEach(message => {
+                    if (Array.isArray(message.content)) {
+                        message.content.forEach((content: ChatCompletionContentPart) => {
+                            if (content.type === 'image_url' && content.image_url && content.image_url.url) {
+                                // DANGER!!! ローカルファイルを読み込むのでオンラインから使わせるときはセキュリティ的に問題がある。
+                                // ファイルの種類を判定して、画像の場合はbase64に変換してcontent.image_url.urlにセットする。
+                                if (content.image_url.url.startsWith('file:///')) {
+                                    if (this.wrapperOptions.allowLocalFiles) {
+                                        const filePath = content.image_url.url.substring('file://'.length);
+                                        const data = fs.readFileSync(filePath);
+                                        const metaInfo = sizeOf(data);
+                                        content.image_url.url = `data:image/${metaInfo.type === 'jpg' ? 'jpeg' : metaInfo.type};base64,${data.toString('base64')}`;
+                                        // 画像のトークン数を計算する。
+                                        imagePrompt += calculateTokenCost(metaInfo.width || 0, metaInfo.height || 0);
+                                    } else {
+                                        // エラー
+                                        throw new Error(`ローカルファイルアクセスは禁止`);
+                                    }
+                                } else if (content.image_url.url.startsWith('data:image/')) {
+                                    // データURLからデータを取り出してサイズを判定する。
+                                    const data = Buffer.from(content.image_url.url.substring(content.image_url.url.indexOf(',') + 1), 'base64');
+                                    const metaInfo = sizeOf(data);
+                                    // 画像のトークン数を計算する。
+                                    imagePrompt += calculateTokenCost(metaInfo.width || 0, metaInfo.height || 0);
+                                } else {
+                                    // 外部URLの場合は何もしない。トークン計算もしない。
+                                }
+                                // visionAPIはmax_tokenを指定しないと凄く短く終わるので最大化しておく。visionAPIのmax_tokenは4096が最大。
+                                args.max_tokens = Math.min(args.max_tokens || 4096, 4096);
+                            } else { /* それ以外は何もしない */ }
+                        });
+                    } else { /* それ以外は何もしない */ }
+                });
+            } else { /* それ以外は何もしない */ }
+
+            // idempotencyKey の先頭にタイムスタンプをつける。（idempotencyKeyで履歴ファイルを作るので、時系列で履歴ファイルが並ぶようにと、あと単純に）
+            const timestamp = Utils.formatDate(new Date(), 'yyyyMMddHHmmssSSS');
+
+            let label = ''; // タイムスタンプをつける前のidempotencyKey。
+            // idempotencyKeyが設定されてい無い場合は入力のhashを使う。
+            const reqOptions: RequestOptions = {};
+            const argsHash = crypto.createHash('sha256').update(JSON.stringify(args)).digest('hex');
+            if (options && options.label) {
+                // idempotencyKeyが設定されている場合。
+                label = options.label;
+                reqOptions.idempotencyKey = `${timestamp}-${argsHash}-${Utils.safeFileName(options.label)}`;
+            } else {
+                label = argsHash;
+                reqOptions.idempotencyKey = `${timestamp}-${argsHash}`;
+            }
+
+            let attempts = 0;
+
+            // ログ出力用オブジェクト
+            const prompt = args.messages.map(message => `role:\n${message.role}\ncontent:\n${message.content}`).join('\n');
+            const tokenCount = new TokenCount(args.model as GPTModels, 0, 0);
+            // gpt-4-1106-preview に未対応のため、gpt-4に置き換え。プロンプトのトークンを数えるだけなのでモデルはどれにしてもしても同じだと思われるが。。。
+            tokenCount.prompt_tokens = encoding_for_model((['gpt-4-1106-preview', 'gpt-4-vision-preview'].indexOf((tokenCount.modelTikToken as any).model) !== -1) ? 'gpt-4' : tokenCount.modelTikToken).encode(prompt).length;
+            tokenCount.prompt_tokens += imagePrompt;
+            this.tokenCountList.push(tokenCount);
+
+            let bef = Date.now();
+            const logString = (stepName: string, error: any = ''): string => {
+                const take = numForm(Date.now() - bef, 9);
+                const prompt_tokens = numForm(tokenCount.prompt_tokens, 6);
+                const completion_tokens = numForm(tokenCount.completion_tokens, 6);
+
+                const costStr = (tokenCount.completion_tokens > 0 ? ('$' + (Math.ceil(tokenCount.cost * 100) / 100).toFixed(2)) : '').padStart(6, ' ');
+                const logString = `${Utils.formatDate()} ${stepName.padEnd(5, ' ')} ${attempts} ${take} ${prompt_tokens} ${completion_tokens} ${tokenCount.modelShort} ${costStr} ${label} ${error}`;
+                fss.appendFile(`history.log`, `${logString}\n`, {}, () => { });
+                return logString;
+            };
+
+            console.log(logString('start'));
+
             const runBit = new RunBit(logString, tokenCount, args, { ...reqOptions, ...this.options }, this, observer);
+            // 未知モデル名の場合は空queueを追加しておく
+            if (!this.queue[tokenCount.modelShort]) this.queue[tokenCount.modelShort] = [];
             this.queue[tokenCount.modelShort].push(runBit);
             this.fire();
         });
@@ -264,6 +322,8 @@ export class OpenAIApiWrapper {
     async fire(): Promise<void> {
         const queue = this.queue;
         for (const key of Object.keys(queue)) {
+            // 未知モデル名の場合は空Objectを追加しておく
+            if (!this.currentRatelimit[key]) this.currentRatelimit[key] = { limitRequests: 0, limitTokens: 0, remainingRequests: 0, remainingTokens: 0, resetRequests: '', resetTokens: '' };
             const ratelimitObj = this.currentRatelimit[key];
             for (let i = 0; i < Math.min(queue[key].length, ratelimitObj.remainingRequests); i++) {
                 const runBit = queue[key].shift();
@@ -285,8 +345,9 @@ export class OpenAIApiWrapper {
     }
 }
 
-export type GPTModels = 'gpt-4' | 'gpt-4-0314' | 'gpt-4-0613' | 'gpt-4-32k' | 'gpt-4-32k-0314' | 'gpt-4-32k-0613' | 'gpt-4-1106-preview' | 'gpt-3.5-turbo' | 'gpt-3.5-turbo-0301' | 'gpt-3.5-turbo-0613' | 'gpt-3.5-turbo-16k' | 'gpt-3.5-turbo-16k-0613';
-
+// TiktokenModelが新モデルに追いつくまでは自己定義で対応する。
+// export type GPTModels = 'gpt-4' | 'gpt-4-0314' | 'gpt-4-0613' | 'gpt-4-32k' | 'gpt-4-32k-0314' | 'gpt-4-32k-0613' | 'gpt-4-1106-preview' | 'gpt-4-vision-preview' | 'gpt-3.5-turbo' | 'gpt-3.5-turbo-0301' | 'gpt-3.5-turbo-0613' | 'gpt-3.5-turbo-16k' | 'gpt-3.5-turbo-16k-0613';
+export type GPTModels = TiktokenModel;
 
 /**
  * トークン数とコストを計算するクラス
@@ -300,11 +361,11 @@ export class TokenCount {
         'gpt3-16k': { prompt: 0.0010, completion: 0.0020, },
         'gpt4    ': { prompt: 0.0300, completion: 0.0600, },
         'gpt4-32k': { prompt: 0.0600, completion: 0.1200, },
-        // 'gpt4-vis': { prompt: 0.0600, completion: 0.1200, },
+        'gpt4-vis': { prompt: 0.0100, completion: 0.0300, },
         'gpt4-128': { prompt: 0.0100, completion: 0.0300, },
     };
 
-    static SHORT_NAME = {
+    static SHORT_NAME: { [key: string]: string } = {
         // 'text-davinci-003': 'unused',
         // 'text-davinci-002': 'unused',
         // 'text-davinci-001': 'unused',
@@ -342,6 +403,7 @@ export class TokenCount {
         'gpt-4-32k-0314': 'gpt4-32k',
         'gpt-4-32k-0613': 'gpt4-32k',
         'gpt-4-1106-preview': 'gpt4-128',
+        'gpt-4-vision-preview': 'gpt4-vis',
         'gpt-3.5-turbo': 'gpt3.5  ',
         'gpt-3.5-turbo-0301': 'gpt3.5  ',
         'gpt-3.5-turbo-0613': 'gpt3.5  ',
@@ -377,8 +439,8 @@ export class TokenCount {
 
     calcCost(): number {
         this.cost = (
-            TokenCount.COST_TABLE[this.modelShort].prompt * this.prompt_tokens +
-            TokenCount.COST_TABLE[this.modelShort].completion * this.completion_tokens
+            (TokenCount.COST_TABLE[this.modelShort]?.prompt || 0) * this.prompt_tokens +
+            (TokenCount.COST_TABLE[this.modelShort]?.completion || 0) * this.completion_tokens
         ) / 1000;
         return this.cost;
     }
@@ -400,6 +462,39 @@ export class TokenCount {
      */
     toString(): string {
         return `${this.modelShort.padEnd(8)} ${this.prompt_tokens.toLocaleString().padStart(6, ' ')} ${this.completion_tokens.toLocaleString().padStart(6, ' ')} ${('$' + (Math.ceil(this.cost * 100) / 100).toFixed(2)).padStart(6, ' ')}`;
+    }
+}
+
+/**
+ * 画像のトークン数を計算する
+ * @param width 
+ * @param height 
+ * @param detail 
+ * @returns 
+ */
+function calculateTokenCost(width: number, height: number, detail: 'low' | 'high' | 'auto' = 'high'): number {
+    if (detail === 'low') {
+        return 85;
+    } else {
+        // Scale down the image to fit within a 2048 x 2048 square if necessary
+        if (width > 2048 || height > 2048) {
+            const scaleFactor = Math.min(2048 / width, 2048 / height);
+            width *= scaleFactor;
+            height *= scaleFactor;
+        }
+
+        // Scale the image such that the shortest side is 768px long
+        const scaleFactor = 768 / Math.min(width, height);
+        width *= scaleFactor;
+        height *= scaleFactor;
+
+        // Count how many 512px squares the image consists of
+        const numSquares = Math.ceil(width / 512) * Math.ceil(height / 512);
+
+        // Each square costs 170 tokens, with an additional 85 tokens added to the total
+        const totalCost = 170 * numSquares + 85;
+
+        return totalCost;
     }
 }
 

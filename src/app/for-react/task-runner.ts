@@ -1,13 +1,27 @@
 import * as  fs from 'fs';
-import { Utils } from '../common/utils';
-import { BaseStep, MultiStep } from "../common/base-step";
-import { RepoSyncer } from '../common/repo-syncer';
-// import { GenModuleFiles, genIndex } from './gen-angular-modules';
-import { genIndex } from './react-service';
-import { ReactCodeGenerator } from './react-service';
-import { ModelControlClass, ServiceClass, ServiceClassMethod, ModelClass, ClassProp } from '../model-repo/to-use';
-import { GPTModels } from '../common/openai-api-wrapper';
-class Step0000_RequirementsToComponentList extends BaseStep {
+import { Utils } from '../../common/utils.js';
+import { BaseStep, MultiStep, StepOutputFormat } from '../../common/base-step.js';
+import { RepoSyncer } from '../../common/repo-syncer.js';
+// import { GenModuleFiles, genIndex } from './gen-angular-modules.js';
+import { genIndex } from './react-service.js';
+import { ReactCodeGenerator } from './react-service.js';
+import { ModelControlClass, ServiceClass, ServiceClassMethod, ModelClass, ClassProp } from '../../domain-models/to-use.js';
+import { GPTModels } from '../../common/openai-api-wrapper.js';
+
+
+/**
+ * このエージェント用の共通設定。
+ * エージェントごとに設定したいデフォルト値が異なるのでrunnerの最初に書くことにした。
+ */
+abstract class BaseStepForReact extends BaseStep {
+  agentName: string = Utils.basename(Utils.dirname(import.meta.url));
+  model: GPTModels = 'gpt-4-1106-preview';
+  systemMessageJa = '経験豊富で優秀なソフトウェアエンジニア。専門はドメイン駆動設計。';
+  systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
+  format = StepOutputFormat.MARKDOWN;
+}
+
+class Step0000_RequirementsToComponentList extends BaseStepForReact {
   model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
@@ -49,7 +63,7 @@ class Step0000_RequirementsToComponentList extends BaseStep {
   }
 }
 
-class Step0010_ComponentList_to_ReactComponentList extends BaseStep {
+class Step0010_ComponentList_to_ReactComponentList extends BaseStepForReact {
   model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
@@ -76,7 +90,7 @@ class Step0010_ComponentList_to_ReactComponentList extends BaseStep {
   }
 }
 
-class Step0020_ReactComponentList_to_ReactComponentJson extends BaseStep {
+class Step0020_ReactComponentList_to_ReactComponentJson extends BaseStepForReact {
   constructor() {
     super();
     this.chapters = [
@@ -93,7 +107,7 @@ class Step0020_ReactComponentList_to_ReactComponentJson extends BaseStep {
   }
 }
 
-class Step0030_requirements_to_systemOverview extends BaseStep {
+class Step0030_requirements_to_systemOverview extends BaseStepForReact {
   constructor() {
     super();
     this.chapters = [
@@ -107,7 +121,7 @@ class Step0030_requirements_to_systemOverview extends BaseStep {
   }
 }
 
-class Step0040_makeReactService extends BaseStep {
+class Step0040_makeReactService extends BaseStepForReact {
   model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
@@ -143,7 +157,7 @@ class Step0040_makeReactService extends BaseStep {
   }
 }
 
-class Step0050_makeReactModel extends BaseStep {
+class Step0050_makeReactModel extends BaseStepForReact {
   model: GPTModels = 'gpt-4-1106-preview';;
   constructor() {
     super();
@@ -188,7 +202,7 @@ class Step0050_makeReactModel extends BaseStep {
   }
 }
 
-class Step0060_makeReactModelSource extends BaseStep {
+class Step0060_makeReactModelSource extends BaseStepForReact {
   constructor() {
     super();
     this.chapters = [
@@ -218,7 +232,7 @@ class Step0060_makeReactModelSource extends BaseStep {
     return text;
   }
 }
-class Step0065_ReactModelList_to_Json extends BaseStep {
+class Step0065_ReactModelList_to_Json extends BaseStepForReact {
   constructor() {
     super();
     this.chapters = [
@@ -233,7 +247,7 @@ class Step0065_ReactModelList_to_Json extends BaseStep {
     ];
   }
 }
-class Step0070_makeApiList extends BaseStep {
+class Step0070_makeApiList extends BaseStepForReact {
   constructor() {
     super();
     this.chapters = [
@@ -261,7 +275,7 @@ Based on this design document, please create an appropriate APIs list.
 Only output the Improved APIs List.`;
   }
 }
-class Step0080_makeReactServiceJson extends BaseStep {
+class Step0080_makeReactServiceJson extends BaseStepForReact {
   constructor() {
     super();
     this.chapters = [
@@ -287,7 +301,7 @@ class Step0080_makeReactServiceJson extends BaseStep {
   }
 }
 
-class Step0100_ApiListJson extends BaseStep {
+class Step0100_ApiListJson extends BaseStepForReact {
   constructor() {
     super();
     this.chapters = [
@@ -303,7 +317,7 @@ class Step0100_ApiListJson extends BaseStep {
   }
 }
 
-class Step0102_createJSONdata extends BaseStep {
+class Step0102_createJSONdata extends BaseStepForReact {
   constructor(chunkArray: any[], index: number, modelList: string,) {
     super();
     this.label = `Step0102_${index}-createJSONdata`;
@@ -366,7 +380,7 @@ class Step0102_createJSONdata extends BaseStep {
   }
 }
 
-class Step0105_componentList_to_Json extends BaseStep {
+class Step0105_componentList_to_Json extends BaseStepForReact {
   constructor() {
     super();
     this.chapters = [
@@ -382,7 +396,7 @@ class Step0105_componentList_to_Json extends BaseStep {
   }
 }
 
-class Step0120_makeScreenSpec extends BaseStep {
+class Step0120_makeScreenSpec extends BaseStepForReact {
   // model: GPTModels = 'gpt-4-1106-preview';;
   constructor(index: number, componentName: string, ngUiJSON: any) {
     super();
@@ -441,7 +455,7 @@ class Step0120_makeScreenSpec extends BaseStep {
   }
 }
 
-class Step0130_makeScreenSpecJSON extends BaseStep {
+class Step0130_makeScreenSpecJSON extends BaseStepForReact {
   constructor(index: number, componentName: string, ngUiJSON: any) {
     super();
     this.label = `Step0130_${index}-makeScreenSpecJSON-${componentName}`;
@@ -476,7 +490,7 @@ function filterByComponentName(ngUiJSON: any) {
   return ngUiJSON;
 }
 
-class Step0140_makeScreen extends BaseStep {
+class Step0140_makeScreen extends BaseStepForReact {
   // model: GPTModels = 'gpt-4-1106-preview';;
   override systemMessage = 'You are an experienced and talented react programmer.';
   // 

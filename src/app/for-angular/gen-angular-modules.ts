@@ -1,7 +1,7 @@
 import * as  fs from 'fs';
 import * as  path from 'path';
 
-import { Utils } from '../common/utils';
+import { Utils } from '../../common/utils.js';
 interface TemplateFiller {
     templatePath: string;
     outputPath?: string;

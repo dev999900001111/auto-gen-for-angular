@@ -1,12 +1,12 @@
 import * as fs from 'fs';
 import * as ts from "typescript";
-import fss from '../common/fss';
-import { Attribute, DomainModel, Relationship, RelationshipType, domainModelsDire } from '../domain-models/domain-models';
-import { Utils } from '../common/utils';
-import main from './template/main.go';
-import BaseEntityJava from './template/base_entity.go';
-import { toGoClass } from './classname-converter';
-import { toEntityCode, toEntityProto, toEnumCode, toEnumProto, toRepositoryCode, toServiceCode, toServiceEntity, toServiceProto, toUsecaseCode, toValueObjectCode, toValueObjectProto } from './model-converter';
+import fss from '../../common/fss.js';
+import { Attribute, DomainModel, Relationship, RelationshipType, domainModelsDire } from '../../domain-models/domain-models.js';
+import { Utils } from '../../common/utils.js';
+import main from './template/main.go.js';
+import BaseEntityJava from './template/base_entity.go.js';
+import { toGoClass } from './classname-converter.js';
+import { toEntityCode, toEntityProto, toEnumCode, toEnumProto, toRepositoryCode, toServiceCode, toServiceEntity, toServiceProto, toUsecaseCode, toValueObjectCode, toValueObjectProto } from './model-converter.js';
 
 const modName = 'github.com/dev999900001111/sample-app';
 const outDire = `./gen/go/com/example/demo/`;

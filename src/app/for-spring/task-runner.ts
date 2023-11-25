@@ -1,16 +1,27 @@
 import * as  fs from 'fs';
-import fss from '../common/fss';
-import { Utils } from '../common/utils';
-import { BaseStep, MultiStep, StepOutputFormat } from "../common/base-step";
-import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, DomainService, Entity, Method, RelationshipType, TableModel, ValueObject } from '../domain-models/domain-models';
-import { genEntityAndRepository, serviceImpl } from './source-generator';
-import { GPTModels } from '../common/openai-api-wrapper';
+import fss from '../../common/fss.js';
+import { Utils } from '../../common/utils.js';
+import { BaseStep, MultiStep, StepOutputFormat } from '../../common/base-step.js';
+import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, DomainService, Entity, Method, RelationshipType, TableModel, ValueObject } from '../../domain-models/domain-models.js';
+import { genEntityAndRepository, serviceImpl } from './source-generator.js';
+import { GPTModels } from '../../common/openai-api-wrapper.js';
 
+/**
+ * このエージェント用の共通設定。
+ * エージェントごとに設定したいデフォルト値が異なるのでrunnerの最初に書くことにした。
+ */
+abstract class BaseStepForSpring extends BaseStep {
+  agentName: string = Utils.basename(Utils.dirname(import.meta.url));
+  model: GPTModels = 'gpt-4-1106-preview';
+  systemMessageJa = '経験豊富で優秀なソフトウェアエンジニア。専門はドメイン駆動設計。';
+  systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
+  format = StepOutputFormat.MARKDOWN;
+}
 
 const direDomainModels = `./gen/domain-models/`;
 const direSource = `./gen/src/main/java/com/example/demo/`;
 
-class Step0000_RequirementsToDomainModels extends BaseStep {
+class Step0000_RequirementsToDomainModels extends BaseStepForSpring {
   // model: GPTModels = 'gpt-4-1106-preview';
   systemMessageJa = '経験豊富で優秀なソフトウェアエンジニア。専門はドメイン駆動設計。';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
@@ -61,7 +72,7 @@ class Step0000_RequirementsToDomainModels extends BaseStep {
   }
 }
 
-class Step0005_RequirementsToSystemOverview extends BaseStep {
+class Step0005_RequirementsToSystemOverview extends BaseStepForSpring {
   // model: GPTModels = 'gpt-4-1106-preview';
   // model: GPTModels = 'gpt-3.5-turbo';
   format = StepOutputFormat.JSON;
@@ -85,7 +96,7 @@ class Step0005_RequirementsToSystemOverview extends BaseStep {
 }
 
 
-class Step0010_DomainModelsInitialize extends BaseStep {
+class Step0010_DomainModelsInitialize extends BaseStepForSpring {
   // model: GPTModels = 'gpt-4-1106-preview';
   // model = 'gpt-3.5-turbo';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
@@ -140,7 +151,7 @@ class Step0010_DomainModelsInitialize extends BaseStep {
     ];
   }
 }
-class Step0020_DomainModelsClassify extends BaseStep {
+class Step0020_DomainModelsClassify extends BaseStepForSpring {
   // model: GPTModels = 'gpt-4-1106-preview';
   // model = 'gpt-3.5-turbo';
   systemMessage = 'Experienced and talented software engineer. Specialized in domain-driven design.';
@@ -202,7 +213,7 @@ class Step0030_domainModelsJson extends MultiStep {
   constructor() {
     super();
 
-    class Step0030_domainModelsJsonChil extends BaseStep {
+    class Step0030_domainModelsJsonChil extends BaseStepForSpring {
       // model: GPTModels = 'gpt-4-1106-preview';
       format = StepOutputFormat.JSON;
       constructor(private pattern: string) {
@@ -289,7 +300,7 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
   constructor() {
     super();
 
-    class Step0040_domainModelEntityAndDomainServiceJsonChil extends BaseStep {
+    class Step0040_domainModelEntityAndDomainServiceJsonChil extends BaseStepForSpring {
       // model = 'gpt-4';
       // model: GPTModels = 'gpt-4-1106-preview';
       // model: GPTModels = 'gpt-3.5-turbo';
@@ -376,7 +387,7 @@ class Step0050_CreateAPI extends MultiStep {
     const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().formed);
     const domainModel = DomainModel.loadModels();
 
-    class Step0050_CreateAPIChil extends BaseStep {
+    class Step0050_CreateAPIChil extends BaseStepForSpring {
       // model: GPTModels = 'gpt-4-1106-preview';
       format = StepOutputFormat.JSON;
       constructor(public boundedContext: BoundedContext) {
@@ -488,7 +499,7 @@ class Step0060_CreateServiceDoc extends MultiStep {
     const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().formed);
     const domainModel = DomainModel.loadModels();
 
-    class Step0060_CreateServiceDocChil extends BaseStep {
+    class Step0060_CreateServiceDocChil extends BaseStepForSpring {
       // model: GPTModels = 'gpt-4-1106-preview';
       // format = StepOutputFormat.MARKDOWN;
       constructor(public serviceName: string) {
@@ -590,7 +601,7 @@ class Step0070_CreateServiceDocToJson extends MultiStep {
     super();
     const domainModel = DomainModel.loadModels();
 
-    class Step0070_CreateServiceDocToJsonChil extends BaseStep {
+    class Step0070_CreateServiceDocToJsonChil extends BaseStepForSpring {
       // model: GPTModels = 'gpt-4-1106-preview';
       // model = 'gpt-3.5-turbo-16k';
       format = StepOutputFormat.JSON;
@@ -654,7 +665,7 @@ class Step0080_ImplementService extends MultiStep {
     const overview: { name: string, nickname: string, overview: string } = Utils.jsonParse(new Step0005_RequirementsToSystemOverview().formed);
     const domainModel = DomainModel.loadModels();
 
-    class Step0080_ImplementServiceChil extends BaseStep {
+    class Step0080_ImplementServiceChil extends BaseStepForSpring {
       // model: GPTModels = 'gpt-4-1106-preview';
       // model = 'gpt-3.5-turbo-16k';
       format = StepOutputFormat.JSON;
@@ -767,25 +778,25 @@ class Step0080_ImplementService extends MultiStep {
 export async function main() {
   let obj;
   return Promise.resolve().then(() => {
-  //   obj = new Step0000_RequirementsToDomainModels();
-  //   obj.initPrompt();
-  //   return obj.run();
-  // }).then(() => {
-  //   obj = new Step0005_RequirementsToSystemOverview();
-  //   obj.initPrompt();
-  //   return obj.run();
-  // }).then(() => {
-  //   obj = new Step0010_DomainModelsInitialize();
-  //   obj.initPrompt();
-  //   return obj.run();
-  // }).then(() => {
-  //   obj = new Step0020_DomainModelsClassify();
-  //   obj.initPrompt();
-  //   return obj.run();
-  // }).then(() => {
-  //   obj = new Step0030_domainModelsJson();
-  //   obj.initPrompt();
-  //   return obj.run();
+    //   obj = new Step0000_RequirementsToDomainModels();
+    //   obj.initPrompt();
+    //   return obj.run();
+    // }).then(() => {
+    //   obj = new Step0005_RequirementsToSystemOverview();
+    //   obj.initPrompt();
+    //   return obj.run();
+    // }).then(() => {
+    //   obj = new Step0010_DomainModelsInitialize();
+    //   obj.initPrompt();
+    //   return obj.run();
+    // }).then(() => {
+    //   obj = new Step0020_DomainModelsClassify();
+    //   obj.initPrompt();
+    //   return obj.run();
+    // }).then(() => {
+    //   obj = new Step0030_domainModelsJson();
+    //   obj.initPrompt();
+    //   return obj.run();
   }).then(() => {
     obj = new Step0040_domainModelEntityAndDomainServiceJson();
     obj.initPrompt();

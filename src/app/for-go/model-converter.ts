@@ -1,8 +1,7 @@
-import * as fs from 'fs';
-import { Utils } from "../common/utils";
-import { Attribute, DomainModel, Entity, Relationship, RelationshipType, domainModelsDire } from "../domain-models/domain-models";
-import { toGoClass } from "./classname-converter";
-import { convertStringToJson } from './source-generator';
+import { Utils } from "../../common/utils.js";
+import { Attribute, DomainModel, Entity, Relationship, RelationshipType, domainModelsDire } from "../../domain-models/domain-models.js";
+import { toGoClass } from "./classname-converter.js";
+import { convertStringToJson } from './source-generator.js';
 
 interface API { endpoint: string, method: string, pathVariable: string, request: string, validation: string, response: string, description: string, }
 

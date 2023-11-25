@@ -1,9 +1,10 @@
 import * as  fs from 'fs';
-import fss from './fss';
-import { GPTModels, OpenAIApiWrapper } from "./openai-api-wrapper";
-import { Utils } from './utils';
 import { finalize, tap } from 'rxjs';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+
+import fss from './fss.js';
+import { GPTModels, OpenAIApiWrapper } from "./openai-api-wrapper.js";
+import { Utils } from './utils.js';
 
 // aiApi as singleton (for queing requests)
 export const aiApi = new OpenAIApiWrapper();
@@ -11,9 +12,11 @@ export const aiApi = new OpenAIApiWrapper();
 export interface StructuredPrompt {
     title?: string;
     content?: string;
+    children?: StructuredPrompt[];
+
+    // copilotに翻訳させるためにJp/Enという項目名も用意した。実際にはcontentを使うのでこれらは使われない。
     contentJp?: string;
     contentEn?: string;
-    children?: StructuredPrompt[];
 }
 
 /**
@@ -42,16 +45,30 @@ function toMarkdown(chapter: StructuredPrompt, layer: number = 1) {
     return sb;
 }
 
+/**
+ * Creates an instance of BaseStepInterface.
+ * 途中から再実行しやすくするために、細かくステップに分けて経過をファイルI/Oにしておく。
+ * @param {string} [_label]
+ * @memberof BaseStepInterface
+ * 
+ */
 export abstract class BaseStepInterface<T> {
+    /** エージェントの名前。通常はrunnuerの置いてあるディレクトリ名にする。prompts_and_responsesのディレクトリ分けるのに使うだけ。 */
+    abstract agentName: string;
+
     /** label */
     _label: string = '';
 
     get label() { return this._label || this.constructor.name; }
     set label(label) { this._label = label; }
 
+    /** プロンプトを組み立ててファイルに書き込む。つまり、initPromptを呼ばなければファイルは上書きされない。 */
     abstract initPrompt(): T;
+    /** プロンプトを加工したり投げる前に何かしたいときはここで。 */
     abstract preProcess(prompt: T): T;
+    /** メイン処理 */
     abstract run(): Promise<T>;
+    /** ファイル出力したりした後に何かしたいときはここで。 */
     abstract postProcess(result: T): T;
 }
 
@@ -74,6 +91,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
     model: GPTModels = 'gpt-4-1106-preview';
     systemMessage = 'You are an experienced and talented software engineer.';
     assistantMessage = '';
+    visionPath = ''; // 画像読み込ませるとき用のパス。現状は1ステップ1画像のみにしておく。
     temperature = 0.0;
     format: StepOutputFormat = StepOutputFormat.MARKDOWN;
 
@@ -81,26 +99,36 @@ export abstract class BaseStep extends BaseStepInterface<string> {
     chapters: StructuredPrompt[] = []; // {title: string, content: string, children: chapters[]}
 
     /** io */
-    get promptPath() { return `./prompts/${Utils.safeFileName(this.label)}.prompt.md`; }
-    get resultPath() { return `./prompts/${Utils.safeFileName(this.label)}.result.md`; }
-    get formedPath() { return `./prompts/${Utils.safeFileName(this.label)}.result.${{ markdown: 'md', text: 'txt' }[this.format as any as string] || this.format.toString()}`; }
+    get promptPath() { return `./prompts_and_responses/${this.agentName}/${Utils.safeFileName(this.label)}.prompt.md`; }
+    get resultPath() { return `./prompts_and_responses/${this.agentName}/${Utils.safeFileName(this.label)}.result.md`; }
+    get formedPath() { return `./prompts_and_responses/${this.agentName}/${Utils.safeFileName(this.label)}.result.${{ markdown: 'md', text: 'txt' }[this.format as any as string] || this.format.toString()}`; }
 
     get prompt() { return fs.readFileSync(this.promptPath, 'utf-8'); }
     get result() { return fs.readFileSync(this.resultPath, 'utf-8'); }
     get formed() { return fs.readFileSync(this.formedPath, 'utf-8'); }
 
     initPrompt(): string {
-        const prompt = this.chapters.map(chapter => toMarkdown(chapter)).join('\n');
+        // chaptersをMarkdownに変換してpromptに書き込む。
+        let prompt = this.chapters.map(chapter => toMarkdown(chapter)).join('\n');
+        prompt = this.preProcess(prompt);
         fss.writeFileSync(this.promptPath, prompt);
-        return this.preProcess(prompt);
+        return prompt;
     }
 
+    /**
+     * promptを加工したり投げる前に何かしたいときはここで。
+     * @param {string} prompt
+     * @returns {string}
+     * @memberof BaseStep
+     */
     preProcess(prompt: string): string {
         return prompt;
     }
 
     /**
-     * 
+     * メイン処理。
+     * initPromptで作ったものを手で修正して使うこともあるので、
+     * 敢えてファイルからプロンプトを読み込ませるようにしてある。
      * @returns 
      */
     async run(): Promise<string> {
@@ -111,7 +139,19 @@ export abstract class BaseStep extends BaseStepInterface<string> {
                 if (this.systemMessage) {
                     messages.push({ role: 'system', content: this.systemMessage });
                 } else { }
-                messages.push({ role: 'user', content: prompt });
+
+                if (this.visionPath) {
+                    // 画像を読み込ませるときはモデルを変える。
+                    this.model = 'gpt-4-vision-preview';
+                    messages.push({
+                        role: 'user', content: [
+                            { type: 'text', text: prompt },
+                            { type: 'image_url', image_url: { url: this.visionPath } }
+                        ]
+                    });
+                } else {
+                    messages.push({ role: 'user', content: prompt });
+                }
                 if (this.assistantMessage) {
                     messages.push({ role: 'assistant', content: this.assistantMessage });
                 } else { }
@@ -123,6 +163,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
                     model: this.model,
                     temperature: this.temperature,
                     response_format: { type: this.format === StepOutputFormat.JSON ? 'json_object' : 'text' },
+                    stream: true,
                 }, {
                     label: this.label
                 }).pipe( // オペレータじゃなくSubscribeでも良かった。
@@ -159,6 +200,7 @@ export abstract class BaseStep extends BaseStepInterface<string> {
                                             ],
                                             model: `gpt-3.5-turbo`,
                                             temperature: 0,
+                                            stream: true,
                                         }, {
                                             label: `${this.label}JsonCorrect`,
                                         }).pipe(
@@ -194,12 +236,22 @@ export abstract class BaseStep extends BaseStepInterface<string> {
         });
     }
 
+    /**
+     * ファイル出力したりした後に何かしたいときはここで。
+     * @param {string} result
+     * @returns {string}
+     * @memberof BaseStep
+     */
     postProcess(result: string): string {
         return result;
     }
 }
 
+/**
+ * 複数のステップを順番に実行するステップ
+ */
 export class MultiStep extends BaseStepInterface<string[]> {
+    agentName: string = 'common';
 
     constructor(
         public childStepList: BaseStep[] = []
