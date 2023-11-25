@@ -881,47 +881,47 @@ const HISTORY_DIRE = `./history`;
 export async function main() {
 
   let obj;
-  // obj = new Step000_RequirementsToComponentList();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step000_RequirementsToComponentList();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step001_componentList_to_angularComponentList();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step001_componentList_to_angularComponentList();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step002_angularComponentList_to_angularComponentJson();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step002_angularComponentList_to_angularComponentJson();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step003_requirements_to_systemOverview();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step003_requirements_to_systemOverview();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step004_makeAngularService();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step004_makeAngularService();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step005_makeAngularModel();
-  // obj.initPrompt();
-  // await obj.run();
-
-
-  // obj = new Step006_makeAngularModelSource();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step005_makeAngularModel();
+  obj.initPrompt();
+  await obj.run();
 
 
-  // obj = new Step011_AngularModelList_to_Json();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step006_makeAngularModelSource();
+  obj.initPrompt();
+  await obj.run();
 
-  // obj = new Step007_makeApiList();
-  // obj.initPrompt();
-  // await obj.run();
 
-  // obj = new Step008_makeAngularServiceJson();
-  // obj.initPrompt();
-  // await obj.run();
+  obj = new Step011_AngularModelList_to_Json();
+  obj.initPrompt();
+  await obj.run();
+
+  obj = new Step007_makeApiList();
+  obj.initPrompt();
+  await obj.run();
+
+  obj = new Step008_makeAngularServiceJson();
+  obj.initPrompt();
+  await obj.run();
 
 
   obj = new MultiStep(Step009_makeAngularServiceSrouce.genSteps());
