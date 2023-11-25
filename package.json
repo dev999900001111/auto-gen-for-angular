@@ -12,7 +12,7 @@
     "vision": "node ./dist/app/main/main-vision-plain.js"
   },
   "bin": {
-    "oaw": "./dist/app/cli.js"
+    "agwo": "./dist/app/cli.js"
   },
   "type": "module",
   "author": "",
