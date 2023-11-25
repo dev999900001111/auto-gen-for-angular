@@ -79,10 +79,10 @@ npm run cli --help
 コマンドをインストールする場合。
 
 ```bash
-# oaw ユーザーのみにインストール
-npm link oaw
+# agwo ユーザーのみにインストール
+npm link agwo
 
-# oaw グローバルにインストール
+# agwo グローバルにインストール
 npm link 
 ```
 

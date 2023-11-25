@@ -79,10 +79,10 @@ npm run cli --help
 To install the command:
 
 ```bash
-# Install for oaw user only
-npm link oaw
+# Install for agwo user only
+npm link agwo
 
-# Install globally for oaw
+# Install globally for agwo
 npm link 
 ```
 

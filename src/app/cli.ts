@@ -53,7 +53,7 @@ const messageEn = {
 const message = messageJp;
 
 const argv = yargs(hideBin(process.argv))
-    .scriptName('oaw')
+    .scriptName('agwo')
     .usage(`${message.usage}: $0 <command> [options]`)
     // .version('v', message.version, '0.0.1')
     .help()
