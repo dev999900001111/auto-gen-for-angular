@@ -4,12 +4,6 @@ ChatGPTのAPIを使って Web Application のソースコードを生成する�
 
 主に業務システムを作る用途を想定しています。だいたい20〜30程度のコンポーネントを自動生成できます。
 
-現在は以下のようなものを生成できます。
-
-- Angularの画面セット
-- Reactの画面セット
-- Spring BootのAPIセット
-
 AutoGPTのような自立型のエージェントではなく、事前に決められたタスクを実行するだけのタスクランナーです。
 
 エラー訂正機能はつけてない（コスト爆発怖い）ので、あくまでサンプルプログラムを一括生成してくれるだけで、生成物がそのまま使えるレベルではありません。
@@ -26,7 +20,7 @@ OpenAIのAPIが使える環境であることが前提です。
 npm install
 # 実行（angular,react,springを選ぶ）
 # Usage: ts-node src/main.ts [angular|react|spring]
-ts-node src/main.ts spring
+npm run cli batch for-angular
 ```
 
 

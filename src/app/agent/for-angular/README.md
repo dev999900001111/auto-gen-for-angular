@@ -4,12 +4,6 @@ This program generates Angular screens using ChatGPT's API.
 
 This program is mainly intended for business systems. It can automatically generate about 20 to 30 components.
 
-Currently, the following can be generated.
-
-- Angular screen set
-- React screen set
-- Spring Boot API set
-
 It is not a stand-alone agent like AutoGPT, but a task runner that only executes predefined tasks.
 
 It does not have an error correction function (cost explosion), so it only generates a batch of sample programs and is not at the level where you can use the generated products as they are.
@@ -25,9 +19,9 @@ To run it, simply run src/main.ts.
 # Install libraries
 npm install
 # Run
-# Usage: ts-node src/main.ts [angular|react|spring]
-ts-node src/main.ts spring
-```
+# Usage: npm run cli batch for-angular [angular|react|spring]
+ npm run cli batch for-angular
+ ```
 
 
 ## cost

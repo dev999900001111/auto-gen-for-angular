@@ -1,110 +1,110 @@
-# openai-api-wrapper
+# Auto Gen With OpenAI
 
-## 概要
+## Overview
 
-OpenAIのAPIをラップして使いやすくしたものです。
+This is a wrapper for OpenAI's API that makes it easier to use.
 
-## 機能
+## Features
 
-1. **API生データのロギング**: APIの入出力の生データを`history`に保存します。
-2. **課金履歴**: 課金履歴を`history.log`に書き込みます。
-3. **エージェントとステップ**: 複数ステップからなるエージェントを作成するためのクラスを利用できます。
-4. **バッチ/オンライン**: バッチ機能と、REST-APIのサーバー機能があります。
+1. **API Data Logging**: Stores the raw input and output data of the API in `history`.
+2. **Billing History**: Writes the billing history to `history.log`.
+3. **Agent and Step**: Allows you to create a class for agents that consist of multiple steps.
+4. **Batch/Online**: Provides batch processing functionality and a REST API server.
 
-## ディレクトリ構造
+## Directory Structure
 
 ```markdown
 
 ├── README.md
-├── history (通信ログが溜まるところ。エラー調査とかに使う。)
-│   ├── ...
-│   └── ...
-├── history.log (課金履歴)
+├── history (where communication logs accumulate, useful for error investigation, etc.)
+│   ├── ...
+│   └── ...
+├── history.log (billing history)
 ├── package.json
-├── prompts_and_responses (投げつけたプロンプトと結果が溜まるところ)
-│   ├── (agent name)/ (エージェント毎にディレクトリが分かれている)
-│   │   ├── ...
-│   │   └── ...
-│   └── ...
+├── prompts_and_responses (where prompts and results are stored)
+│   ├── (agent name)/ (each agent has its own directory)
+│   │   ├── ...
+│   │   └── ...
+│   └── ...
 │       ├── ...
 │       └── ...
 ├── results
-├── src （ソースコード）
-│   └── app
-│       ├── agent
-│       │   ├── company-report-from-logos (エージェント定義)
-│       │   │   ├── README.md
-│       │   │   └── runner.ts
-│       │   └── sample (エージェント定義)
-│       │       └── runner.ts
-│       ├── cli.ts
-│       ├── common (共通機能)
-│       │   ├── base-step.ts
-│       │   ├── fss.ts
-│       │   ├── openai-api-wrapper.ts
-│       │   └── utils.ts
-│       └── main (メイン実行系)
-│           ├── main-batch.ts
-│           ├── main-generate.ts
-│           ├── main-server.ts
-│           └── main-vision-plain.ts
+├── src (source code)
+│   └── app
+│       ├── agent
+│       │   ├── company-report-from-logos (agent definition)
+│       │   │   ├── README.md
+│       │   │   └── runner.ts
+│       │   └── sample (agent definition)
+│       │       └── runner.ts
+│       ├── cli.ts
+│       ├── common (common functionalities)
+│       │   ├── base-step.ts
+│       │   ├── fss.ts
+│       │   ├── openai-api-wrapper.ts
+│       │   └── utils.ts
+│       └── main (main execution)
+│           ├── main-batch.ts
+│           ├── main-generate.ts
+│           ├── main-server.ts
+│           └── main-vision-plain.ts
 └── tsconfig.json
 
 ```
 
-## 使用方法
+## Usage
 
-### 事前準備
+### Prerequisites
 
 ```bash
-# プロキシの設定（必要に応じて）
+# Set up proxy (if necessary)
 export https_proxy="http://${username}:${password}@${proxyHost}:${proxyPort}"
 
-# OpenAIのAPI鍵設定
+# Set up OpenAI API key
 export OPENAI_API_KEY="${YOUR_OPENAI_API_KEY}"
 
-# 必要ライブラリをインストール
+# Install required libraries
 npm install
 ```
 
 ### CLI
 
-CLIの使い方はhelpを参照してください。
+Refer to the help for instructions on how to use the CLI.
 
 ```bash
-# ヘルプ
+# Help
 npm run cli --help
 ```
 
-コマンドをインストールする場合。
+To install the command:
 
 ```bash
-# oaw ユーザーのみにインストール
+# Install for oaw user only
 npm link oaw
 
-# oaw グローバルにインストール
+# Install globally for oaw
 npm link 
 ```
 
-### バッチ利用
+### Batch Usage
 
 ```bash
-# <sample>の部分はエージェント名を入れる。
-# src/app/agent配下にあるディレクトリ名がエージェント名なので、そこから選んで使う。
+# Replace <sample> with the agent name.
+# Choose the directory name under src/app/agent as the agent name.
 npm run batch sample
 ```
 
-結果は`prompts_and_responses`に溜まるので、中身見ておくと途中経過が見れてよい。.tmpが作成中ファイル。
+The results will accumulate in `prompts_and_responses`, so it's a good idea to check the contents to see the progress. .tmp files are being created.
 
-`history/`には通信の生データが溜まる。エラー解析とかで使う。
-`history.log`は課金履歴が載る。
+The raw data of the communication will accumulate in `history/`, which can be used for error analysis.
+`history.log` contains the billing history.
 
-## エージェントの作り方
+## Creating an Agent
 
 ```bash
-# agentNameで名前を指定する
+# Specify the agent name as agentName
 npm run generate <agentName>
 ```
 
-`src/app/agent/${agentName}`配下に`runner.ts`という名前でひな型が作成されるので、それを元に作る。
-※細かいことはひな型のコメントに書いてあります。
+A template named `runner.ts` will be created under `src/app/agent/${agentName}`, so you can use that as a starting point.
+※The template comments provide details on how to use it.

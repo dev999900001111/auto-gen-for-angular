@@ -360,7 +360,7 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
         ];
       }
       preProcess(prompt: string): string {
-        fss.writeFileSync(`${direDomainModels}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json.prompt.md`, this.prompt);
+        fss.writeFileSync(`${direDomainModels}${this.pattern}-${Utils.toPascalCase(this.boundedContext)}.json.prompt.md`, prompt);
         return prompt;
       }
       postProcess(result: string): string {
@@ -471,7 +471,7 @@ class Step0050_CreateAPI extends MultiStep {
       }
 
       preProcess(prompt: string): string {
-        fss.writeFileSync(`${direDomainModels}API-${Utils.toPascalCase(this.boundedContext.name)}.json.prompt.md`, this.prompt);
+        fss.writeFileSync(`${direDomainModels}API-${Utils.toPascalCase(this.boundedContext.name)}.json.prompt.md`, prompt);
         return prompt;
       }
 
@@ -758,7 +758,7 @@ class Step0080_ImplementService extends MultiStep {
       }
       preProcess(prompt: string): string {
         // ドメインモデルjsonに出力しておく
-        fss.writeFileSync(`${direDomainModels}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json.prompt.md`, this.prompt);
+        fss.writeFileSync(`${direDomainModels}ServiceImplementation-${Utils.toPascalCase(this.serviceName)}.json.prompt.md`, prompt);
         // ソースコード側にもセットで出力しておく
         fss.writeFileSync(`${direSource}service/impl/${this.serviceName}Impl.java.prompt.md`, prompt);
         return prompt;
