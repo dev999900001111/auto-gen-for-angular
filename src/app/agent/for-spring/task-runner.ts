@@ -1,10 +1,11 @@
 import * as  fs from 'fs';
 import fss from '../../common/fss.js';
 import { Utils } from '../../common/utils.js';
-import { BaseStep, MultiStep, StepOutputFormat } from '../../common/base-step.js';
+import { BaseStep, MultiStep, StepOutputFormat, getStepInstance } from '../../common/base-step.js';
 import { Aggrigate, Attribute, BoundedContext, ContextMapRelationshipType, DomainModel, DomainModelPattern, DomainService, Entity, Method, RelationshipType, TableModel, ValueObject } from '../../domain-models/domain-models.js';
 import { genEntityAndRepository, serviceImpl } from './source-generator.js';
 import { GPTModels } from '../../common/openai-api-wrapper.js';
+import { concatMap, of } from 'rxjs';
 
 /**
  * このエージェント用の共通設定。
@@ -31,7 +32,7 @@ class Step0000_RequirementsToDomainModels extends BaseStepForSpring {
       { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
       {
         title: `Instructions`,
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           以下の指示に従ってステップバイステップでドメインモデルを作成してください。指示はあくまでガイドラインです。指示を元に想起されるポイントを自己補完しながら進めてください。
              1. **ドメイン分析**: DDDの最初のステップは、ドメインを理解することです。これには、ドメインエキスパートと密に連携して、ドメイン内のビジネスルール、プロセス、エンティティを理解する必要があります。このステップは、開発プロセス全体で開発者とドメインエキスパートの間で使用される共通言語であるユビキタス言語を作成するために重要です。
              2. **バウンデッドコンテキストの特定**: ドメインを理解したら、次のステップはバウンデッドコンテキストを特定することです。これらは、特定のモデルが有効な論理的な境界です。各バウンデッドコンテキストは、システムの異なる部分に対応し、独立して開発することができます。ただし、分割しすぎることによる弊害も大きいため、どうしても分割が必要な場合のみにとどめてください。
@@ -82,7 +83,7 @@ class Step0005_RequirementsToSystemOverview extends BaseStepForSpring {
       { title: 'Requirements', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
       {
         title: 'prompt',
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           Requirements をよく理解して、システム概要を簡潔に表現してください。出力形式はJSONでお願います。
           {"name": "\${システムの実態を反映した適切な名前を付けてください。}","nickname":"\${利用者に親しまれる、呼びやすい愛称を付けてください。}", "overview": "\${System Overview}", "rules": ["\${ビジネスルールや制約条件}"]}
         `),
@@ -107,7 +108,7 @@ class Step0010_DomainModelsInitialize extends BaseStepForSpring {
       { title: 'Domain Models', content: new Step0000_RequirementsToDomainModels().result },
       {
         title: 'Instructions',
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           Requirements と Domain Modelsに基づいて、以下のように情報を展開してください。
           指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
           - Entities => Attributes
@@ -139,7 +140,7 @@ class Step0010_DomainModelsInitialize extends BaseStepForSpring {
         `)
       }, {
         title: 'Output rules',
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           トークン数をなるべく節約するため、以下の点に注意してください。
           - 項目の区切り文字はパイプ区切り、パイプ区切りの中で更に分ける場合はカンマ区切りとすること。
         `),
@@ -172,7 +173,7 @@ class Step0020_DomainModelsClassify extends BaseStepForSpring {
       `)
       }, {
         title: 'Instructions',
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
           Requirements, Domain Models Base, Domain Model Refined を基に、以下の情報を展開してください。
           - Domain Events => Attributes, Description
@@ -195,7 +196,7 @@ class Step0020_DomainModelsClassify extends BaseStepForSpring {
         `)
       }, {
         title: 'Output rules',
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           トークン数をなるべく節約するため、以下の点に注意してください。
           - 項目の区切り文字はパイプ区切り、パイプ区切りの中で更に分ける場合はカンマ区切りとすること。
         `),
@@ -258,7 +259,7 @@ class Step0030_domainModelsJson extends MultiStep {
           { title: 'Domain Models', content: domainModelString },
           {
             title: 'Instructions',
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               ドメインモデルから${pattern}を抽出して下さい。
             `),
             content: Utils.trimLines(`
@@ -266,7 +267,7 @@ class Step0030_domainModelsJson extends MultiStep {
             `)
           }, {
             title: 'Output rules',
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               JSON形式で出力してください。
               ${formatMap[pattern]}
             `),
@@ -346,7 +347,7 @@ class Step0040_domainModelEntityAndDomainServiceJson extends MultiStep {
           { title: 'Domain Models', content: domainModelString },
           {
             title: 'Instructions',
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               ドメインモデルを参照し、BoundexContextが"${boundedContext}"の${pattern}のみを抽出して以下のJSON形式に変換してください。
               ${formatMap[pattern]}
             `),
@@ -425,7 +426,7 @@ class Step0050_CreateAPI extends MultiStep {
           // { title: `Table Definitions`, content: tableModels.map((tableModel: TableModel) => tableModel.toDDL()).join('\n'), },
           {
             title: `Instructions`,
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               Domain Modelsに基づいて、${Object.keys(boundedContext.DomainServices).join(', ')} のAPI仕様書を作成してください。
               指示はあくまでガイドラインです。指示を元に想起されるノウハウを自己補完しながら進めてください。
               - Request / Response の型を詳細に正確に定義してください。必ずしもモデルと一緒ではないはずです。
@@ -523,7 +524,7 @@ class Step0060_CreateServiceDoc extends MultiStep {
           },
           {
             title: `Instructions`,
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               ${serviceName}の詳細設計書を作成します。
               要件定義書とドメインモデルを参照し、各メソッドに実装すべき手順を詳細に記載してください。全ての分岐パターンを網羅するようにしてください。
               設計書の出力形式は Output Format に則ってください。
@@ -537,7 +538,7 @@ class Step0060_CreateServiceDoc extends MultiStep {
               { title: `Service methods`, content: methList.join('\n') },
               {
                 title: `Output Format`,
-                contentJp: Utils.trimLines(`
+                contentJa: Utils.trimLines(`
                   出力は以下のJSON形式で出力してください。読み取り可能なJSON形式である必要があります。改行やダブルクオーテーションを含む文字列は改行コードをエスケープしたうえで含めて出力してください。
                   \`\`\`md
                   # \${serviceName}
@@ -612,7 +613,7 @@ class Step0070_CreateServiceDocToJson extends MultiStep {
         this.chapters = [
           {
             title: `Instructions`,
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               以下の詳細設計書を Output Format に則ってJSONに変換してください。
             `),
             content: Utils.trimLines(`
@@ -622,7 +623,7 @@ class Step0070_CreateServiceDocToJson extends MultiStep {
               { title: `Service Document`, content: '\`\`\`md\n' + step0060?.result + '\n\`\`\`' },
               {
                 title: `Output Format`,
-                contentJp: Utils.trimLines(`
+                contentJa: Utils.trimLines(`
                   出力は以下のJSON形式で出力してください。読み取り可能なJSON形式である必要があります。改行やダブルクオーテーションを含む文字列は改行コードをエスケープしたうえで含めて出力してください。
                   \`\`\`json
                   {"\${methodName}": {"procedure": "\${Procedure}", "error": [{"code": "\${Error code}","message":"\${Error body}"}]} }
@@ -701,7 +702,7 @@ class Step0080_ImplementService extends MultiStep {
           { title: `Base Code`, content: fs.readFileSync(`./gen/src/main/java/com/example/demo/service/impl/${serviceName}Impl.java.md`, 'utf-8') },
           {
             title: `Instructions`,
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               Requirements と Domain Modelsの内容を理解してBase Code "${serviceName}"の全てのメソッドの実装を書いて下さい。
               対象は以下の通りです。
               - ${domainModel.DomainServices[serviceName].Methods.map((method) => method.name).join(', ')}
@@ -734,7 +735,7 @@ class Step0080_ImplementService extends MultiStep {
           },
           {
             title: `Output Format`,
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               出力は以下のJSON形式で出力してください。読み取り可能なJSON形式である必要があります。改行やダブルクオーテーションを含む文字列は改行コードをエスケープしたうえで含めて出力してください。
               \`\`\`json
               {"additionalImports": ["\${import}"], "additionalJPAMethods": ["\${repository method}"], "methods": {"\${methodName}": {"annotations":["\${method annotation}"],"body":"\${body source code of methods, which replaces \\"TODO implementation\\" without method signature}"} }}
@@ -775,56 +776,70 @@ class Step0080_ImplementService extends MultiStep {
   }
 }
 
-export async function main() {
+export function main() {
   let obj;
-  return Promise.resolve().then(() => {
-    //   obj = new Step0000_RequirementsToDomainModels();
-    //   obj.initPrompt();
-    //   return obj.run();
-    // }).then(() => {
-    //   obj = new Step0005_RequirementsToSystemOverview();
-    //   obj.initPrompt();
-    //   return obj.run();
-    // }).then(() => {
-    //   obj = new Step0010_DomainModelsInitialize();
-    //   obj.initPrompt();
-    //   return obj.run();
-    // }).then(() => {
-    //   obj = new Step0020_DomainModelsClassify();
-    //   obj.initPrompt();
-    //   return obj.run();
-    // }).then(() => {
-    //   obj = new Step0030_domainModelsJson();
-    //   obj.initPrompt();
-    //   return obj.run();
-  }).then(() => {
-    obj = new Step0040_domainModelEntityAndDomainServiceJson();
-    obj.initPrompt();
-    return obj.run();
-    //   Step0040_domainModelEntitysJson.genSteps().forEach((step) => step.postProcess(step.result));
-  }).then(() => {
-    obj = new Step0050_CreateAPI();
-    obj.initPrompt();
-    return obj.run();
-    // obj.childStepList.forEach((step) => step.postProcess(step.result));
-  }).then(() => {
-    obj = new Step0060_CreateServiceDoc();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new Step0070_CreateServiceDocToJson();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    genEntityAndRepository();
-  }).then(() => {
-    obj = new Step0080_ImplementService();
-    obj.initPrompt();
-    return obj.run();
-    // obj.childStepList.forEach((step) => step.postProcess(step.result));
-  }).then(() => {
-    serviceImpl();
-  }).then(() => {
+
+  of(null).pipe(
+    concatMap(() => {
+      obj = getStepInstance(Step0000_RequirementsToDomainModels);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = getStepInstance(Step0005_RequirementsToSystemOverview);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = getStepInstance(Step0010_DomainModelsInitialize);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = getStepInstance(Step0020_DomainModelsClassify);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = getStepInstance(Step0030_domainModelsJson);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = getStepInstance(Step0040_domainModelEntityAndDomainServiceJson);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = getStepInstance(Step0050_CreateAPI);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = getStepInstance(Step0060_CreateServiceDoc);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = getStepInstance(Step0070_CreateServiceDocToJson);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      return of(genEntityAndRepository());
+    }),
+    concatMap(() => {
+      obj = getStepInstance(Step0080_ImplementService);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      return of(serviceImpl());
+    }),
+  ).subscribe({
+    // next: result => console.log("Result:", result),
+    error: err => console.error("Error:", err),
+    complete: () => console.log("All steps completed.")
   });
 }
 // main();

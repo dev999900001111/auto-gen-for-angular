@@ -7,6 +7,7 @@ import { genIndex } from './react-service.js';
 import { ReactCodeGenerator } from './react-service.js';
 import { ModelControlClass, ServiceClass, ServiceClassMethod, ModelClass, ClassProp } from '../../domain-models/to-use.js';
 import { GPTModels } from '../../common/openai-api-wrapper.js';
+import { concatMap, of } from 'rxjs';
 
 
 /**
@@ -631,80 +632,103 @@ class Step0140_makeScreen extends BaseStepForReact {
 }
 
 const HISTORY_DIRE = `./history`;
-export async function main() {
+export function main() {
   try { fs.mkdirSync(`./prompts`, { recursive: true }); } catch (e) { }
   try { fs.mkdirSync(`${HISTORY_DIRE}`, { recursive: true }); } catch (e) { }
 
   let obj;
-  // obj = new Step0000_RequirementsToComponentList();
-  // obj.initPrompt();
-  // await obj.run();
 
-  // obj = new Step0010_ComponentList_to_ReactComponentList();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0020_ReactComponentList_to_ReactComponentJson();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0030_requirements_to_systemOverview();
-  // obj.initPrompt();
-  // await obj.run();
-
-
-  // obj = new Step0040_makeReactService();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0050_makeReactModel();
-  // obj.initPrompt();
-  // await obj.run();
-
-
-  // obj = new Step0060_makeReactModelSource();
-  // obj.initPrompt();
-  // await obj.run();
-
-
-  // obj = new Step0065_ReactModelList_to_Json();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0070_makeApiList();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0080_makeReactServiceJson();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // new Step0080_makeReactServiceJson().postProcess(new Step0080_makeReactServiceJson().result);
-
-  // obj = new Step0100_ApiListJson();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new MultiStep(Step0102_createJSONdata.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new Step0105_componentList_to_Json();
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new MultiStep(Step0120_makeScreenSpec.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-
-  // obj = new MultiStep(Step0130_makeScreenSpecJSON.genSteps());
-  // obj.initPrompt();
-  // await obj.run();
-
-  obj = new MultiStep(Step0140_makeScreen.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
+  of(null).pipe(
+    concatMap(() => {
+      obj = new Step0000_RequirementsToComponentList();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0010_ComponentList_to_ReactComponentList();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0020_ReactComponentList_to_ReactComponentJson();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0030_requirements_to_systemOverview();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0040_makeReactService();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0050_makeReactModel();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0060_makeReactModelSource();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0065_ReactModelList_to_Json();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0070_makeApiList();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0080_makeReactServiceJson();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      const step = new Step0080_makeReactServiceJson();
+      step.postProcess(step.result);
+      return of(null);
+    }),
+    concatMap(() => {
+      obj = new Step0100_ApiListJson();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step0102_createJSONdata.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0105_componentList_to_Json();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step0120_makeScreenSpec.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step0130_makeScreenSpecJSON.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step0140_makeScreen.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+  ).subscribe({
+    // next: result => console.log("Result:", result),
+    error: err => console.error("Error:", err),
+    complete: () => console.log("All steps completed.")
+  });
   // obj = Step0140_makeScreen.genSteps()[0];
   // Step0140_makeScreen.genSteps().forEach(step => step.preProcess(fs.readFileSync(step.promptPath, 'utf-8')));
   // Step0140_makeScreen.genSteps().forEach(step => { step.preProcess(step.prompt); step.postProcess(step.result) });

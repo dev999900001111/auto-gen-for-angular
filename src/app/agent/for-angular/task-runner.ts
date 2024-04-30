@@ -4,6 +4,7 @@ import { BaseStep, MultiStep, StepOutputFormat } from '../../common/base-step.js
 import { RepoSyncer } from '../../common/repo-syncer.js';
 import { GenModuleFiles, genIndex } from './gen-angular-modules.js';
 import { GPTModels } from '../../common/openai-api-wrapper.js';
+import { concatMap, of } from 'rxjs';
 
 /**
  * このエージェント用の共通設定。
@@ -838,7 +839,7 @@ class Step016_AngularTypescript extends BaseStepForAngular {
     return prompt;
   }
   postProcess(result: string): string {
-    result = Utils.convertCodeBlocks(result)
+    result = Utils.mdTrim(result)
       .replace(/from '\.\.\/services\/.*'/g, 'from \'../../services\'')
       .replace(/from '\.\.\/services'/g, 'from \'../../services\'')
       .replace(/from '\.\.\/models\/.*'/g, 'from \'../../models\'')
@@ -878,94 +879,117 @@ class Step016_AngularTypescript extends BaseStepForAngular {
 }
 
 const HISTORY_DIRE = `./history`;
-export async function main() {
-
+export function main() {
   let obj;
-  obj = new Step000_RequirementsToComponentList();
-  obj.initPrompt();
-  await obj.run();
 
-  obj = new Step001_componentList_to_angularComponentList();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step002_angularComponentList_to_angularComponentJson();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step003_requirements_to_systemOverview();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step004_makeAngularService();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step005_makeAngularModel();
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new Step006_makeAngularModelSource();
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new Step011_AngularModelList_to_Json();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step007_makeApiList();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step008_makeAngularServiceJson();
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new MultiStep(Step009_makeAngularServiceSrouce.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new Step010_ApiListJson();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new MultiStep(Step010_createJSONdata.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new Step010_componentList_to_Json();
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new MultiStep(Step012_makeScreenSpec.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new MultiStep(Step013_makeScreenSpecJSON.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new MultiStep(Step014_makeScreenHtml.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-  obj = new MultiStep(Step015_ScreenProp.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new MultiStep(Step015_ScreenPropJSON.genSteps());
-  obj.initPrompt();
-  await obj.run();
-
-
-  obj = new MultiStep(Step016_AngularTypescript.genSteps());
-  obj.initPrompt();
-  await obj.run();
-  new GenModuleFiles().exec();
+  of(null).pipe(
+    concatMap(() => {
+      obj = new Step000_RequirementsToComponentList();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step001_componentList_to_angularComponentList();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step002_angularComponentList_to_angularComponentJson();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step003_requirements_to_systemOverview();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step004_makeAngularService();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step005_makeAngularModel();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step006_makeAngularModelSource();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step011_AngularModelList_to_Json();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step007_makeApiList();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step008_makeAngularServiceJson();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step009_makeAngularServiceSrouce.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step010_ApiListJson();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step010_createJSONdata.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step010_componentList_to_Json();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step012_makeScreenSpec.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step013_makeScreenSpecJSON.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step014_makeScreenHtml.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step015_ScreenProp.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step015_ScreenPropJSON.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new MultiStep(Step016_AngularTypescript.genSteps());
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      return of(new GenModuleFiles().exec());
+    }),
+  ).subscribe({
+    // next: result => console.log("Result:", result),
+    error: err => console.error("Error:", err),
+    complete: () => console.log("All steps completed.")
+  });
 }
 // main();

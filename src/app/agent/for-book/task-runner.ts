@@ -1,8 +1,9 @@
 import * as  fs from 'fs';
 import { Utils } from '../../common/utils.js';
-import { BaseStep, MultiStep, StepOutputFormat } from '../../common/base-step.js';
+import { BaseStep, MultiStep, StepOutputFormat, getStepInstance } from '../../common/base-step.js';
 import { ObjectModel, TreeModel } from '../for-novel/models.js';
 import { GPTModels } from '../../common/openai-api-wrapper.js';
+import { concatMap, of } from 'rxjs';
 
 /**
  * このエージェント用の共通設定。
@@ -19,7 +20,7 @@ abstract class BaseStepForBook extends BaseStep {
 const direDomainModels = `./gen/domain-models/`;
 const INSTRUCTION = [{
   title: 'Client profile',
-  contentJp: Utils.trimLines(`
+  contentJa: Utils.trimLines(`
     上級プログラマー。経験年数は以下の通り。
     - Java 10年
     - javascript/typescript 5年
@@ -40,7 +41,7 @@ const INSTRUCTION = [{
   // クライアントは仕事で新たにGO言語を習得する必要があるが、GO言語の参考書は初心者向けのものが多く、専門的なものが少ない。
   // また、習熟度の高いJavaやjavascriptとの比較を交えて、GO言語の特徴を理解するための参考書が無く困っている。
   title: 'Client\'s troubles',
-  contentJp: Utils.trimLines(`
+  contentJa: Utils.trimLines(`
     apache kafkaについて学びたい。
     ハイレベルな成果を求められているため、網羅的に、かつ高度な内容を学びたいが適切な参考書がなくて困っている。
     サンプルコードなどを交えて学習したい。
@@ -73,7 +74,7 @@ class Step0000_DrillDowner extends BaseStepForBook {
       ...INSTRUCTION,
       {
         title: `Instructions`,
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           クライアントにベストな参考書を届けるために以下のステップバイステップで作業してください。
           必要であればどれだけ長大な本になっても良いです。
           - クライアントのプロフィールをよく理解して、参考書の難易度を決めてください。
@@ -97,7 +98,7 @@ class Step0000_DrillDowner extends BaseStepForBook {
         `),
       }, {
         title: 'Output rules',
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           以下のJSON形式で出力してください。
           \`\`\`json
           {"title": "\${title}", "level":"\${Difficulty of reference books}","customizePoints":["\${point}"],"chapters":[{"title": "\${title}", "description": "\${description}\","sections":[{"title": "\${title}", "description": "\${description}\"}]}]}
@@ -178,7 +179,7 @@ class Step0020_DrillDowner2 extends MultiStep {
           { title: 'Table of Contents.', content: `\`\`\`markdown\n${tableOfContent}\n\`\`\`` },
           {
             title: `Instructions`,
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               クライアントのプロフィール、悩みに合わせてステップバイステップで参考書を執筆してください。
               対象は目次に示した「${section.title}」のみです。他の項は他の人が担当します。
             `),
@@ -188,7 +189,7 @@ class Step0020_DrillDowner2 extends MultiStep {
             `),
           }, {
             title: 'Output rules',
-            contentJp: Utils.trimLines(`Markdown形式で、日本語で出力してください。`),
+            contentJa: Utils.trimLines(`Markdown形式で、日本語で出力してください。`),
             content: Utils.trimLines(`Please output in Markdown format. Language is Japanese.`),
           }
         ];
@@ -216,32 +217,34 @@ class Step0020_DrillDowner2 extends MultiStep {
   }
 }
 
-export async function main() {
+
+export function main() {
   let obj;
-  return Promise.resolve().then(() => {
-    obj = new Step0000_DrillDowner();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-    obj = new Step0020_DrillDowner2();
-    obj.initPrompt();
-    return obj.run();
-    // obj.postProcess(obj.childStepList.map(step => step.result));
-  }).then(() => {
-    //   obj = new Step0030_DrillDowner();
-    //   obj.initPrompt();
-    //   return obj.run();
-    // }).then(() => {
-    //   obj = new Step0040_DrillDowner();
-    //   obj.initPrompt();
-    //   return obj.run();
-    // }).then(() => {
-    //   obj = new Step0050_DrillDowner();
-    //   obj.initPrompt();
-    //   return obj.run();
-  }).then(() => {
-  }).then(() => {
-    // model();
+
+  of(null).pipe(
+    concatMap(() => {
+      obj = getStepInstance(Step0000_DrillDowner);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = getStepInstance(Step0020_DrillDowner2);
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      // This step appears to be empty in the original code.
+      return of(null);
+    }),
+    concatMap(() => {
+      // This step appears to be commented out in the original code.
+      // model();
+      return of(null);
+    }),
+  ).subscribe({
+    // next: result => console.log("Result:", result),
+    error: err => console.error("Error:", err),
+    complete: () => console.log("All steps completed.")
   });
 }
 // main();

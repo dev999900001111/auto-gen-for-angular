@@ -3,6 +3,7 @@ import { Utils } from '../../common/utils.js';
 import { BaseStep, MultiStep, StepOutputFormat } from '../../common/base-step.js';
 import { ObjectModel, TreeModel } from './models.js';
 import { GPTModels } from '../../common/openai-api-wrapper.js';
+import { concatMap, of } from 'rxjs';
 
 /**
  * このエージェント用の共通設定。
@@ -27,10 +28,10 @@ class Step0000_DrillDowner extends BaseStepForNovel {
     super();
     this.chapters = [
       // { title: 'Target Element', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
-      { title: 'Target Element', contentJp: `小説を書くためのポイント`, content: `Points for writing a novel`, },
+      { title: 'Target Element', contentJa: `小説を書くためのポイント`, content: `Points for writing a novel`, },
       {
         title: `Instructions`,
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           Target Element に提示されている要素をさらに詳細な要素に分解してください。
         `),
         content: Utils.trimLines(`
@@ -38,7 +39,7 @@ class Step0000_DrillDowner extends BaseStepForNovel {
         `),
       }, {
         title: 'Output rules',
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           以下のJSON形式で出力してください。
           \`\`\`json
           {"name": "\${name}", "definition": "\${definition}", "elements":[{"name": "\${name}", "definition": "\${definition}"},]}
@@ -77,7 +78,7 @@ class Step0020_DrillDowner2 extends MultiStep {
           { title: 'Target Element', content: obj.elements[index].name },
           {
             title: `Instructions`,
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               Target Element に提示されている要素をさらに詳細な要素に分解してください。
             `),
             content: Utils.trimLines(`
@@ -85,7 +86,7 @@ class Step0020_DrillDowner2 extends MultiStep {
             `),
           }, {
             title: 'Output rules',
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               以下のJSON形式で出力してください。
               \`\`\`json
               {"definition": "\${definition}", "elements":[{"name": "\${name}", "definition": "\${definition}"},]}
@@ -115,23 +116,23 @@ class Step0030_DrillDowner extends BaseStepForNovel {
     super();
     this.chapters = [
       // { title: 'Target Element', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
-      // { title: 'Target Element', contentJp: `小説を書くためのポイント`, content: `Points for writing a novel`, },
+      // { title: 'Target Element', contentJa: `小説を書くためのポイント`, content: `Points for writing a novel`, },
       {
         title: 'Inspiration for the novel',
         children: [
           {
             title: 'Theme',
-            contentJp: '秘密の恋愛と陰謀',
+            contentJa: '秘密の恋愛と陰謀',
             content: 'Secret love and conspiracy',
           },
           {
             title: 'Title',
-            contentJp: '運命の幕開け：愛と陰謀の華麗なる舞台',
+            contentJa: '運命の幕開け：愛と陰謀の華麗なる舞台',
             content: 'The beginning of fate: a magnificent stage of love and conspiracy',
           },
           {
             title: 'Synopsis',
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               19世紀のパリ、オペラ座には美しいバレリーナ、エミリアがいた。彼女はオペラ座の一座のスターであり、多くの男性たちの心を虜にしていた。しかし、彼女自身は秘密の恋愛に落ちていた。
               彼女の恋人は、若き貴族のアレクサンドル。彼らはオペラ座の地下に密かな逢瀬の場所を持っていた。しかし、アレクサンドルの家族はエミリアとの関係を許さないと決めており、陰謀を巡らせていた。
               アレクサンドルの兄、ヴィクトールはエミリアとの関係を利用し、オペラ座の支配権を手に入れようとしていた。彼はオペラ座の舞台裏で秘密の集会を開き、陰謀の渦にエミリアを巻き込んでいく。
@@ -157,7 +158,7 @@ class Step0030_DrillDowner extends BaseStepForNovel {
       },
       {
         title: 'Elements to be considered',
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           - 舞台設定：物語が展開する時間と場所
              - 時代背景: 物語が発生する具体的な時代や歴史的な文脈
              - 地理的な位置: 物語が展開する物理的な場所や場所
@@ -222,7 +223,7 @@ class Step0030_DrillDowner extends BaseStepForNovel {
       },
       {
         title: `Instructions`,
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           Inspiration for the novel に書かれた内容を膨らませて物語を作成していきます。
           Elements to be considered に書かれた分類で物語の要素を整理し、それぞれの要素について考えていきます。
           あなたは舞台設定の担当です。（プロットやキャラクターなどの他の要素は別の人が担当します。）
@@ -248,7 +249,7 @@ class Step0030_DrillDowner extends BaseStepForNovel {
         `),
       }, {
         title: 'Output rules',
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           以下のJSON形式で出力してください。
           \`\`\`json
           {"name": "\${name}", "definition": "\${definition}", "elements":[{"name": "\${name}", "definition": "\${definition}"},]}
@@ -291,23 +292,23 @@ class Step0040_DrillDowner extends MultiStep {
 
         this.chapters = [
           // { title: 'Target Element', content: fs.readFileSync(`./000-requirements.md`, 'utf-8') },
-          // { title: 'Target Element', contentJp: `小説を書くためのポイント`, content: `Points for writing a novel`, },
+          // { title: 'Target Element', contentJa: `小説を書くためのポイント`, content: `Points for writing a novel`, },
           {
             title: 'Inspiration for the novel',
             children: [
               {
                 title: 'Theme',
-                contentJp: '秘密の恋愛と陰謀',
+                contentJa: '秘密の恋愛と陰謀',
                 content: 'Secret love and conspiracy',
               },
               {
                 title: 'Title',
-                contentJp: '運命の幕開け：愛と陰謀の華麗なる舞台',
+                contentJa: '運命の幕開け：愛と陰謀の華麗なる舞台',
                 content: 'The beginning of fate: a magnificent stage of love and conspiracy',
               },
               {
                 title: 'Synopsis',
-                contentJp: Utils.trimLines(`
+                contentJa: Utils.trimLines(`
                   19世紀のパリ、オペラ座には美しいバレリーナ、エミリアがいた。彼女はオペラ座の一座のスターであり、多くの男性たちの心を虜にしていた。しかし、彼女自身は秘密の恋愛に落ちていた。
                   彼女の恋人は、若き貴族のアレクサンドル。彼らはオペラ座の地下に密かな逢瀬の場所を持っていた。しかし、アレクサンドルの家族はエミリアとの関係を許さないと決めており、陰謀を巡らせていた。
                   アレクサンドルの兄、ヴィクトールはエミリアとの関係を利用し、オペラ座の支配権を手に入れようとしていた。彼はオペラ座の舞台裏で秘密の集会を開き、陰謀の渦にエミリアを巻き込んでいく。
@@ -338,7 +339,7 @@ class Step0040_DrillDowner extends MultiStep {
           },
           {
             title: 'Elements to be considered',
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               - 舞台設定：物語が展開する時間と場所
                  - 時代背景: 物語が発生する具体的な時代や歴史的な文脈
                  - 地理的な位置: 物語が展開する物理的な場所や場所
@@ -403,7 +404,7 @@ class Step0040_DrillDowner extends MultiStep {
           },
           {
             title: `Instructions`,
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               Inspiration for the novel に書かれた内容を膨らませて物語を作成していきます。
               あなたは舞台設定の担当で、のSettingも先程あなたが書いたものです。（プロットやキャラクターなどの他の要素は別の人が担当します。）
               先程書いてくれたGeographyの部分について、より詳細に考えて下さい。
@@ -425,7 +426,7 @@ class Step0040_DrillDowner extends MultiStep {
             `),
           }, {
             title: 'Output rules',
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               以下のJSON形式で出力してください。
               \`\`\`json
               {"name": "\${name}", "definition": "\${definition}", "elements":[{"name": "\${name}", "definition": "\${definition}"},]}
@@ -463,11 +464,11 @@ class Step0050_DrillDowner extends BaseStepForNovel {
       {
         title: 'Inspiration for the novel',
         children: [
-          { title: 'Theme', contentJp: '秘密の恋愛と陰謀', content: 'Secret love and conspiracy', },
-          { title: 'Title', contentJp: '運命の幕開け：愛と陰謀の華麗なる舞台', content: 'The beginning of fate: a magnificent stage of love and conspiracy', },
+          { title: 'Theme', contentJa: '秘密の恋愛と陰謀', content: 'Secret love and conspiracy', },
+          { title: 'Title', contentJa: '運命の幕開け：愛と陰謀の華麗なる舞台', content: 'The beginning of fate: a magnificent stage of love and conspiracy', },
           {
             title: 'Synopsis',
-            contentJp: Utils.trimLines(`
+            contentJa: Utils.trimLines(`
               19世紀のパリ、オペラ座には美しいバレリーナ、エミリアがいた。彼女はオペラ座の一座のスターであり、多くの男性たちの心を虜にしていた。しかし、彼女自身は秘密の恋愛に落ちていた。
               彼女の恋人は、若き貴族のアレクサンドル。彼らはオペラ座の地下に密かな逢瀬の場所を持っていた。しかし、アレクサンドルの家族はエミリアとの関係を許さないと決めており、陰謀を巡らせていた。
               アレクサンドルの兄、ヴィクトールはエミリアとの関係を利用し、オペラ座の支配権を手に入れようとしていた。彼はオペラ座の舞台裏で秘密の集会を開き、陰謀の渦にエミリアを巻き込んでいく。
@@ -488,7 +489,7 @@ class Step0050_DrillDowner extends BaseStepForNovel {
       },
       {
         title: `Instructions`,
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           Inspiration for the novel に書かれた内容を膨らませて物語を作成していきます。
           この小説を書くに当たって、この物語独特なものとして重点的に作りこむべき要素を列挙してください。
         `),
@@ -498,7 +499,7 @@ class Step0050_DrillDowner extends BaseStepForNovel {
         `),
       }, {
         title: 'Output rules',
-        contentJp: Utils.trimLines(`
+        contentJa: Utils.trimLines(`
           以下のJSON形式で出力してください。日本語で出力してください。
           \`\`\`json
           {"name": "\${name}", "definition": "\${definition}", "elements":[{"name": "\${name}", "definition": "\${definition}"},]}
@@ -557,31 +558,43 @@ function model() {
   // });
 }
 
-export async function main() {
+export function main() {
   let obj;
-  return Promise.resolve().then(() => {
-    // obj = new Step0000_DrillDowner();
-    // obj.initPrompt();
-    // return obj.run();
-  }).then(() => {
-    // obj = new Step0020_DrillDowner2();
-    // obj.initPrompt();
-    // return obj.run();
-    // }).then(() => {
-    //   obj = new Step0030_DrillDowner();
-    //   obj.initPrompt();
-    //   return obj.run();
-    // }).then(() => {
-    //   obj = new Step0040_DrillDowner();
-    //   obj.initPrompt();
-    //   return obj.run();
-  }).then(() => {
-    obj = new Step0050_DrillDowner();
-    obj.initPrompt();
-    return obj.run();
-  }).then(() => {
-  }).then(() => {
-    // model();
+
+  of(null).pipe(
+    concatMap(() => {
+      obj = new Step0000_DrillDowner();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0020_DrillDowner2();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0030_DrillDowner();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0040_DrillDowner();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      obj = new Step0050_DrillDowner();
+      obj.initPrompt();
+      return obj.run();
+    }),
+    concatMap(() => {
+      // model();
+      return of(null); // Assuming model() is synchronous and doesn't return a value
+    }),
+  ).subscribe({
+    // next: result => console.log("Result:", result),
+    error: err => console.error("Error:", err),
+    complete: () => console.log("All steps completed.")
   });
 }
 // main();
