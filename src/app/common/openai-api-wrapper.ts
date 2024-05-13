@@ -465,12 +465,13 @@ export class OpenAIApiWrapper {
     // レートリミット情報
     currentRatelimit: { [key: string]: Ratelimit } = {
         // openai
-        'gpt3.5  ': { limitRequests: 3500, limitTokens: 160000, remainingRequests: 1, remainingTokens: 4000, resetRequests: '0ms', resetTokens: '0s', },
-        'gpt3-16k': { limitRequests: 3500, limitTokens: 160000, remainingRequests: 1, remainingTokens: 16000, resetRequests: '0ms', resetTokens: '0s', },
-        'gpt4    ': { limitRequests: 5000, limitTokens: 80000, remainingRequests: 1, remainingTokens: 8000, resetRequests: '0ms', resetTokens: '0s', },
-        'gpt4-32k': { limitRequests: 5000, limitTokens: 80000, remainingRequests: 1, remainingTokens: 32000, resetRequests: '0ms', resetTokens: '0s', },
-        'gpt4-128': { limitRequests: 500, limitTokens: 300000, remainingRequests: 1, remainingTokens: 128000, resetRequests: '0ms', resetTokens: '0s', },
-        'gpt4-vis': { limitRequests: 5, limitTokens: 300000, remainingRequests: 1, remainingTokens: 128000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt3.5  ': { limitRequests: 10000, limitTokens: 1000000, remainingRequests: 1, remainingTokens: 5000000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt3-16k': { limitRequests: 10000, limitTokens: 1000000, remainingRequests: 1, remainingTokens: 5000000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt4    ': { limitRequests: 10000, limitTokens: 300000, remainingRequests: 1, remainingTokens: 8000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt4-32k': { limitRequests: 10000, limitTokens: 300000, remainingRequests: 1, remainingTokens: 32000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt4-128': { limitRequests: 10000, limitTokens: 800000, remainingRequests: 1, remainingTokens: 128000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt4-vis': { limitRequests: 10000, limitTokens: 800000, remainingRequests: 1, remainingTokens: 128000, resetRequests: '0ms', resetTokens: '0s', },
+        'gpt4-o  ': { limitRequests: 10000, limitTokens: 800000, remainingRequests: 1, remainingTokens: 128000, resetRequests: '0ms', resetTokens: '0s', },
         // groq
         'g-mxl-87': { limitRequests: 10, limitTokens: 100000, remainingRequests: 1, remainingTokens: 128000, resetRequests: '0ms', resetTokens: '0s', },
         'g-lm2-70': { limitRequests: 10, limitTokens: 100000, remainingRequests: 1, remainingTokens: 128000, resetRequests: '0ms', resetTokens: '0s', },
@@ -811,7 +812,7 @@ export class TokenCount {
         'gpt-4-1106-preview': 'gpt4-128',
         'gpt-4-0125-preview': 'gpt4-128',
         'gpt-4-vision-preview': 'gpt4-vis',
-        'gpt-4-o': 'gpt4-o  ',
+        'gpt-4o': 'gpt4-o  ',
         'gpt-4o-2024-05-13': 'gpt4-o  ',
         'gpt-3.5-turbo': 'gpt3-16k',
         'gpt-3.5-turbo-0125': 'gpt3-16k',
