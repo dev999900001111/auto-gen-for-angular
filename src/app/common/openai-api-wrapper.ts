@@ -441,7 +441,9 @@ class RunBit {
         return runPromise;
     };
 }
-
+const VISION_MODELS = ['gpt-4o', 'gpt-4o-2024-05-13', 'gpt-4-turbo', 'gpt-4-turbo-2024-04-09', 'gpt-4-turbo-preview', 'gpt-4-vision-preview'];
+const JSON_MODELS = ['gpt-4o', 'gpt-4o-2024-05-13', 'gpt-4-turbo', 'gpt-4-turbo-2024-04-09', 'gpt-4-turbo-preview', 'gpt-4-1106-preview', 'gpt-4-0125-preview', 'gpt-3.5-turbo', 'gpt-3.5-turbo-1106'];
+const GPT4_MODELS = ['gpt-4o', 'gpt-4o-2024-05-13', 'gpt-4-turbo', 'gpt-4-turbo-2024-04-09', 'gpt-4-turbo-preview', 'gpt-4-1106-preview', 'gpt-4-0125-preview'];
 /**
  * OpenAIのAPIを呼び出すラッパークラス
  */
@@ -527,7 +529,7 @@ export class OpenAIApiWrapper {
             args.stream = true;
 
             // フォーマットがjson指定なのにjsonという文字列が入ってない場合は追加する。
-            if (args.response_format?.type == 'json_object' && ['gpt-4-turbo-preview', 'gpt-4-1106-preview', 'gpt-4-0125-preview', 'gpt-3.5-turbo', 'gpt-3.5-turbo-1106'].indexOf(args.model) !== -1) {
+            if (args.response_format?.type == 'json_object' && JSON_MODELS.indexOf(args.model) !== -1) {
                 const userMessage = args.messages.filter(message => message.role === 'user');
                 const lastUserMessage = args.messages[args.messages.indexOf(userMessage[userMessage.length - 1])];
                 if (!(lastUserMessage.content as string).includes('json')) {
@@ -549,7 +551,7 @@ export class OpenAIApiWrapper {
             } else { }
 
             let imagePrompt = 0;
-            if (['gpt-4-vision-preview'].indexOf(args.model) !== -1) {
+            if (VISION_MODELS.indexOf(args.model) !== -1) {
                 args.messages.forEach(message => {
                     if (Array.isArray(message.content)) {
                         message.content.forEach((content: ChatCompletionContentPart) => {
@@ -610,9 +612,9 @@ export class OpenAIApiWrapper {
             // gpt-4-1106-preview に未対応のため、gpt-4に置き換え。プロンプトのトークンを数えるだけなのでモデルはどれにしてもしても同じだと思われるが。。。
             if (args.model.startsWith('claude-')) {
                 // 本当はAPIの戻りでトークン数を出したいけど、API投げる前にトークン数表示するログにしてしまったので、やむなくtiktokenのトークン数を表示する。APIで入力トークン数がわかったらそれを上書きするようにした。
-                tokenCount.prompt_tokens = getEncoder((['gpt-4-turbo-preview', 'gpt-4-1106-preview', 'gpt-4-0125-preview', 'gpt-4-vision-preview'].indexOf((tokenCount.modelTikToken as any)) !== -1) ? 'gpt-4' : tokenCount.modelTikToken).encode(prompt).length;
+                tokenCount.prompt_tokens = getEncoder((GPT4_MODELS.indexOf((tokenCount.modelTikToken as any)) !== -1) ? 'gpt-4' : tokenCount.modelTikToken).encode(prompt).length;
             } else {
-                tokenCount.prompt_tokens = getEncoder((['gpt-4-turbo-preview', 'gpt-4-1106-preview', 'gpt-4-0125-preview', 'gpt-4-vision-preview'].indexOf((tokenCount.modelTikToken as any)) !== -1) ? 'gpt-4' : tokenCount.modelTikToken).encode(prompt).length;
+                tokenCount.prompt_tokens = getEncoder((GPT4_MODELS.indexOf((tokenCount.modelTikToken as any)) !== -1) ? 'gpt-4' : tokenCount.modelTikToken).encode(prompt).length;
             }
             // tokenCount.prompt_tokens = encoding_for_model((['gpt-4-turbo-preview', 'gpt-4-1106-preview', 'gpt-4-0125-preview', 'gpt-4-vision-preview'].indexOf((tokenCount.modelTikToken as any)) !== -1) ? 'gpt-4' : tokenCount.modelTikToken).encode(prompt).length;
             tokenCount.prompt_tokens += imagePrompt;
@@ -625,11 +627,11 @@ export class OpenAIApiWrapper {
                     this.baseTime = Date.now(); // baseTimeを更新しておく。
                     const prompt_tokens = numForm(tokenCount.prompt_tokens, 6);
                     // 以前は1レスポンス1トークンだったが、今は1レスポンス1トークンではないので、completion_tokensは最後に再計算するようにした。
-                    // tokenCount.completion_tokens = encoding_for_model((['gpt-4-turbo-preview', 'gpt-4-1106-preview', 'gpt-4-0125-preview', 'gpt-4-vision-preview'].indexOf((tokenCount.modelTikToken as any)) !== -1) ? 'gpt-4' : tokenCount.modelTikToken).encode(tokenCount.tokenBuilder ? `<im_start>${tokenCount.tokenBuilder}` : '').length;
+                    // tokenCount.completion_tokens = encoding_for_model((GPT4_MODELS.indexOf((tokenCount.modelTikToken as any)) !== -1) ? 'gpt-4' : tokenCount.modelTikToken).encode(tokenCount.tokenBuilder ? `<im_start>${tokenCount.tokenBuilder}` : '').length;
                     if (args.model.startsWith('claude-')) {
                         // claudeの場合はAPIレスポンスでトークン数がわかっているのでそれを使う。
                     } else {
-                        tokenCount.completion_tokens = getEncoder((['gpt-4-turbo-preview', 'gpt-4-1106-preview', 'gpt-4-0125-preview', 'gpt-4-vision-preview'].indexOf((tokenCount.modelTikToken as any)) !== -1) ? 'gpt-4' : tokenCount.modelTikToken).encode(tokenCount.tokenBuilder ? `<im_start>${tokenCount.tokenBuilder}` : '').length;
+                        tokenCount.completion_tokens = getEncoder((GPT4_MODELS.indexOf((tokenCount.modelTikToken as any)) !== -1) ? 'gpt-4' : tokenCount.modelTikToken).encode(tokenCount.tokenBuilder ? `<im_start>${tokenCount.tokenBuilder}` : '').length;
                     }
                     const completion_tokens = numForm(tokenCount.completion_tokens, 6);
 
@@ -727,6 +729,7 @@ export class OpenAIApiWrapper {
 // TiktokenModelが新モデルに追いつくまでは自己定義で対応する。
 // export type GPTModels = 'gpt-4' | 'gpt-4-0314' | 'gpt-4-0613' | 'gpt-4-32k' | 'gpt-4-32k-0314' | 'gpt-4-32k-0613' | 'gpt-4-turbo-preview' | 'gpt-4-1106-preview' | 'gpt-4-0125-preview' | 'gpt-4-vision-preview' | 'gpt-3.5-turbo' | 'gpt-3.5-turbo-0301' | 'gpt-3.5-turbo-0613' | 'gpt-3.5-turbo-16k' | 'gpt-3.5-turbo-16k-0613';
 export type GPTModels = TiktokenModel
+    | 'gpt-4o-2024-05-13' | 'gpt-4o'
     | 'llama2-70b-4096'
     | 'mixtral-8x7b-32768' | 'open-mistral-7b' | 'mistral-tiny-2312' | 'mistral-tiny' | 'open-mixtral-8x7b'
     | 'mistral-small-2312' | 'mistral-small' | 'mistral-small-2402' | 'mistral-small-latest' | 'mistral-medium-latest' | 'mistral-medium-2312' | 'mistral-medium' | 'mistral-large-latest' | 'mistral-large-2402' | 'mistral-embed'
@@ -747,6 +750,7 @@ export class TokenCount {
         'gpt4-32k': { prompt: 0.06000, completion: 0.12000, },
         'gpt4-vis': { prompt: 0.01000, completion: 0.03000, },
         'gpt4-128': { prompt: 0.01000, completion: 0.03000, },
+        'gpt4-o  ': { prompt: 0.00500, completion: 0.01500, },
         'cla-1.2 ': { prompt: 0.00800, completion: 0.02400, },
         'cla-2   ': { prompt: 0.00800, completion: 0.02400, },
         'cla-2.1 ': { prompt: 0.00800, completion: 0.02400, },
@@ -801,10 +805,14 @@ export class TokenCount {
         'gpt-4-32k': 'gpt4-32k',
         'gpt-4-32k-0314': 'gpt4-32k',
         'gpt-4-32k-0613': 'gpt4-32k',
+        'gpt-4-turbo': 'gpt4-128',
+        'gpt-4-turbo-2024-04-09': 'gpt4-128',
         'gpt-4-turbo-preview': 'gpt4-128',
         'gpt-4-1106-preview': 'gpt4-128',
         'gpt-4-0125-preview': 'gpt4-128',
         'gpt-4-vision-preview': 'gpt4-vis',
+        'gpt-4-o': 'gpt4-o  ',
+        'gpt-4o-2024-05-13': 'gpt4-o  ',
         'gpt-3.5-turbo': 'gpt3-16k',
         'gpt-3.5-turbo-0125': 'gpt3-16k',
         'gpt-3.5-turbo-0301': 'gpt3.5  ',
